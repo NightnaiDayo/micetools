@@ -1,6 +1,6 @@
 # micetools
 
-<div align="center">
+<div align="center" style="margin-bottom: 2rem">
     <img src="https://gitea.tendokyu.moe/Bottersnike/micetools/raw/branch/master/assets/micetools.png" width="70%">
 </div>
 
