@@ -1,0 +1,50 @@
+#ifndef SECTION
+#define SECTION(n, comment)
+#endif
+#ifndef HEADER
+#define HEADER(comment)
+#endif
+
+HEADER("The main config file for micekeychip")
+
+SECTION(pcp, "")
+CFG_int(pcp, control_port, 40106, "The port to bind for control")
+CFG_int(pcp, binary_port, 40107, "The port to bind for binary transfer")
+CFG_bool(pcp, bind_global, false, "Should we bind to 0.0.0.0 instead of 127.0.0.1")
+
+SECTION(keychip, "")
+CFG_hex(keychip, pic_version, 4, 0104, "The version to report for the pic")
+CFG_hex(keychip, dongle_version, 4, 0104, "The version to report for the dongle")
+CFG_str(keychip, status, "available", "Status to report")
+
+SECTION(appboot, "")
+CFG_str(appboot, gameid, "SDEY", "4-letter game ID this keychip is for")
+CFG_hex(appboot, systemflag, 2, 6C, "System flags")
+CFG_int(appboot, modeltype, 2, "System model this keychip is for")
+CFG_int(appboot, formattype, 1, "Not totally sure about this")
+CFG_int(appboot, region, 1, "Region bitmask\n; 8  4  2  1\n; CN EX US JP")
+CFG_str(appboot, platformid, "AAS", "The platform this keychip is for. AAM=AMD, AAS=Nvidia")
+CFG_str(appboot, network, "192.168.103.0", "The subnet this keychip allows for networking. Must be 192.168.103.0 for network checks to pass")
+CFG_int(appboot, dvdflag, 1, "")
+CFG_str(appboot, seed, "C:\\system\\device\\seed.bin", "Path to constant appboot.seed (indev)")
+
+SECTION(crypto, "")
+CFG_bool(crypto, ds_enable, false, "Process keychip.ds.compute?")
+CFG_bool(crypto, ssd_enable, false, "Process keychip.ssd.proof?")
+CFG_str(crypto, table, "C:\\system\\device\\SDEY_Table.dat", "Path to the *_Table.dat file")
+
+SECTION(billing, "")
+CFG_str(billing, keyid, "A69E-01A8888", "This keychip's ID")
+CFG_str(billing, mainid, "", "The board ID")
+CFG_int(billing, playcount, 0, "Initial playcount value")
+CFG_hex(billing, playlimit, 8, 00001400, "Max playcount before lockout")
+CFG_hex(billing, nearfull, 8, 00066048, "Number of plays before reporting to billing")
+CFG_str(billing, pubkey, "C:\\system\\device\\billing.pub", "Path to the billing pubkey (billing.pub)")
+CFG_str(billing, cacert, "C:\\system\\device\\ca.crt", "Path to the root certificate authority (ca.crt)")
+
+#undef CFG_str
+#undef CFG_int
+#undef CFG_bool
+#undef CFG_hex
+#undef SECTION
+#undef HEADER

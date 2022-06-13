@@ -1,0 +1,65 @@
+#include "locate.h"
+
+const char* KNOWN_GAMES[] = {
+    // Preferentially use a decrypted dump if present
+    "maimai_dump_.exe",
+    "maimai.exe",
+};
+
+#ifndef MICELIB
+#ifdef MICE_WIN32
+#define MICELIB "mice86.dll"
+#else  // MICE_WIN32
+#define MICELIB "mice64.dll"
+#endif  // MICE_WIN32
+#endif  // MICELIB
+
+bool locate_file(char* path, size_t len, const char* exe) {
+    WIN32_FIND_DATA fdFile;
+    HANDLE hFind = NULL;
+
+    char work_path[2048];
+    sprintf(work_path, ".\\*.*");
+
+    if ((hFind = FindFirstFile(work_path, &fdFile)) == INVALID_HANDLE_VALUE) return false;
+
+    do {
+        if (!strcmp(fdFile.cFileName, ".") || !strcmp(fdFile.cFileName, "..")) continue;
+
+        if (fdFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+
+        if (!strcmp(fdFile.cFileName, exe)) {
+            snprintf(path, len, ".\\%s", fdFile.cFileName);
+            FindClose(hFind);
+            return true;
+        }
+    } while (FindNextFile(hFind, &fdFile));
+
+    FindClose(hFind);
+    return false;
+}
+
+bool locate_game(char* path, size_t len) {
+    // This is slightly wasteful, but is needed to ensure priority!
+    for (size_t i = 0; i < ((sizeof KNOWN_GAMES) / (sizeof KNOWN_GAMES[0])); i++) {
+        if (locate_file(path, len, KNOWN_GAMES[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool locate_library(char* path, size_t len) {
+    if (locate_file(path, len, MICELIB)) {
+        return true;
+    }
+
+    // Don't call DllMain! We don't want to hook ourself!
+    HANDLE mice = LoadLibraryExA(MICELIB, NULL, DONT_RESOLVE_DLL_REFERENCES);
+    if (mice != NULL) {
+        GetModuleFileNameA(mice, path, len);
+        return true;
+    }
+
+    return false;
+}

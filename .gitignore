@@ -1,0 +1,10 @@
+dist/
+build/
+builddir/
+srcdir/
+.vscode/
+
+# Don't distribute the libpcp sources
+src/micetools/lib/libpcp/
+# And keep build artifacts out of git!
+src/libpcp.lib
