@@ -1,5 +1,9 @@
 # micetools
 
+<div align="center">
+    <img src="https://gitea.tendokyu.moe/Bottersnike/micetools/raw/branch/master/assets/micetools.png" width="70%">
+</div>
+
 For a complete build, ensure to download `libpcp.lib` and place it in `src/`
 prior to running `make`.
 
