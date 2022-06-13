@@ -1,7 +1,5 @@
-# micetools
-
 <div align="center">
-    <img src="https://gitea.tendokyu.moe/Bottersnike/micetools/raw/branch/master/assets/micetools.png" width="70%">
+    <img src="https://gitea.tendokyu.moe/Bottersnike/micetools/raw/branch/master/assets/micetools.png" alt="micetools" width="70%">
 </div>
 <br/>
 
