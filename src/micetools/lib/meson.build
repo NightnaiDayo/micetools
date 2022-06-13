@@ -6,7 +6,7 @@ subdir('json')
 
 fs = import('fs')
 # Handle the fact we aren't distributing the libpcp source
-if fs.is_dir('libpcp')
+if fs.exists('libpcp/libpcp.c')
     subdir('libpcp')
     libpcp_is_static = true
 else
