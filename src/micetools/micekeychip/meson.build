@@ -10,6 +10,7 @@ else
     dependencies += meson.get_compiler('c').find_library('ws2_32')
 endif
 
+rc = import('windows').compile_resources('micekeychip.rc', depend_files: micekeychip_ico)
 executable(
     'micekeychip',
     win_subsystem: 'console',
@@ -22,6 +23,7 @@ executable(
         'callbacks/misc.c',
         'callbacks/tracedata.c',
         'callbacks/storage.c',
+        rc,
     ],
     link_with: link_with,
     dependencies: dependencies,

@@ -17,7 +17,7 @@ VCVARS_64 = C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\V
 all: mice86 dist
 
 mice86:
-	@subst $(BUILD_DRIVE) .
+	-@subst $(BUILD_DRIVE) .
 	@cd /D $(BUILD_DRIVE) \
 	& "$(VCVARS_32)" \
 	& meson setup --cross cross-32.ini $(BUILD_DRIVE)\$(BUILD_DIR_32) \
@@ -25,7 +25,7 @@ mice86:
 	@subst $(BUILD_DRIVE) /D
 
 mice64:
-	@subst $(BUILD_DRIVE) .
+	-@subst $(BUILD_DRIVE) .
 	@cd $(BUILD_DRIVE) \
 	& "$(VCVARS_64)" \
 	& meson setup --cross cross-64.ini $(BUILD_DRIVE)\$(BUILD_DIR_64) \

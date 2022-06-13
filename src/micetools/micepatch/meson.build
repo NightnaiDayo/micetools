@@ -1,8 +1,10 @@
-executable(
+rc = import('windows').compile_resources('micepatch.rc', depend_files: micepatch_ico)
+micepatch = executable(
     'micepatch',
     win_subsystem: 'console',
     sources: [
         'main.c',
+        rc,
     ],
     link_with: [
         mice_lib,
