@@ -3,24 +3,34 @@ BUILD_DIR_32 := $(BUILD_DIR)/build32
 BUILD_DIR_64 := $(BUILD_DIR)/build64
 DIST_DIR := dist
 
+BUILD_DRIVE = M:
+
 MICE_32 = "$(BUILD_DIR_32)/src\mice.exe"
 MICE_64 = "$(BUILD_DIR_64)/src\mice.exe"
 
 VCVARS_32 = C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars32.bat
 VCVARS_64 = C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat
 
+.ONESHELL:
+
 .PHONY: all
 all: mice86 dist
 
 mice86:
-	"$(VCVARS_32)" \
-	& meson setup --backend ninja --cross cross-32.ini $(BUILD_DIR_32) \
-	& meson compile -C $(BUILD_DIR_32)
+	@subst $(BUILD_DRIVE) .
+	@cd /D $(BUILD_DRIVE) \
+	& "$(VCVARS_32)" \
+	& meson setup --cross cross-32.ini $(BUILD_DRIVE)\$(BUILD_DIR_32) \
+	& meson compile -C $(BUILD_DRIVE)\$(BUILD_DIR_32)
+	@subst $(BUILD_DRIVE) /D
 
 mice64:
-	"$(VCVARS_64)" \
-	& meson setup --cross cross-64.ini $(BUILD_DIR_64) \
-	& meson compile -C $(BUILD_DIR_64)
+	@subst $(BUILD_DRIVE) .
+	@cd $(BUILD_DRIVE) \
+	& "$(VCVARS_64)" \
+	& meson setup --cross cross-64.ini $(BUILD_DRIVE)\$(BUILD_DIR_64) \
+	& meson compile -C $(BUILD_DRIVE)\$(BUILD_DIR_64)
+	@subst $(BUILD_DRIVE) /D
 
 .PHONY: clean
 clean:
