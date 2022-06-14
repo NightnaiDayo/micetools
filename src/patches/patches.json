@@ -1,0 +1,51 @@
+[
+    {
+        "name": "maimai Finale logs",
+        "description": "Enable logging facilities",
+        "binary_name": "maimai_dump_.exe",
+        "apply": true,
+        "patches_file": "maimai_dump_.patch.json"
+    },
+    {
+        "name": "mxnetwork logs",
+        "description": "Enable logging facilities",
+        "binary_name": "mxnetwork.exe",
+        "apply": true,
+        "patches_file": "mxnetwork.patch.json"
+    },
+    {
+        "name": "maimai 1.00 logs",
+        "description": "Enable logging facilities",
+        "binary_name": "Game.exe",
+        "apply": true,
+        "patches_file": "Game.patch.json"
+    },
+    {
+        "name": "ALLNetProc logs",
+        "description": "Enable logging facilities",
+        "binary_name": "ALLNetProc.exe",
+        "apply": true,
+        "patches_file": "ALLNetProc.patch.json"
+    },
+    {
+        "name": "ALLNetProc logs",
+        "description": "Enable logging facilities (alt filename)",
+        "binary_name": "ALLNetProc_win.exe",
+        "apply": true,
+        "patches_file": "ALLNetProc.patch.json"
+    },
+    {
+        "name": "mxsegaboot logs",
+        "description": "Enable logging facilities",
+        "binary_name": "mxsegaboot.exe",
+        "apply": true,
+        "patches_file": "mxsegaboot.patch.json"
+    },
+    {
+        "name": "mxsegaboot logs",
+        "description": "Enable logging facilities (alt filename)",
+        "binary_name": "ORIG_mxsegaboot.exe",
+        "apply": true,
+        "patches_file": "mxsegaboot.patch.json"
+    }
+]

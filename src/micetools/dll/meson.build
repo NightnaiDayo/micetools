@@ -14,6 +14,8 @@ shared_library(
         'setupapi.c',
         'com.c',
         'comdevice.c',
+        'processes.c',
+        'network.c',
     ],
     link_with: [
         dmi_lib,

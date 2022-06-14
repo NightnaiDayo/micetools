@@ -1,18 +1,11 @@
 #include "locate.h"
+#include "../lib/mice/mice.h"
 
 const char* KNOWN_GAMES[] = {
     // Preferentially use a decrypted dump if present
     "maimai_dump_.exe",
     "maimai.exe",
 };
-
-#ifndef MICELIB
-#ifdef MICE_WIN32
-#define MICELIB "mice86.dll"
-#else  // MICE_WIN32
-#define MICELIB "mice64.dll"
-#endif  // MICE_WIN32
-#endif  // MICELIB
 
 bool locate_file(char* path, size_t len, const char* exe) {
     WIN32_FIND_DATA fdFile;

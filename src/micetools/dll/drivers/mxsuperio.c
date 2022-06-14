@@ -32,10 +32,10 @@ BOOL mxsuperio_DeviceIoControl(DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD n
             if (lpBytesReturned) *lpBytesReturned = 4;
             break;
         case IOCTL_MXSUPERIO_READ:
-            log_warning("mxsuperio",
-                        "DeviceIoControl(<mxsuperio>, <read>, 0x%p, 0x%x, -, "
-                        "0x%x, -, -)",
-                        lpInBuffer, nInBufferSize, nOutBufferSize);
+            log_misc("mxsuperio",
+                     "DeviceIoControl(<mxsuperio>, <read>, 0x%p, 0x%x, -, "
+                     "0x%x, -, -)",
+                     lpInBuffer, nInBufferSize, nOutBufferSize);
 
             /*
                     BYTE chipId = 0|1

@@ -3,11 +3,17 @@
 #include <stdio.h>
 #include <time.h>
 
-#define LOG_MISC
+static HANDLE(WINAPI* TrueRegisterEventSourceA)(LPCSTR lpUNCServerName, LPCSTR lpSourceName);
+static BOOL(WINAPI* TrueReportEventA)(HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dwEventID, PSID lpUserSid,
+                                      WORD wNumStrings, DWORD dwDataSize, LPCSTR* lpStrings, LPVOID lpRawData);
+static BOOL(WINAPI* TrueDeregisterEventSource)(HANDLE hEventLog);
+
+// #define LOG_MISC
 #define LOG_INFO
 #define LOG_WARNING
 #define LOG_ERROR
 
+#define COMM_LOGGER "comm"
 #define HOOKS_LOGGER "hooks"
 #define BOOT_LOGGER "boot"
 

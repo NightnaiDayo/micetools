@@ -146,6 +146,46 @@ int log_error(const char* caller, const char* format, ...) {
 // 	return ret;
 // };
 
+char* trim_string(char* string) {
+    size_t len = strlen(string) - 1;
+
+    DWORD oldProt;
+    while (len > 0 && (string[len] == '\n' || string[len] == '\r')) {
+        // TODO: Reassess this. Suspect it may be causing issues.
+        // Make sure we can write! This is a terrible hack, but it does work.
+        VirtualProtect(string + len, 1, PAGE_EXECUTE_READWRITE, &oldProt);
+        string[len--] = '\0';
+        VirtualProtect(string + len + 1, 1, oldProt, &oldProt);
+    }
+    return string;
+}
+
+HANDLE WINAPI FakeRegisterEventSourceA(LPCSTR lpUNCServerName, LPCSTR lpSourceName) { return (HANDLE)0xDEADBEEF; }
+
+BOOL WINAPI FakeReportEventA(HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dwEventID, PSID lpUserSid,
+                             WORD wNumStrings, DWORD dwDataSize, LPCSTR* lpStrings, LPVOID lpRawData) {
+    switch (wType) {
+        case EVENTLOG_SUCCESS:
+        case EVENTLOG_AUDIT_SUCCESS:
+            for (int i = 0; i < wNumStrings; i++) log_misc("evtlog", trim_string((char*)lpStrings[i]));
+            break;
+        case EVENTLOG_AUDIT_FAILURE:
+        case EVENTLOG_ERROR_TYPE:
+            for (int i = 0; i < wNumStrings; i++) log_error("evtlog", trim_string((char*)lpStrings[i]));
+            break;
+        case EVENTLOG_WARNING_TYPE:
+            for (int i = 0; i < wNumStrings; i++) log_warning("evtlog", trim_string((char*)lpStrings[i]));
+            break;
+        case EVENTLOG_INFORMATION_TYPE:
+        default:
+            for (int i = 0; i < wNumStrings; i++) log_info("evtlog", trim_string((char*)lpStrings[i]));
+            break;
+    }
+    return TRUE;
+};
+
+BOOL WINAPI FakeDeregisterEventSource(HANDLE hEventLog) { return TRUE; }
+
 static VOID(WINAPI* TrueOutputDebugStringA)(LPCSTR lpOutputString);
 VOID WINAPI FakeOutputDebugStringA(LPCSTR lpOutputString) { log_info("debug", "%s", lpOutputString); }
 
@@ -165,4 +205,8 @@ void setup_logging() {
 
     if (LOG_FILE == NULL)
         LOG_FILE = CreateFileA("log.txt", GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, 0, NULL);
+
+    hook("Advapi32.dll", "RegisterEventSourceA", FakeRegisterEventSourceA, &TrueRegisterEventSourceA);
+    hook("Advapi32.dll", "ReportEventA", FakeReportEventA, &TrueReportEventA);
+    hook("Advapi32.dll", "DeregisterEventSource", FakeDeregisterEventSource, &TrueDeregisterEventSource);
 }

@@ -2,7 +2,6 @@
 #include <stdio.h>
 
 #include "../lib/mice/mice.h"
-#include "exe.h"
 #include "locate.h"
 
 const char* VERSION = "0.0-pre";

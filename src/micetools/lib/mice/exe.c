@@ -1,6 +1,5 @@
 #include "exe.h"
-
-#include "../lib/mice/mice.h"
+#include "log.h"
 
 bool inject_debug_wait(HANDLE process) {
     BOOL present;

@@ -23,7 +23,7 @@ typedef BOOL(FnWaitCommEvent)(void* com, LPDWORD lpEvtMask, LPOVERLAPPED lpOverl
 typedef BOOL(FnClearCommError)(void* com, LPDWORD lpErrors, LPCOMSTAT lpStat);
 
 typedef struct com_hook {
-    HANDLE virtual_handle;
+    LPHANDLE virtual_handle;
     WCHAR wName[7];  // max is COM255
     BYTE com;
 

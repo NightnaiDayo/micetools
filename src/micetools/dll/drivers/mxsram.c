@@ -34,7 +34,7 @@ BOOL mxsram_DeviceIoControl(DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInB
 
     switch (dwIoControlCode) {
         case IOCTL_MXSRAM_PING:  // Get version
-            log_misc("mxsram",
+            log_info("mxsram",
                      "DeviceIoControl(<mxsram>, <ping>, 0x%p, 0x%x, -, 0x%x, "
                      "-, -)",
                      lpInBuffer, nInBufferSize, nOutBufferSize);
@@ -43,7 +43,7 @@ BOOL mxsram_DeviceIoControl(DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInB
             if (lpBytesReturned) *lpBytesReturned = 4;
             break;
         case IOCTL_DISK_GET_DRIVE_GEOMETRY:
-            log_misc("mxsram",
+            log_info("mxsram",
                      "DeviceIoControl(<mxsram>, <get drive geom>, 0x%p, "
                      "0x%x, -, 0x%x, -, -)",
                      lpInBuffer, nInBufferSize, nOutBufferSize);
@@ -58,7 +58,7 @@ BOOL mxsram_DeviceIoControl(DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInB
             if (lpBytesReturned) *lpBytesReturned = sizeof(DISK_GEOMETRY);
             break;
         case IOCTL_MXSRAM_GET_SECTOR_SIZE:
-            log_misc("mxsram",
+            log_info("mxsram",
                      "DeviceIoControl(<mxsram>, <get sector size>, 0x%p, "
                      "0x%x, -, 0x%x, -, -)",
                      lpInBuffer, nInBufferSize, nOutBufferSize);
@@ -118,6 +118,7 @@ void setup_mxsram() {
     sram_restore();
 
     file_hook_t* mxsram = new_file_hook(L"\\\\.\\mxsram");
+    mxsram->DeviceIoControl = &mxsram_DeviceIoControl;
     mxsram->SetFilePointer = &mxsram_SetFilePointer;
     mxsram->ReadFile = &mxsram_ReadFile;
     mxsram->WriteFile = &mxsram_WriteFile;

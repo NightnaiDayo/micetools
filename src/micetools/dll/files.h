@@ -35,6 +35,7 @@ typedef BOOL(FnWriteFile)(LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
                           LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped);
 typedef BOOL(FnReadFile)(LPVOID lpBuffer, DWORD nNumberOfBytesToRead, LPDWORD lpNumberOfBytesRead,
                          LPOVERLAPPED lpOverlapped);
+static int(WINAPIV *True_stat64i32)(const char* path, struct _stat64i32* buffer);
 
 #define _WriteFile (TrueWriteFile ? TrueWriteFile : WriteFile)
 #define _ReadFile (TrueReadFile ? TrueReadFile : ReadFile)
@@ -54,7 +55,7 @@ typedef struct file_hook {
     FnWriteFile* WriteFile;
     FnReadFile* ReadFile;
 
-    HANDLE virtual_handle;
+    LPHANDLE virtual_handle;
     struct file_hook* next;
 } file_hook_t;
 

@@ -68,7 +68,7 @@ BOOL WINAPI FakeSetupDiGetDeviceInterfaceDetailA(HDEVINFO DeviceInfoSet, PSP_DEV
     FAKE_DEVICE* device = fake_devices;
     while (device != NULL) {
         if (device->handle == DeviceInfoSet && (ULONG_PTR)device->path == DeviceInterfaceData->Reserved) {
-            log_info("setupapi", "Yoinked SetupDiGetDeviceInterfaceDetailA");
+            log_info("setupapi", "Intercepted SetupDiGetDeviceInterfaceDetailA");
 
             const WCHAR* res = (WCHAR*)DeviceInterfaceData->Reserved;
             int new_len = (wcslen(res) + 1) * (sizeof *res);

@@ -4,7 +4,6 @@ executable(
     win_subsystem: 'console',
     sources: [
         'locate.c',
-        'exe.c',
         'main.c',
         rc,
     ],

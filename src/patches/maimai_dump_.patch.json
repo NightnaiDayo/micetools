@@ -1,0 +1,149 @@
+[
+    {
+        "name": "LOG_EN_SRAM",
+        "at": "00c8ab7c",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_CABINET_DL",
+        "at": "00f406f0",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_INSTALL",
+        "at": "00c88680",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_EEPROM",
+        "at": "00c8ab78",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_PLATFORM",
+        "at": "00c88608",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_STORAGE",
+        "at": "00c88dd0",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_PCP",
+        "at": "00ca25ec",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_HM",
+        "at": "00c96ed0",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_HTTP",
+        "at": "00f406ec",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_DIPSW",
+        "at": "00c89ca8",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_DONGLE",
+        "at": "00c96ed8",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_JVSP",
+        "at": "00c9a83c",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_NETWORK",
+        "at": "00c89730",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_JVST_THREAD",
+        "at": "00c9a440",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_JVS",
+        "at": "00c8ab80",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_MASTER",
+        "at": "00c89fc8",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_RTC",
+        "at": "00c88bb8",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_JVST_DRIVER",
+        "at": "00c9e420",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_BACKUP",
+        "at": "00c89320",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_HWRESET",
+        "at": "00c88bb4",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN",
+        "at": "00c830e8",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    }
+]

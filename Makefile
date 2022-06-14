@@ -53,3 +53,4 @@ dist:
 
 	@xcopy /E /H /C /R /Q /Y src\system "$(DIST_DIR)\system/*"
 	@xcopy /E /H /C /R /Q /Y src\tools "$(DIST_DIR)\tools/*"
+	@xcopy /E /H /C /R /Q /Y src\patches "$(DIST_DIR)\patches/*"

@@ -1,3 +1,4 @@
+#include "../com.h"
 #include "../files.h"
 #include <initguid.h>
 

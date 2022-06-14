@@ -1,0 +1,12 @@
+#include <Windows.h>
+#include <stdbool.h>
+
+HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject);
+
+#ifndef MICELIB
+#ifdef MICE_WIN32
+#define MICELIB "mice86.dll"
+#else  // MICE_WIN32
+#define MICELIB "mice64.dll"
+#endif  // MICE_WIN32
+#endif  // MICELIB

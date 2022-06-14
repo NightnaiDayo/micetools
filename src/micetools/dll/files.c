@@ -19,7 +19,8 @@ file_hook_t* new_file_hook(LPCWSTR filename) {
 }
 void hook_file(file_hook_t* hook) {
     hook->next = NULL;
-    hook->virtual_handle = NULL;
+    hook->virtual_handle = (LPHANDLE)malloc(sizeof(HANDLE));
+    *hook->virtual_handle = NULL;
     if (file_hook_list == NULL) {
         file_hook_list = hook;
         return;
@@ -30,8 +31,9 @@ void hook_file(file_hook_t* hook) {
     hl->next = hook;
 };
 
-drive_redirect_t DRIVE_REDIRECT_TABLE[] = {{"Y:\\", ".\\dev\\Y\\"},
-                                           {"C:\\Documents and Settings\\AppUser\\temp\\", ".\\dev\\temp\\"}};
+drive_redirect_t DRIVE_REDIRECT_TABLE[] = {
+    {.drive = "Y:\\", .path = ".\\dev\\Y\\"},
+    {.drive = "C:\\Documents and Settings\\AppUser\\temp\\", .path = ".\\dev\\temp\\"}};
 
 char* redirect_path(char* path) {
     for (int i = 0; i < sizeof DRIVE_REDIRECT_TABLE / sizeof DRIVE_REDIRECT_TABLE[0]; i++) {
@@ -60,30 +62,17 @@ char* redirect_path(char* path) {
 HANDLE WINAPI FakeCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
                               LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
                               DWORD dwFlagsAndAttributes, HANDLE hTemplateFile) {
-    // for (int i = 0; i < (sizeof HOOKED_HANDLES) / (sizeof HANDLE_HOOK);
-    // i++) { 	HANDLE_HOOK hook = HOOKED_HANDLES[i]; 	if (lpFileName &&
-    // wcscmp(lpFileName, hook.wName) == 0) {
-    // log_warning(HOOKS_LOGGER, "CreateFileW intercepting driver file %ls",
-    // hook.wName); 		return hook.handle;
-    // 	}
-    // }
-
-    // HANDLE result = TrueCreateFileW(lpFileName, dwDesiredAccess,
-    // dwShareMode, lpSecurityAttributes, dwCreationDisposition,
-    // dwFlagsAndAttributes, hTemplateFile); log_misc(HOOKS_LOGGER,
-    // "CreateFileW(%ls) -> 0x%p", lpFileName, result);
-
     HANDLE handle = NULL;
 
     file_hook_t* hook = file_hook_list;
     while (hook != NULL) {
         if (wcscmp(lpFileName, hook->filename) == 0) {
-            if (hook->virtual_handle == NULL) {
+            if (*hook->virtual_handle == NULL) {
                 // TODO: Assign handles better!
-                hook->virtual_handle = fake_handle;
+                *hook->virtual_handle = fake_handle;
                 ((size_t)fake_handle)++;
             }
-            handle = hook->virtual_handle;
+            handle = *hook->virtual_handle;
             break;
         }
         hook = hook->next;
@@ -119,17 +108,22 @@ BOOL WINAPI FakeDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lp
 
     file_hook_t* hook = file_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hDevice) {
+        if (*hook->virtual_handle == hDevice) {
             if (hook->DeviceIoControl) {
                 // TODO: Less jank
                 if (lpOverlapped != NULL) SetEvent(lpOverlapped->hEvent);
 
                 return hook->DeviceIoControl(dwIoControlCode, lpInBuffer, nInBufferSize, lpOutBuffer, nOutBufferSize,
                                              lpBytesReturned, lpOverlapped);
+            } else {
+                log_error(HOOKS_LOGGER, "DeviceIoControl(%ls) unimplemented", hook->filename);
+                return FALSE;
             }
         }
         hook = hook->next;
     }
+
+    // log_warning(HOOKS_LOGGER, "DeviceIoControl(0x%p, 0x%08x, -, -, -, -, 0, 0)", hDevice, dwIoControlCode);
 
     return TrueDeviceIoControl(hDevice, dwIoControlCode, lpInBuffer, nInBufferSize, lpOutBuffer, nOutBufferSize,
                                lpBytesReturned, lpOverlapped);
@@ -138,9 +132,12 @@ BOOL WINAPI FakeDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lp
 DWORD WINAPI FakeSetFilePointer(HANDLE hFile, LONG lDistanceToMove, PLONG lpDistanceToMoveHigh, DWORD dwMoveMethod) {
     file_hook_t* hook = file_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hFile) {
+        if (*hook->virtual_handle == hFile) {
             if (hook->SetFilePointer) {
                 return hook->SetFilePointer(lDistanceToMove, lpDistanceToMoveHigh, dwMoveMethod);
+            } else {
+                log_error(HOOKS_LOGGER, "SetFilePointer(%ls) unimplemented", hook->filename);
+                return FALSE;
             }
         }
         hook = hook->next;
@@ -153,9 +150,12 @@ DWORD WINAPI FakeWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesT
                            LPOVERLAPPED lpOverlapped) {
     file_hook_t* hook = file_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hFile) {
+        if (*hook->virtual_handle == hFile) {
             if (hook->WriteFile) {
                 return hook->WriteFile(lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, lpOverlapped);
+            } else {
+                log_error(HOOKS_LOGGER, "WriteFile(%ls) unimplemented", hook->filename);
+                return FALSE;
             }
         }
         hook = hook->next;
@@ -168,9 +168,12 @@ BOOL WINAPI FakeReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRe
                          LPOVERLAPPED lpOverlapped) {
     file_hook_t* hook = file_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hFile) {
-            if (hook->WriteFile) {
+        if (*hook->virtual_handle == hFile) {
+            if (hook->ReadFile) {
                 return hook->ReadFile(lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
+            } else {
+                log_error(HOOKS_LOGGER, "ReadFile(%ls) unimplemented", hook->filename);
+                return FALSE;
             }
         }
         hook = hook->next;
@@ -190,6 +193,11 @@ BOOL WINAPI FakeCloseHandle(HANDLE hObject) {
     return TrueCloseHandle(hObject);
 }
 
+int WINAPIV Fake_stat64i32(const char* path, struct _stat64i32* buffer) {
+    path = redirect_path((char*)path);
+    return True_stat64i32(path, buffer);
+};
+
 void hook_io() {
     hook("Kernel32.dll", "DeviceIoControl", FakeDeviceIoControl, (void**)&TrueDeviceIoControl, 5);
 
@@ -201,5 +209,5 @@ void hook_io() {
     hook("Kernel32.dll", "WriteFile", FakeWriteFile, (void**)&TrueWriteFile, 6);
     hook("Kernel32.dll", "ReadFile", FakeReadFile, (void**)&TrueReadFile, 6);
 
-    // hook("MSVCR90.DLL", "_stat64i32", Fake_stat64i32, &True_stat64i32, 5);
+    hook("MSVCR90.DLL", "_stat64i32", Fake_stat64i32, (void**)&True_stat64i32, 5);
 }

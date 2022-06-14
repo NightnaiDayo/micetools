@@ -1,8 +1,8 @@
 subdir('util')  # This is the only lib that should ever be link_with'd by another lib
-subdir('am')
-subdir('mice')
-subdir('dmi')
 subdir('json')
+subdir('am')
+subdir('dmi')
+subdir('mice')
 
 fs = import('fs')
 # Handle the fact we aren't distributing the libpcp source

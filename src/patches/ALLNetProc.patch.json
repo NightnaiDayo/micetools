@@ -1,0 +1,93 @@
+[
+    {
+        "name": "LOG_EN_DONGLE",
+        "at": "004f48b0",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_PCP",
+        "at": "004f989c",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_EEPROM",
+        "at": "004f7d04",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_BACKUP",
+        "at": "004f7d08",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_RTC",
+        "at": "004f8118",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_GFETCHER",
+        "at": "004f96dc",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_NETWORK",
+        "at": "004f8338",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_MASTER",
+        "at": "004f88c0",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_HM",
+        "at": "004f88b0",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_SRAM",
+        "at": "004f8330",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_PLATFORM",
+        "at": "004f9728",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 4
+    },
+    {
+        "name": "LOG_EN_ASSERTS (We use ALPB_LOG_LEVEL instead)",
+        "at": "004f9e7c",
+        "from": "00000000",
+        "to": "01000000",
+        "count": 0
+    },
+    {
+        "name": "ALPB_LOG_LEVEL (0=None, 1=Error, 2=Warning, 3=Most, 4=Debug)",
+        "at": "004e884c",
+        "from": "01000000",
+        "to": "0a000000",
+        "count": 4
+    }
+]

@@ -8,7 +8,6 @@ micepatch = executable(
     ],
     link_with: [
         mice_lib,
-        json_lib,
     ],
     link_args: [
         '/MANIFEST:EMBED',

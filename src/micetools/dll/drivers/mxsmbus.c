@@ -208,15 +208,15 @@ BOOL mxsmbus_DeviceIoControl(DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nIn
                         case PCA9535_WRITE:
                             switch (i2c_packet->reg) {
                                 case PCA9535_OUT1:
-                                    log_error("mxsmbus", "pca9535 OUT1: %02x %02x", i2c_packet->data[0],
+                                    log_info("mxsmbus", "pca9535 OUT1: %02x %02x", i2c_packet->data[0],
                                               i2c_packet->data[1]);
                                     break;
                                 case PCA9535_INV0:
-                                    log_error("mxsmbus", "pca9535 INV0: %02x %02x", i2c_packet->data[0],
+                                    log_info("mxsmbus", "pca9535 INV0: %02x %02x", i2c_packet->data[0],
                                               i2c_packet->data[1]);
                                     break;
                                 case PCA9535_INV1:
-                                    log_error("mxsmbus", "pca9535 INV1: %02x %02x", i2c_packet->data[0],
+                                    log_info("mxsmbus", "pca9535 INV1: %02x %02x", i2c_packet->data[0],
                                               i2c_packet->data[1]);
                                     break;
                                 default:

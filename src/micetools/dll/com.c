@@ -1,5 +1,7 @@
 #include "com.h"
 
+#include "../lib/mice/mice.h"
+
 com_hook_t* com_hook_list = NULL;
 com_hook_t* new_com_hook(BYTE port) {
     com_hook_t* hook = (com_hook_t*)malloc(sizeof *hook);
@@ -19,9 +21,11 @@ com_hook_t* new_com_hook(BYTE port) {
 
     return hook;
 };
+
 void hook_com(com_hook_t* hook) {
     hook->next = NULL;
-    hook->virtual_handle = NULL;
+    hook->virtual_handle = (LPHANDLE)malloc(sizeof(HANDLE));
+    *hook->virtual_handle = NULL;
     if (com_hook_list == NULL) {
         com_hook_list = hook;
         return;
@@ -33,97 +37,155 @@ void hook_com(com_hook_t* hook) {
 };
 
 BOOL WINAPI FakeGetCommState(HANDLE hFile, LPDCB lpDCB) {
-    log_misc("comm", "GetCommState(0x%p, 0x%p)", hFile, lpDCB);
+    log_misc(COMM_LOGGER, "GetCommState(0x%p, 0x%p)", hFile, lpDCB);
 
     com_hook_t* hook = com_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hFile && hook->GetCommState != NULL) {
+        if (*hook->virtual_handle == hFile) {
+            if (hook->GetCommState == NULL) {
+                log_error(COMM_LOGGER, "GetCommState(%ls) unimplemented", hook->wName);
+                return FALSE;
+            }
             return hook->GetCommState(hook->data, lpDCB);
         }
+        hook = hook->next;
     }
     return TrueGetCommState(hFile, lpDCB);
 }
+
 BOOL WINAPI FakeSetCommState(HANDLE hFile, LPDCB lpDCB) {
-    log_misc("comm", "SetCommState(0x%p, 0x%p)", hFile, lpDCB);
+    log_misc(COMM_LOGGER, "SetCommState(0x%p, 0x%p)", hFile, lpDCB);
 
     com_hook_t* hook = com_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hFile && hook->SetCommState != NULL) {
+        if (*hook->virtual_handle == hFile) {
+            if (hook->SetCommState == NULL) {
+                log_error(COMM_LOGGER, "SetCommState(%ls) unimplemented", hook->wName);
+                return FALSE;
+            }
             return hook->SetCommState(hook->data, lpDCB);
         }
+        hook = hook->next;
     }
+
     return TrueSetCommState(hFile, lpDCB);
 }
+
 BOOL WINAPI FakeGetCommTimeouts(HANDLE hFile, LPCOMMTIMEOUTS lpCommTimeouts) {
-    log_misc("comm", "GetCommTimeouts(0x%p, 0x%p)", hFile, lpCommTimeouts);
+    log_misc(COMM_LOGGER, "GetCommTimeouts(0x%p, 0x%p)", hFile, lpCommTimeouts);
+
     com_hook_t* hook = com_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hFile && hook->GetCommTimeouts != NULL) {
+        if (*hook->virtual_handle == hFile) {
+            if (hook->GetCommTimeouts == NULL) {
+                log_error(COMM_LOGGER, "GetCommTimeouts(%ls) unimplemented", hook->wName);
+                return FALSE;
+            }
             return hook->GetCommTimeouts(hook->data, lpCommTimeouts);
         }
+        hook = hook->next;
     }
     return TrueGetCommTimeouts(hFile, lpCommTimeouts);
 }
+
 BOOL WINAPI FakeSetCommTimeouts(HANDLE hFile, LPCOMMTIMEOUTS lpCommTimeouts) {
-    log_misc("comm", "SetCommTimeouts(0x%p, 0x%p)", hFile, lpCommTimeouts);
+    log_misc(COMM_LOGGER, "SetCommTimeouts(0x%p, 0x%p)", hFile, lpCommTimeouts);
+
     com_hook_t* hook = com_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hFile && hook->SetCommTimeouts != NULL) {
+        if (*hook->virtual_handle == hFile) {
+            if (hook->SetCommTimeouts == NULL) {
+                log_error(COMM_LOGGER, "SetCommTimeouts(%ls) unimplemented", hook->wName);
+                return FALSE;
+            }
             return hook->SetCommTimeouts(hook->data, lpCommTimeouts);
         }
+        hook = hook->next;
     }
     return TrueSetCommTimeouts(hFile, lpCommTimeouts);
 }
+
 BOOL WINAPI FakeSetupComm(HANDLE hFile, DWORD dwInQueue, DWORD dwOutQueue) {
-    log_misc("comm", "SetupCom(0x%p, 0x%08x, 0x%08x)", hFile, dwInQueue, dwOutQueue);
+    log_misc(COMM_LOGGER, "SetupCom(0x%p, 0x%08x, 0x%08x)", hFile, dwInQueue, dwOutQueue);
+
     com_hook_t* hook = com_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hFile && hook->SetupComm != NULL) {
+        if (*hook->virtual_handle == hFile) {
+            if (hook->SetupComm == NULL) {
+                log_error(COMM_LOGGER, "SetupComm(%ls) unimplemented", hook->wName);
+                return FALSE;
+            }
             return hook->SetupComm(hook->data, dwInQueue, dwOutQueue);
         }
+        hook = hook->next;
     }
     return TrueSetupComm(hFile, dwInQueue, dwOutQueue);
 }
+
 BOOL WINAPI FakePurgeComm(HANDLE hFile, DWORD dwFlags) {
-    log_misc("comm", "PurgeComm(0x%p, 0x%08x)", hFile, dwFlags);
+    log_misc(COMM_LOGGER, "PurgeComm(0x%p, 0x%08x)", hFile, dwFlags);
+
     com_hook_t* hook = com_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hFile && hook->PurgeComm != NULL) {
+        if (*hook->virtual_handle == hFile) {
+            if (hook->PurgeComm == NULL) {
+                log_error(COMM_LOGGER, "PurgeComm(%ls) unimplemented", hook->wName);
+                return FALSE;
+            }
             return hook->PurgeComm(hook->data, dwFlags);
         }
+        hook = hook->next;
     }
     return TruePurgeComm(hFile, dwFlags);
 }
+
 BOOL WINAPI FakeGetCommModemStatus(HANDLE hFile, LPDWORD lpModelStat) {
-    log_misc("comm", "GetCommModemStatus(0x%p, 0x%p)", hFile, lpModelStat);
+    log_misc(COMM_LOGGER, "GetCommModemStatus(0x%p, 0x%p)", hFile, lpModelStat);
 
     com_hook_t* hook = com_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hFile && hook->GetCommModemStatus != NULL) {
+        if (*hook->virtual_handle == hFile) {
+            if (hook->GetCommModemStatus == NULL) {
+                log_error(COMM_LOGGER, "GetCommModemStatus(%ls) unimplemented", hook->wName);
+                return FALSE;
+            }
             return hook->GetCommModemStatus(hook->data, lpModelStat);
         }
+        hook = hook->next;
     }
     return TrueGetCommModemStatus(hFile, lpModelStat);
 }
+
 BOOL WINAPI FakeWaitCommEvent(HANDLE hFile, LPDWORD lpEvtMask, LPOVERLAPPED lpOverlapped) {
-    log_misc("comm", "WaitCommEvent");
+    log_misc(COMM_LOGGER, "WaitCommEvent");
 
     com_hook_t* hook = com_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hFile && hook->WaitCommEvent != NULL) {
+        if (*hook->virtual_handle == hFile) {
+            if (hook->WaitCommEvent == NULL) {
+                log_error(COMM_LOGGER, "WaitCommEvent(%ls) unimplemented", hook->wName);
+                return FALSE;
+            }
             return hook->WaitCommEvent(hook->data, lpEvtMask, lpOverlapped);
         }
+        hook = hook->next;
     }
     return TrueWaitCommEvent(hFile, lpEvtMask, lpOverlapped);
 }
+
 BOOL WINAPI FakeClearCommError(HANDLE hFile, LPDWORD lpErrors, LPCOMSTAT lpStat) {
-    log_misc("comm", "ClearCommError");
+    log_misc(COMM_LOGGER, "ClearCommError");
 
     com_hook_t* hook = com_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hFile && hook->ClearCommError != NULL) {
+        if (*hook->virtual_handle == hFile) {
+            if (hook->ClearCommError == NULL) {
+                log_error(COMM_LOGGER, "ClearCommError(%ls) unimplemented", hook->wName);
+                return FALSE;
+            }
             return hook->ClearCommError(hook->data, lpErrors, lpStat);
         }
+        hook = hook->next;
     }
     return TrueClearCommError(hFile, lpErrors, lpStat);
 }
