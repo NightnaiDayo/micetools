@@ -68,7 +68,7 @@ bool inject_dll(HANDLE process, LPCSTR inject) {
     return remote_call(process, addr_LoadLibraryA, inject);
 }
 
-HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject) {
+HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL delay) {
     log_misc(BOOT_LOGGER, "Using %s for hooks", inject);
     STARTUPINFOA startupInfo;
     PROCESS_INFORMATION processInformation;
@@ -94,7 +94,9 @@ HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject) {
         goto abort;
     }
 
-    // if (!inject_debug_wait(processInformation.hProcess)) goto abort;
+    if (delay) {
+        if (!inject_debug_wait(processInformation.hProcess)) goto abort;
+    }
     if (!inject_dll(processInformation.hProcess, inject)) goto abort;
 
     // Injection completed, let the program continue execution

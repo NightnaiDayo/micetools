@@ -26,7 +26,9 @@ const char* INTERCEPT_DNS[] = {
     "ib.naominet.jp",    // Billing
     "aime.naominet.jp",  // Aime (duh)
     "tenporouter.loc",   // Routers
-    "bbrouter.loc",     "mobirouter.loc", "dslrouter.loc",
+    "bbrouter.loc",      //
+    "mobirouter.loc",    //
+    "dslrouter.loc",     //
 };
 
 DNS_RECORDA dummy_record;

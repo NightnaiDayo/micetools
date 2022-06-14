@@ -20,7 +20,7 @@ BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
     CHAR commandLine[MAX_PATH + 1];
     WideCharToMultiByte(CP_ACP, 0, lpCommandLine, -1, commandLine, sizeof commandLine, NULL, NULL);
 
-    HANDLE child = start_and_inject(applicationName, commandLine, MICELIB);
+    HANDLE child = start_and_inject(applicationName, commandLine, MICELIB, false);
     return child != NULL;
 }
 
