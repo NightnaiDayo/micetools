@@ -21,7 +21,7 @@ typedef enum e_pcpp {
     e_pcpp_unknown = -17,
 } e_pcpp_t;
 
-e_pcpp_t _pcppGetErrorFromPcpt(int err);
+e_pcpp_t _pcppGetErrorFromPcpt(e_pcpt_t err);
 #define _errT2P(err) _pcppGetErrorFromPcpt(err)
 
 typedef struct pcpp {

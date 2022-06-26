@@ -20,6 +20,9 @@ typedef enum e_pcpa {
     e_pcpa_unknown = -21,
 } e_pcpa_t;
 
+e_pcpa_t _pcpaGetErrorFromPcpp(e_pcpp_t err);
+#define _errP2A(err) _pcpaGetErrorFromPcpp(err)
+
 struct pcpa;
 typedef void(pcpa_callback)(struct pcpa* stream, void* data);
 
@@ -66,4 +69,5 @@ e_pcpa_t pcpaSetCallbackFuncBuffer(pcpa_t* stream, pcpa_cb_table_t* callback_tab
 e_pcpa_t pcpaSetRecvBinaryBuffer(pcpa_t* stream, byte* recv_buffer, size_t len);
 e_pcpa_t pcpaSetSendBinaryBuffer(pcpa_t* stream, byte* send_buffer, size_t len);
 pcp_send_data_t* pcpaSetSendPacket(pcpa_t* stream, char* keyword, char* value);
+pcp_send_data_t *pcpaAddSendPacket(pcpa_t *stream, char *keyword, char *value);
 char* pcpaGetCommand(pcpa_t* pcpa, char* command);

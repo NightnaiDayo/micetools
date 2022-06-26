@@ -47,12 +47,6 @@ typedef struct pcp_send_data {
     size_t length;
 } pcp_send_data_t;
 
-// Error helpers
-int _pcpaGetErrorFromPcpp(int err);
-int _pcppGetErrorFromPcpt(int err);
-#define _errP2A(err) _pcpaGetErrorFromPcpp(err)
-#define _errT2P(err) _pcppGetErrorFromPcpt(err)
-
 // Errors
 #define OPEN_MODE_GLOBAL 0
 #define OPEN_MODE_1 1
