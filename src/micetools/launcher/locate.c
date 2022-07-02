@@ -12,7 +12,7 @@ bool locate_file(char* path, size_t len, const char* exe) {
     HANDLE hFind = NULL;
 
     char work_path[2048];
-    sprintf(work_path, ".\\*.*");
+    snprintf(work_path, sizeof work_path, ".\\*.*");
 
     if ((hFind = FindFirstFile(work_path, &fdFile)) == INVALID_HANDLE_VALUE) return false;
 

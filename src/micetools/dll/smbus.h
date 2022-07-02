@@ -1,4 +1,5 @@
-#include <Windows.h>
+#pragma once
+#include "common.h"
 
 #pragma pack(1)
 typedef struct mxsmbus_request_packet_ {

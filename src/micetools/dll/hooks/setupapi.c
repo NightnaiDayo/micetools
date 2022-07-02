@@ -1,4 +1,4 @@
-#include "micesetupapi.h"
+#include "setupapi_.h"
 
 FAKE_DEVICE* fake_devices = NULL;
 

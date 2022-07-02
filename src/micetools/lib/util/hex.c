@@ -1,3 +1,5 @@
+#include <ctype.h>
+
 unsigned char hex_value(char c) {
     if (isdigit((unsigned char)c)) return c - '0';
 

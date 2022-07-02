@@ -1,18 +1,17 @@
 #include "exe.h"
-#include "log.h"
 
 bool inject_debug_wait(HANDLE process) {
     BOOL present;
 
-    log_info(BOOT_LOGGER, "Waiting for debugger to attach.");
+    fprintf(stderr, "Waiting for debugger to attach.\n");
     do {
         Sleep(1000);
         if (FAILED(CheckRemoteDebuggerPresent(process, &present))) {
-            log_error(BOOT_LOGGER, "CheckRemoteDebuggerPresent failed: %03x", GetLastError());
+            fprintf(stderr, "Fatal: CheckRemoteDebuggerPresent failed: %03x\n", GetLastError());
             return false;
         }
     } while (!present);
-    log_info(BOOT_LOGGER, "Debugger attached, resuming");
+    fprintf(stderr, "Debugger attached, resuming\n");
     return true;
 }
 bool remote_call(HANDLE process, LPVOID function, LPCSTR argument) {
@@ -20,33 +19,33 @@ bool remote_call(HANDLE process, LPVOID function, LPCSTR argument) {
 
     LPVOID arg_addr = VirtualAllocEx(process, NULL, nchars + 1, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (arg_addr == NULL) {
-        log_error(BOOT_LOGGER, "VirtualAllocEx failed: %03x", GetLastError());
+        fprintf(stderr, "Fatal: VirtualAllocEx failed: %03x\n", GetLastError());
         return false;
     }
 
     if (FAILED(WriteProcessMemory(process, arg_addr, argument, nchars + 1, NULL))) {
-        log_error(BOOT_LOGGER, "WriteProcessMemory failed: %03x", GetLastError());
+        fprintf(stderr, "Fatal: WriteProcessMemory failed: %03x\n", GetLastError());
         return false;
     }
 
     HANDLE remote_thread = CreateRemoteThread(process, NULL, 0, (LPTHREAD_START_ROUTINE)function, arg_addr, 0, NULL);
     if (remote_thread == NULL) {
-        log_error(BOOT_LOGGER, "CreateRemoteThread failed: %03x", GetLastError());
+        fprintf(stderr, "Fatal: CreateRemoteThread failed: %03x\n", GetLastError());
         return false;
     }
 
     if (WaitForSingleObject(remote_thread, INFINITE) != WAIT_OBJECT_0) {
-        log_error(BOOT_LOGGER, "WaitForSingleObject failed: %03x", GetLastError());
+        fprintf(stderr, "Fatal: WaitForSingleObject failed: %03x\n", GetLastError());
         return false;
     }
 
     DWORD result;
     if (FAILED(GetExitCodeThread(remote_thread, &result))) {
-        log_error(BOOT_LOGGER, "GetExitCodeThread failed: %03x", GetLastError());
+        fprintf(stderr, "Fatal: GetExitCodeThread failed: %03x\n", GetLastError());
         return false;
     }
     if (result == 0) {
-        log_error(BOOT_LOGGER, "GetExitCodeThread failed: result == 0");
+        fprintf(stderr, "Fatal: GetExitCodeThread failed: result == 0\n");
         return false;
     }
 
@@ -55,13 +54,13 @@ bool remote_call(HANDLE process, LPVOID function, LPCSTR argument) {
 bool inject_dll(HANDLE process, LPCSTR inject) {
     HMODULE kernel32 = GetModuleHandleA("kernel32.dll");
     if (kernel32 == NULL) {
-        log_error(BOOT_LOGGER, "GetModuleHandleA failed: %03x", GetLastError());
+        fprintf(stderr, "Fatal: GetModuleHandleA failed: %03x\n", GetLastError());
         return false;
     }
 
     LPVOID addr_LoadLibraryA = (LPVOID)GetProcAddress(kernel32, "LoadLibraryA");
     if (addr_LoadLibraryA == NULL) {
-        log_error(BOOT_LOGGER, "GetProcAddress failed: %03x", GetLastError());
+        fprintf(stderr, "Fatal: GetProcAddress failed: %03x\n", GetLastError());
         return false;
     }
 
@@ -69,7 +68,6 @@ bool inject_dll(HANDLE process, LPCSTR inject) {
 }
 
 HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL delay) {
-    log_misc(BOOT_LOGGER, "Using %s for hooks", inject);
     STARTUPINFOA startupInfo;
     PROCESS_INFORMATION processInformation;
 
@@ -83,14 +81,14 @@ HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL delay) {
     // Validate that we're not about to try something insane
     DWORD found = SearchPathA(NULL, inject, NULL, 0, NULL, NULL);
     if (found == 0) {
-        log_error(BOOT_LOGGER, "Cannot inject %s: not found: %03x", inject, GetLastError());
+        fprintf(stderr, "Fatal: Cannot inject %s: not found: %03x\n", inject, GetLastError());
         goto abort;
     }
 
     // Start the binary
     if (FAILED(CreateProcessA(path, cmdline, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &startupInfo,
                               &processInformation))) {
-        log_error(BOOT_LOGGER, "CreateProcessA failed: %03x", GetLastError());
+        fprintf(stderr, "Fatal: CreateProcessA failed: %03x\n", GetLastError());
         goto abort;
     }
 
@@ -101,7 +99,7 @@ HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL delay) {
 
     // Injection completed, let the program continue execution
     if (FAILED(ResumeThread(processInformation.hThread))) {
-        log_error(BOOT_LOGGER, "ResumeThread failed: %03x", GetLastError());
+        fprintf(stderr, "Fatal: ResumeThread failed: %03x\n", GetLastError());
         goto abort;
     }
 
@@ -110,14 +108,14 @@ HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL delay) {
 abort:
     if (processInformation.hProcess) {
         if (FAILED(CloseHandle(processInformation.hThread)))
-            log_error(BOOT_LOGGER, "CloseHandle(hProcess) failed: %03x", GetLastError());
+            fprintf(stderr, "Fatal: CloseHandle(hProcess) failed: %03x\n", GetLastError());
 
         if (FAILED(TerminateProcess(processInformation.hProcess, 1)))
-            log_error(BOOT_LOGGER, "TerminateProcess failed: %03x", GetLastError());
+            fprintf(stderr, "Fatal: TerminateProcess failed: %03x\n", GetLastError());
     }
     if (processInformation.hThread) {
         if (FAILED(CloseHandle(processInformation.hThread)))
-            log_error(BOOT_LOGGER, "CloseHandle(hThread) failed: %03x", GetLastError());
+            fprintf(stderr, "Fatal: CloseHandle(hThread) failed: %03x\n", GetLastError());
     }
 
     return NULL;

@@ -1,8 +1,5 @@
-#include <Windows.h>
-
 #include "../lib/dmi/dmi.h"
-#include "../lib/mice/mice.h"
-#include "files.h"
+#include "mx.h"
 
 // Much easier than pulling in winddk.h
 typedef LARGE_INTEGER PHYSICAL_ADDRESS, *PPHYSICAL_ADDRESS;
@@ -15,8 +12,9 @@ typedef struct {
 #define DMI_HEADER_START 0x000f0000
 #define DMI_TABLES_START 0x000f1000
 
-BOOL columba_DeviceIoControl(DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize, LPVOID lpOutBuffer,
-                             DWORD nOutBufferSize, LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
+BOOL columba_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize,
+                             LPVOID lpOutBuffer, DWORD nOutBufferSize, LPDWORD lpBytesReturned,
+                             LPOVERLAPPED lpOverlapped) {
     switch (dwIoControlCode) {
         case IOCTL_COLUMBA_READ_DMI:
             log_misc("columba",
@@ -36,7 +34,7 @@ BOOL columba_DeviceIoControl(DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nIn
 
             if (request->addr.QuadPart == DMI_HEADER_START) {
                 DMI_HEADER dmi = {
-                    .Signature = {'_', 'D', 'M', 'I', '_'},
+                    .Signature = { '_', 'D', 'M', 'I', '_' },
                     .Checksum = 0,
                     .StructLength = dmi_size,
                     .StructAddr = DMI_TABLES_START,

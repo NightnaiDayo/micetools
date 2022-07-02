@@ -19,7 +19,8 @@ void print_patches(patches_t* patches, char* filename) {
 }
 
 void apply_patches(patches_t* patches, char* filename) {
-    FILE* fp = fopen(filename, "r+b");
+    FILE* fp;
+    fopen_s(&fp, filename, "r+b");
     if (fp == NULL) {
         fprintf(stderr, "Failed to open %s for modification\n", filename);
         return;
@@ -98,7 +99,7 @@ int main(int argc, char** argv) {
     char error[json_error_max];
     patches_t all_patches;
     if (!load_patches(&all_patches, argv[1], error)) {
-        fprintf(stderr, "%s", error);
+        fprintf(stderr, "%s\n", error);
         return -1;
     }
 

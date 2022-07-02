@@ -1,5 +1,8 @@
-#include "hook.h"
+#include <Windows.h>
+#include <stdlib.h>
+
 #include "ioctl.h"
-#include "log.h"
 #include "exe.h"
 #include "patch.h"
+#include "crc.h"
+#include "ringbuf.h"

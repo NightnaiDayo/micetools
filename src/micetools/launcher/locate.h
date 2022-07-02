@@ -6,3 +6,4 @@
 
 bool locate_exe(char* path, size_t len, const char* exe);
 bool locate_game(char* path, size_t len);
+bool locate_library(char* path, size_t len);

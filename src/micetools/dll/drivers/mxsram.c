@@ -1,6 +1,3 @@
-#include <Windows.h>
-
-#include "../lib/mice/mice.h"
 #include "mx.h"
 
 #define SRAM_DUMP L"dev/sram.bin"
@@ -27,8 +24,9 @@ void sram_restore() {
     _CloseHandle(dump);
 }
 
-BOOL mxsram_DeviceIoControl(DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize, LPVOID lpOutBuffer,
-                            DWORD nOutBufferSize, LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
+BOOL mxsram_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize,
+                            LPVOID lpOutBuffer, DWORD nOutBufferSize, LPDWORD lpBytesReturned,
+                            LPOVERLAPPED lpOverlapped) {
     DWORD SRAM_VERSION = 0x0001;
     DWORD SRAM_SECTOR_SIZE = 0x100;  // Max is 0x800
 
@@ -74,7 +72,7 @@ BOOL mxsram_DeviceIoControl(DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInB
     return TRUE;
 }
 
-DWORD mxsram_SetFilePointer(LONG lDistanceToMove, PLONG lpDistanceToMoveHigh, DWORD dwMoveMethod) {
+DWORD mxsram_SetFilePointer(void* file, LONG lDistanceToMove, PLONG lpDistanceToMoveHigh, DWORD dwMoveMethod) {
     if (dwMoveMethod == FILE_BEGIN) {
         SRAM_POINTER = lDistanceToMove;
     } else if (dwMoveMethod == FILE_CURRENT) {
@@ -83,7 +81,7 @@ DWORD mxsram_SetFilePointer(LONG lDistanceToMove, PLONG lpDistanceToMoveHigh, DW
     return SRAM_POINTER;
 }
 
-BOOL mxsram_WriteFile(LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite, LPDWORD lpNumberOfBytesWritten,
+BOOL mxsram_WriteFile(void* file, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite, LPDWORD lpNumberOfBytesWritten,
                       LPOVERLAPPED lpOverlapped) {
     log_misc("mxsram", "sram write 0x%08x (0x%04x bytes)", SRAM_POINTER, nNumberOfBytesToWrite);
     if (SRAM_POINTER + nNumberOfBytesToWrite >= SRAM_SIZE) {
@@ -95,7 +93,7 @@ BOOL mxsram_WriteFile(LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite, LPDWORD lpN
     return TRUE;
 }
 
-BOOL mxsram_ReadFile(LPVOID lpBuffer, DWORD nNumberOfBytesToRead, LPDWORD lpNumberOfBytesRead,
+BOOL mxsram_ReadFile(void* file, LPVOID lpBuffer, DWORD nNumberOfBytesToRead, LPDWORD lpNumberOfBytesRead,
                      LPOVERLAPPED lpOverlapped) {
     log_misc("mxsram", "sram read 0x%08x (0x%04x bytes)", SRAM_POINTER, nNumberOfBytesToRead);
     if (SRAM_POINTER + nNumberOfBytesToRead >= SRAM_SIZE) {

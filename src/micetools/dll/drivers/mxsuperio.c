@@ -1,6 +1,3 @@
-#include <Windows.h>
-
-#include "../lib/mice/mice.h"
 #include "mx.h"
 #include "smbus.h"
 #include "w83791d.h"
@@ -16,8 +13,9 @@ BYTE w83791d_crit_t3 = 80;     // C
 BYTE w83791d_vbat_monitor_control = 0x00;
 BOOL w83791d_4f_high = 0;
 
-BOOL mxsuperio_DeviceIoControl(DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize, LPVOID lpOutBuffer,
-                               DWORD nOutBufferSize, LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
+BOOL mxsuperio_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize,
+                               LPVOID lpOutBuffer, DWORD nOutBufferSize, LPDWORD lpBytesReturned,
+                               LPOVERLAPPED lpOverlapped) {
     mxsuperio_lpc_packet* lpc_packet = (mxsuperio_lpc_packet*)lpInBuffer;
     mxsuperio_lpc_packet* lpc_out = (mxsuperio_lpc_packet*)lpOutBuffer;
 

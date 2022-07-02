@@ -1,19 +1,13 @@
 #include "files.h"
 
-#include "../lib/mice/mice.h"
-
 HANDLE fake_handle = (HANDLE)0x10000000;
 
 file_hook_t* file_hook_list = NULL;
 file_hook_t* new_file_hook(LPCWSTR filename) {
     file_hook_t* hook = (file_hook_t*)malloc(sizeof(file_hook_t));
+    memset(hook, 0, sizeof(file_hook_t));
 
     hook->filename = filename;
-
-    hook->DeviceIoControl = NULL;
-    hook->SetFilePointer = NULL;
-    hook->WriteFile = NULL;
-    hook->ReadFile = NULL;
 
     return hook;
 }
@@ -32,8 +26,11 @@ void hook_file(file_hook_t* hook) {
 };
 
 drive_redirect_t DRIVE_REDIRECT_TABLE[] = {
-    {.drive = "Y:\\", .path = ".\\dev\\Y\\"},
-    {.drive = "C:\\Documents and Settings\\AppUser\\temp\\", .path = ".\\dev\\temp\\"}};
+    { .drive = "Y:\\", .path = ".\\dev\\Y\\" },
+    // Note: Had tp create last_shime.log
+    { .drive = "C:\\Documents and Settings\\AppUser\\temp\\", .path = ".\\dev\\temp\\" },
+    // {.drive = "C:\\ProgramData/boost_interprocess/", .path = "\\\\.\\ipc\\"},
+};
 
 char* redirect_path(char* path) {
     for (int i = 0; i < sizeof DRIVE_REDIRECT_TABLE / sizeof DRIVE_REDIRECT_TABLE[0]; i++) {
@@ -66,13 +63,16 @@ HANDLE WINAPI FakeCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD d
 
     file_hook_t* hook = file_hook_list;
     while (hook != NULL) {
-        if (wcscmp(lpFileName, hook->filename) == 0) {
+        if (wcscmp(lpFileName, hook->filename) == 0 ||
+            (hook->altFilename != NULL && wcscmp(lpFileName, hook->altFilename) == 0)) {
             if (*hook->virtual_handle == NULL) {
                 // TODO: Assign handles better!
                 *hook->virtual_handle = fake_handle;
                 ((size_t)fake_handle)++;
             }
             handle = *hook->virtual_handle;
+
+            log_info(HOOKS_LOGGER, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
             break;
         }
         hook = hook->next;
@@ -113,8 +113,12 @@ BOOL WINAPI FakeDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lp
                 // TODO: Less jank
                 if (lpOverlapped != NULL) SetEvent(lpOverlapped->hEvent);
 
-                return hook->DeviceIoControl(dwIoControlCode, lpInBuffer, nInBufferSize, lpOutBuffer, nOutBufferSize,
-                                             lpBytesReturned, lpOverlapped);
+                BOOL ret = hook->DeviceIoControl(hook->data, dwIoControlCode, lpInBuffer, nInBufferSize, lpOutBuffer,
+                                                 nOutBufferSize, lpBytesReturned, lpOverlapped);
+                if (ret && lpOverlapped && lpBytesReturned) {
+                    lpOverlapped->InternalHigh = *lpBytesReturned;
+                }
+                return ret;
             } else {
                 log_error(HOOKS_LOGGER, "DeviceIoControl(%ls) unimplemented", hook->filename);
                 return FALSE;
@@ -134,7 +138,7 @@ DWORD WINAPI FakeSetFilePointer(HANDLE hFile, LONG lDistanceToMove, PLONG lpDist
     while (hook != NULL) {
         if (*hook->virtual_handle == hFile) {
             if (hook->SetFilePointer) {
-                return hook->SetFilePointer(lDistanceToMove, lpDistanceToMoveHigh, dwMoveMethod);
+                return hook->SetFilePointer(hook->data, lDistanceToMove, lpDistanceToMoveHigh, dwMoveMethod);
             } else {
                 log_error(HOOKS_LOGGER, "SetFilePointer(%ls) unimplemented", hook->filename);
                 return FALSE;
@@ -146,13 +150,49 @@ DWORD WINAPI FakeSetFilePointer(HANDLE hFile, LONG lDistanceToMove, PLONG lpDist
     return TrueSetFilePointer(hFile, lDistanceToMove, lpDistanceToMoveHigh, dwMoveMethod);
 }
 
+BOOL WINAPI FakeSetFilePointerEx(HANDLE hFile, LARGE_INTEGER liDistanceToMove, PLARGE_INTEGER lpNewFilePointer,
+                                 DWORD dwMoveMethod) {
+    file_hook_t* hook = file_hook_list;
+    while (hook != NULL) {
+        if (*hook->virtual_handle == hFile) {
+            if (hook->SetFilePointerEx) {
+                return hook->SetFilePointerEx(hook->data, liDistanceToMove, lpNewFilePointer, dwMoveMethod);
+            } else {
+                log_error(HOOKS_LOGGER, "SetFilePointerEx(%ls) unimplemented", hook->filename);
+                return FALSE;
+            }
+        }
+        hook = hook->next;
+    }
+
+    return TrueSetFilePointerEx(hFile, liDistanceToMove, lpNewFilePointer, dwMoveMethod);
+}
+
+DWORD WINAPI FakeGetFileSizeEx(HANDLE hFile, PLARGE_INTEGER lpFileSize) {
+    file_hook_t* hook = file_hook_list;
+    while (hook != NULL) {
+        if (*hook->virtual_handle == hFile) {
+            if (hook->GetFileSizeEx) {
+                return hook->GetFileSizeEx(hook->data, lpFileSize);
+            } else {
+                log_error(HOOKS_LOGGER, "GetFileSizeEx(%ls) unimplemented", hook->filename);
+                return FALSE;
+            }
+        }
+        hook = hook->next;
+    }
+
+    return TrueGetFileSizeEx(hFile, lpFileSize);
+}
+
 DWORD WINAPI FakeWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite, LPDWORD lpNumberOfBytesWritten,
                            LPOVERLAPPED lpOverlapped) {
     file_hook_t* hook = file_hook_list;
     while (hook != NULL) {
         if (*hook->virtual_handle == hFile) {
             if (hook->WriteFile) {
-                return hook->WriteFile(lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, lpOverlapped);
+                return hook->WriteFile(hook->data, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten,
+                                       lpOverlapped);
             } else {
                 log_error(HOOKS_LOGGER, "WriteFile(%ls) unimplemented", hook->filename);
                 return FALSE;
@@ -170,7 +210,7 @@ BOOL WINAPI FakeReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRe
     while (hook != NULL) {
         if (*hook->virtual_handle == hFile) {
             if (hook->ReadFile) {
-                return hook->ReadFile(lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
+                return hook->ReadFile(hook->data, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
             } else {
                 log_error(HOOKS_LOGGER, "ReadFile(%ls) unimplemented", hook->filename);
                 return FALSE;
@@ -185,7 +225,8 @@ BOOL WINAPI FakeReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRe
 BOOL WINAPI FakeCloseHandle(HANDLE hObject) {
     file_hook_t* hook = file_hook_list;
     while (hook != NULL) {
-        if (hook->virtual_handle == hObject) {
+        if (hObject != NULL && *hook->virtual_handle == hObject) {
+            log_misc("file", "close %08x", hObject);
             return TRUE;
         }
         hook = hook->next;
@@ -206,8 +247,10 @@ void hook_io() {
 
     hook("Kernel32.dll", "CloseHandle", FakeCloseHandle, (void**)&TrueCloseHandle, 6);
     hook("Kernel32.dll", "SetFilePointer", FakeSetFilePointer, (void**)&TrueSetFilePointer, 6);
+    hook("Kernel32.dll", "SetFilePointerEx", FakeSetFilePointerEx, (void**)&TrueSetFilePointerEx, 6);
     hook("Kernel32.dll", "WriteFile", FakeWriteFile, (void**)&TrueWriteFile, 6);
     hook("Kernel32.dll", "ReadFile", FakeReadFile, (void**)&TrueReadFile, 6);
+    hook("Kernel32.dll", "GetFileSizeEx", FakeGetFileSizeEx, (void**)&TrueGetFileSizeEx, 6);
 
     hook("MSVCR90.DLL", "_stat64i32", Fake_stat64i32, (void**)&True_stat64i32, 5);
 }

@@ -11,11 +11,11 @@ bool gametest = false;
 char exe_name[MAX_PATH + 1] = "";
 
 void print_help(char* exe) {
-    log_info(BOOT_LOGGER, "Usage: %s [-h] [-t] [-b executable.exe] [-d]", exe);
-    log_info(BOOT_LOGGER, "  -h: Print this help message and exit");
-    log_info(BOOT_LOGGER, "  -t: Start the game in test mode");
-    log_info(BOOT_LOGGER, "  -b: Specify the game binary to use");
-    log_info(BOOT_LOGGER, "  -d: Wait for a debugger to attach when starting");
+    fprintf(stderr, "Usage: %s [-h] [-t] [-b executable.exe] [-d]\n", exe);
+    fprintf(stderr, "  -h: Print this help message and exit\n");
+    fprintf(stderr, "  -t: Start the game in test mode\n");
+    fprintf(stderr, "  -b: Specify the game binary to use\n");
+    fprintf(stderr, "  -d: Wait for a debugger to attach when starting\n");
     exit(0);
 }
 
@@ -25,7 +25,8 @@ void parse_cmdline(int argc, char* argv[]) {
             print_help(argv[0]);
         } else if (strcmp(argv[i], "-b") == 0) {
             if (i + 1 == argc) print_help(argv[0]);
-            strcpy(exe_name, argv[++i]);
+            char* val = argv[++i];
+            memcpy(exe_name, val, strlen(val) + 1);
         } else if (strcmp(argv[i], "-d") == 0) {
             boot_delay = true;
         } else if (strcmp(argv[i], "-t") == 0) {
@@ -35,30 +36,29 @@ void parse_cmdline(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-    setup_logging();
-
-    log_info(BOOT_LOGGER, "Micetools version: %s", VERSION);
+    fprintf(stderr, "Micetools version: %s\n", VERSION);
 
     parse_cmdline(argc, argv);
 
     if (exe_name[0] == '\0') {
         if (!locate_game(exe_name, MAX_PATH + 1)) {
-            log_error(BOOT_LOGGER, "Failed to locate a game");
+            fprintf(stderr, "Fatal: Failed to locate a game\n");
             return 0;
         }
     } else {
         DWORD dwAttrib = GetFileAttributes(exe_name);
         if (dwAttrib == INVALID_FILE_ATTRIBUTES || dwAttrib & FILE_ATTRIBUTE_DIRECTORY) {
-            log_error(BOOT_LOGGER, "%s: no such file found", exe_name);
+            fprintf(stderr, "Fatal: %s: no such file found\n", exe_name);
+            return 0;
         }
     }
 
-    char* cmdline = gametest ? "gametest" : "";
-    log_info(BOOT_LOGGER, "%s %s", exe_name, cmdline);
+    char* cmdline = gametest ? ". gametest" : "";
+    fprintf(stderr, "exec: %s %s\n", exe_name, cmdline);
 
     char micepath[MAX_PATH + 1];
     if (!locate_library(micepath, MAX_PATH + 1)) {
-        log_error(BOOT_LOGGER, "Failed to locate micelib");
+        fprintf(stderr, "Fatal: Failed to locate micelib\n");
         return 0;
     }
 
@@ -66,9 +66,9 @@ int main(int argc, char* argv[]) {
     if (!game_proc) return -1;
 
     if (FAILED(WaitForSingleObject(game_proc, INFINITE))) {
-        log_error(BOOT_LOGGER, "WaitForSingleObject failed: %03x", GetLastError());
+        fprintf(stderr, "Fatal: WaitForSingleObject failed: %03x\n", GetLastError());
     } else {
-        log_info(BOOT_LOGGER, "Shutting down");
+        fprintf(stderr, "Shutting down\n");
         CloseHandle(game_proc);
     }
     return 0;

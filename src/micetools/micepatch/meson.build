@@ -1,7 +1,7 @@
 rc = import('windows').compile_resources('micepatch.rc', depend_files: micepatch_ico)
 micepatch = executable(
     'micepatch',
-    win_subsystem: 'console',
+    win_subsystem: subsystem,
     sources: [
         'main.c',
         rc,

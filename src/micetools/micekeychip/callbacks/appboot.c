@@ -1,9 +1,8 @@
 #include "../config.h"
+#include "../lib/libpcp/libpcp.h"
 #include "callbacks.h"
 
-void mxkPcpAbGameId(pcpa_t* stream, void* data) {
-    pcpaSetSendPacket(stream, AB_GAMEID, Config.appboot_gameid);
-}
+void mxkPcpAbGameId(pcpa_t* stream, void* data) { pcpaSetSendPacket(stream, AB_GAMEID, Config.appboot_gameid); }
 void mxkPcpAbSystemFlag(pcpa_t* stream, void* data) {
     char sf[3];
     snprintf(sf, 3, "%02X", Config.appboot_systemflag);
@@ -11,17 +10,17 @@ void mxkPcpAbSystemFlag(pcpa_t* stream, void* data) {
 }
 void mxkPcpAbModelType(pcpa_t* stream, void* data) {
     char mt[16];
-    snprintf(mt, 16, "%d", Config.appboot_modeltype);
+    snprintf(mt, 16, "%02X", Config.appboot_modeltype);
     pcpaSetSendPacket(stream, AB_MODELTYPE, mt);
 }
 void mxkPcpAbFormatType(pcpa_t* stream, void* data) {
     char ft[16];
-    snprintf(ft, 16, "%d", Config.appboot_formattype);
+    snprintf(ft, 16, "%02X", Config.appboot_formattype);
     pcpaSetSendPacket(stream, AB_FORMATTYPE, ft);
 }
 void mxkPcpAbRegion(pcpa_t* stream, void* data) {
     char rg[16];
-    snprintf(rg, 16, "%d", Config.appboot_region);
+    snprintf(rg, 16, "%02X", Config.appboot_region);
     pcpaSetSendPacket(stream, AB_REGION, rg);
 }
 void mxkPcpAbPlatformId(pcpa_t* stream, void* data) {
@@ -32,7 +31,7 @@ void mxkPcpAbNetworkAddress(pcpa_t* stream, void* data) {
 }
 void mxkPcpAbDvd(pcpa_t* stream, void* data) {
     char dvd[16];
-    snprintf(dvd, 16, "%d", Config.appboot_dvdflag);
+    snprintf(dvd, 16, "%02X", Config.appboot_dvdflag);
     pcpaSetSendPacket(stream, AB_DVD, dvd);
 }
 
@@ -41,7 +40,8 @@ byte SEED_BUF[SEED_BUF_MAX];
 int SEED_BUF_LEN = 0;
 void mxkPcpAbSeed(pcpa_t* stream, void* data) {
     if (SEED_BUF_LEN == 0) {
-        FILE* fCert = fopen(Config.appboot_seed, "r");
+        FILE* fCert;
+        fopen_s(&fCert, Config.appboot_seed, "r");
         if (fCert == NULL)
             SEED_BUF_LEN = -1;
         else {
@@ -72,6 +72,6 @@ void mxkPcpAbSeed(pcpa_t* stream, void* data) {
     pcpaSetSendPacket(stream, AB_SEED, "0");
     pcpaAddSendPacket(stream, "port", "40107");
     char sSize[16];  // todo: nicer lol
-    itoa(SEED_BUF_LEN, sSize, 10);
+    _itoa(SEED_BUF_LEN, sSize, 10);
     pcpaAddSendPacket(stream, "size", sSize);
 }

@@ -1,4 +1,8 @@
 #include "hook.h"
+#include "log.h"
+
+#include <memory.h>
+#include <stdlib.h>
 
 function_hook_t* hook_list = NULL;
 
@@ -36,8 +40,8 @@ void clear_at(PVOID addr, BYTE clearVal, DWORD length) {
     VirtualProtect(addr, length, oldProt, &oldProt);
 }
 
-bool Detour(PVOID src, PVOID dst, const intptr_t len) {
-    if (len < 5) return false;
+BOOL Detour(PVOID src, PVOID dst, const intptr_t len) {
+    if (len < 5) return FALSE;
 
     DWORD oldProt;
     VirtualProtect(src, len, PAGE_EXECUTE_READWRITE, &oldProt);
@@ -46,7 +50,7 @@ bool Detour(PVOID src, PVOID dst, const intptr_t len) {
     *(PINT)((int)src + 1) = (int)dst - (int)src - 5;
 
     VirtualProtect(src, len, oldProt, &oldProt);
-    return true;
+    return TRUE;
 }
 
 void* CreateHook(PVOID src, PVOID dst, const intptr_t len) {
@@ -78,6 +82,7 @@ void setup_hooks() {
         HMODULE dll = LoadLibraryA(hook->dll);
         if (dll == NULL) {
             log_error(HOOKS_LOGGER, "failed to load dll %s. %s skipped", hook->dll, hook->name);
+            hook = hook->next;
             continue;
         }
 

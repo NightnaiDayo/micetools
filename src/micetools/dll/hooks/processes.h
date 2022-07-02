@@ -1,6 +1,5 @@
-#include <Windows.h>
-#include <stdbool.h>
-#include <stdio.h>
+#pragma once
+#include "../common.h"
 
 static BOOL(WINAPI* TrueCreateProcessW)(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
                                         LPSECURITY_ATTRIBUTES lpProcessAttributes,

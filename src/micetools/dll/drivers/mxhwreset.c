@@ -1,10 +1,8 @@
-#include <Windows.h>
-
-#include "../lib/mice/mice.h"
 #include "mx.h"
 
-BOOL mxhwreset_DeviceIoControl(DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize, LPVOID lpOutBuffer,
-                               DWORD nOutBufferSize, LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
+BOOL mxhwreset_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize,
+                               LPVOID lpOutBuffer, DWORD nOutBufferSize, LPDWORD lpBytesReturned,
+                               LPOVERLAPPED lpOverlapped) {
     switch (dwIoControlCode) {
         case IOCTL_MXHWRESET_RESET:
             if (lpBytesReturned) *lpBytesReturned = 0;

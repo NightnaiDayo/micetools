@@ -1,10 +1,10 @@
 mice_lib = static_library(
     'mice',
     sources: [
-        'hook.c',
-        'log.c',
         'exe.c',
         'patch.c',
+        'crc.c',
+        'ringbuf.c',
     ],
     link_with: [
         json_lib,

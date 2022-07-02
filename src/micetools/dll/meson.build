@@ -1,24 +1,25 @@
+subdir('drivers')
+subdir('devices')
+subdir('hooks')
+
 shared_library(
     'mice',
     name_prefix: '',
     vs_module_defs: 'mice.def',
     sources: [
-        'dllmain.c',
-        'files.c',
-        'drivers/columba.c',
-        'drivers/mxsram.c',
-        'drivers/mxsuperio.c',
-        'drivers/mxjvs.c',
-        'drivers/mxsmbus.c',
-        'drivers/mxhwreset.c',
-        'setupapi.c',
-        'com.c',
+        'util/log.c',
+        'util/hook.c',
+
+        drivers_files,
+        devices_files,
+        hooks_files,
+
         'comdevice.c',
-        'processes.c',
-        'network.c',
+
+        'dllmain.c',
     ],
     link_with: [
         dmi_lib,
         mice_lib,
-    ],
+    ]
 )

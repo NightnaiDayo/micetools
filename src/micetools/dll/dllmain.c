@@ -1,15 +1,7 @@
-#include <Windows.h>
-#include <Winsock2.h>
-#include <shlwapi.h>
-#pragma comment(lib, "Shlwapi.lib")
-
-#include <stdio.h>
-
-#include "../lib/mice/mice.h"
+#include "common.h"
+#include "devices/_devices.h"
 #include "drivers/mx.h"
-#include "micesetupapi.h"
-#include "network.h"
-#include "processes.h"
+#include "hooks/_hooks.h"
 
 WCHAR exePath[MAX_PATH + 1];
 
@@ -22,7 +14,7 @@ void enable_traces() {
         char exePathC[MAX_PATH + 1];
         WideCharToMultiByte(CP_ACP, 0, exePath, -1, exePathC, sizeof exePathC, NULL, NULL);
 
-        for (int i = 0; i < patches.nopatchsets; i++) {
+        for (size_t i = 0; i < patches.nopatchsets; i++) {
             patchset_t* patchset = patches.patchsets[i];
 
             // Require the binary explicitly named
@@ -31,7 +23,7 @@ void enable_traces() {
             }
             if (!patchset->apply) continue;
 
-            for (int j = 0; j < patchset->nopatches; j++) {
+            for (size_t j = 0; j < patchset->nopatches; j++) {
                 patch_t patch = patchset->patches[j];
 
                 if (memcmp(patch.from, (void*)patch.offset, patch.count) != 0) {
@@ -48,11 +40,14 @@ void enable_traces() {
 }
 
 void prebind_hooks() {
-    hook_setupapi();
-    hook_commio();
-    hook_io();
-    hook_processes();
-    hook_network();
+    hook_all();
+    install_devices();
+
+    // TODO: Figure out why we're needing to call this manually (medium priority)
+    if (wcscmp(exePath, L"ALLNetProc.exe") == 0) {
+        // OPENSSL_add_all_algorithms_noconf
+        ((void (*)(void))(0x00459770))();
+    }
 }
 
 void init_injection() {

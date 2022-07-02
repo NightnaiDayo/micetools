@@ -1,7 +1,5 @@
 #include "processes.h"
 
-#include "../lib/mice/mice.h"
-
 const wchar_t* HOOK_BINARIES[] = {
     L"app\\ALLNetProc.exe",
     L"app\\CameraUploader.exe",
@@ -17,11 +15,19 @@ BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
 
     CHAR applicationName[MAX_PATH + 1];
     WideCharToMultiByte(CP_ACP, 0, lpApplicationName, -1, applicationName, sizeof applicationName, NULL, NULL);
-    CHAR commandLine[MAX_PATH + 1];
-    WideCharToMultiByte(CP_ACP, 0, lpCommandLine, -1, commandLine, sizeof commandLine, NULL, NULL);
 
-    HANDLE child = start_and_inject(applicationName, commandLine, MICELIB, false);
+    HANDLE child;
+    if (lpCommandLine != NULL) {
+        CHAR commandLine[MAX_PATH + 1];
+        WideCharToMultiByte(CP_ACP, 0, lpCommandLine, -1, commandLine, sizeof commandLine, NULL, NULL);
+        child = start_and_inject(applicationName, commandLine, MICELIB, false);
+    } else {
+        child = start_and_inject(applicationName, NULL, MICELIB, false);
+    }
+
     return child != NULL;
 }
 
-void hook_processes() { hook("Kernel32.dll", "CreateProcessW", FakeCreateProcessW, (void**)&TrueCreateProcessW, 6); }
+void hook_processes() {
+    // hook("Kernel32.dll", "CreateProcessW", FakeCreateProcessW, (void**)&TrueCreateProcessW, 6);
+}

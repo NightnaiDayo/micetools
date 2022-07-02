@@ -9,7 +9,8 @@ config_t Config = {
     ._keep_linter_happy = true};
 
 void make_default_config() {
-    FILE *config_file = fopen(CONFIG_PATH, "w");
+    FILE *config_file;
+    fopen_s(&config_file, CONFIG_PATH, "w");
     if (config_file == NULL) {
         puts("Failed to create config file!");
         return;
@@ -21,10 +22,9 @@ void make_default_config() {
     fprintf(config_file, "; (string) default = %s\n", default);        \
     fprintf(config_file, "%s = %s\n", #n, default);
 
-#define CFG_bool(s, n, default, comment)                               \
-    if (strlen(comment) != 0) fprintf(config_file, "; %s\n", comment); \
-    fprintf(config_file, "; (bool) default = %s\n",                    \
-            default ? "true" : "false");                               \
+#define CFG_bool(s, n, default, comment)                                         \
+    if (strlen(comment) != 0) fprintf(config_file, "; %s\n", comment);           \
+    fprintf(config_file, "; (bool) default = %s\n", default ? "true" : "false"); \
     fprintf(config_file, "%s = %s\n", #n, default ? "true" : "false");
 
 #define CFG_int(s, n, default, comment)                                \
@@ -32,10 +32,9 @@ void make_default_config() {
     fprintf(config_file, "; (int) default = %d\n", default);           \
     fprintf(config_file, "%s = %d\n", #n, default);
 
-#define CFG_hex(s, n, precision, default, comment)                     \
-    if (strlen(comment) != 0) fprintf(config_file, "; %s\n", comment); \
-    fprintf(config_file, "; (hex) default = %.*X\n", precision,        \
-            0x##default);                                              \
+#define CFG_hex(s, n, precision, default, comment)                            \
+    if (strlen(comment) != 0) fprintf(config_file, "; %s\n", comment);        \
+    fprintf(config_file, "; (hex) default = %.*X\n", precision, 0x##default); \
     fprintf(config_file, "%s = %.*X\n", #n, precision, 0x##default);
 
 #define SECTION(s, comment)                                            \
@@ -53,31 +52,26 @@ void make_default_config() {
     fclose(config_file);
 }
 
-int handler(void *user, const char *section, const char *name,
-            const char *value) {
+int handler(void *user, const char *section, const char *name, const char *value) {
     config_t *cfg = (config_t *)user;
 
     char *end;
 
     if (false)
         ;
-#define CFG_str(s, n, default, comment)                           \
-    else if (stricmp(section, #s) == 0 && stricmp(name, #n) == 0) \
-        cfg->s##_##n = strdup(value);
-#define CFG_bool(s, n, default, comment)                          \
-    else if (stricmp(section, #s) == 0 && stricmp(name, #n) == 0) \
-        cfg->s##_##n = strcmp(value, "true") == 0;
-#define CFG_int(s, n, default, comment)                             \
-    else if (stricmp(section, #s) == 0 && stricmp(name, #n) == 0) { \
-        cfg->s##_##n = strtol(value, &end, 10);                     \
-        if (end == value || *end != '\0' || errno == ERANGE)        \
-            cfg->s##_##n = default;                                 \
+#define CFG_str(s, n, default, comment) \
+    else if (_stricmp(section, #s) == 0 && _stricmp(name, #n) == 0) cfg->s##_##n = _strdup(value);
+#define CFG_bool(s, n, default, comment) \
+    else if (_stricmp(section, #s) == 0 && _stricmp(name, #n) == 0) cfg->s##_##n = strcmp(value, "true") == 0;
+#define CFG_int(s, n, default, comment)                                              \
+    else if (_stricmp(section, #s) == 0 && _stricmp(name, #n) == 0) {                \
+        cfg->s##_##n = strtol(value, &end, 10);                                      \
+        if (end == value || *end != '\0' || errno == ERANGE) cfg->s##_##n = default; \
     }
-#define CFG_hex(s, n, precision, default, comment)                  \
-    else if (stricmp(section, #s) == 0 && stricmp(name, #n) == 0) { \
-        cfg->s##_##n = strtol(value, &end, 16);                     \
-        if (end == value || *end != '\0' || errno == ERANGE)        \
-            cfg->s##_##n = 0x##default;                             \
+#define CFG_hex(s, n, precision, default, comment)                                       \
+    else if (_stricmp(section, #s) == 0 && _stricmp(name, #n) == 0) {                    \
+        cfg->s##_##n = strtol(value, &end, 16);                                          \
+        if (end == value || *end != '\0' || errno == ERANGE) cfg->s##_##n = 0x##default; \
     }
 
 #include "config.def"
@@ -86,15 +80,12 @@ int handler(void *user, const char *section, const char *name,
 }
 
 void load_config() {
-    if (ini_parse(CONFIG_PATH, handler, &Config) < 0)
-        printf("Can't load '%s', using defaults\n", CONFIG_PATH);
+    if (ini_parse(CONFIG_PATH, handler, &Config) < 0) printf("Can't load '%s', using defaults\n", CONFIG_PATH);
 }
 
 int main() {
     DWORD dwAttrib = GetFileAttributes(CONFIG_PATH);
-    if (dwAttrib == INVALID_FILE_ATTRIBUTES ||
-        (dwAttrib & FILE_ATTRIBUTE_DIRECTORY))
-        make_default_config();
+    if (dwAttrib == INVALID_FILE_ATTRIBUTES || (dwAttrib & FILE_ATTRIBUTE_DIRECTORY)) make_default_config();
 
     load_config();
 

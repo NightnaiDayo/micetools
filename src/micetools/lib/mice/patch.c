@@ -1,5 +1,8 @@
 #include "patch.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 bool fetch(json_value* object, char* name, json_value** value) {
     if (object->type != json_object) return false;
     for (size_t j = 0; j < object->u.object.length; j++) {
@@ -47,9 +50,10 @@ void free_patches(patches_t* patches) {
 }
 
 json_value* load_json_from_file(char* path, char* error) {
-    FILE* fp = fopen(path, "r");
+    FILE* fp;
+    fopen_s(&fp, path, "r");
     if (fp == NULL) {
-        if (error != NULL) sprintf(error, "Failed to open patch file");
+        if (error != NULL) snprintf(error, json_error_max, "Failed to open patch file");
         return NULL;
     }
 
@@ -59,18 +63,18 @@ json_value* load_json_from_file(char* path, char* error) {
 
     char* json_buf = (char*)malloc(sz);
     if (json_buf == NULL) {
-        if (error != NULL) sprintf(error, "Failed to allocate file buffer");
+        if (error != NULL) snprintf(error, json_error_max, "Failed to allocate file buffer");
         fclose(fp);
         return NULL;
     }
     if (!(sz = fread(json_buf, 1, sz, fp))) {
-        if (error != NULL) sprintf(error, "Failed to read file");
+        if (error != NULL) snprintf(error, json_error_max, "Failed to read file");
         fclose(fp);
         return NULL;
     };
     fclose(fp);
 
-    json_settings settings = {0};
+    json_settings settings = { 0 };
     return json_parse_ex(&settings, json_buf, sz, error);
 }
 
@@ -112,11 +116,11 @@ bool parse_patches(patches_t* patches, json_value** set_json, int set_count, cha
                 char load_error[json_error_max];
                 set_patches = load_json_from_file(patches_file_path, load_error);
                 if (set_patches == NULL) {
-                    log_warning("patcher", "Failed to load '%s': %s", patches_file_path, load_error);
+                    fprintf(stderr, "W: patcher: Failed to load '%s': %s\n", patches_file_path, load_error);
                     continue;
                 }
                 if (set_patches->type != json_array) {
-                    log_warning("patcher", "Failed to load '%s': not an array", patches_file_path);
+                    fprintf(stderr, "W: patcher: Failed to load '%s': not an array\n", patches_file_path);
                     continue;
                 }
             } else {
@@ -214,7 +218,7 @@ bool load_patches(patches_t* patches, char* path, char* error) {
         loaded_patches = 1;
         patches_json = &parsed;
     } else {
-        sprintf(error, "Patch file format error");
+        snprintf(error, json_error_max, "Patch file format error");
         json_value_free(parsed);
         return false;
     }

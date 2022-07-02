@@ -1,11 +1,13 @@
 #include "dmi.h"
 
+#include <stdlib.h>
+
 LPBYTE dmi_table = NULL;
 WORD dmi_size = 0;
 size_t _dmi_max = 0;
 
 DMI_BIOS deafult_dmi_bios = {
-	.Head.Type = 0x00,
+    .Head.Type = 0x00,
     .Head.Length = 0x12,
     .Head.Handle = 0x0000,
     .Vendor = 0x00,
@@ -20,7 +22,7 @@ DMI_SYSTEM default_dmi_system = {
     .Head.Type = 0x01,
     .Head.Length = 0x08,
     .Head.Handle = 0x0001,
-	// TODO: Are these used?
+    // TODO: Are these used?
     .Manufacturer = 0x00,
     .ProductName = 0x00,
     .Version = 0x00,
@@ -38,7 +40,7 @@ static void dmi_init(void) {
     if (dmi_table) free(dmi_table);
     _dmi_max = 0xff;
     dmi_table = (LPBYTE)malloc(_dmi_max);
-	memset(dmi_table, 0, _dmi_max);
+    memset(dmi_table, 0, _dmi_max);
     dmi_size = 0;
 }
 
@@ -64,7 +66,7 @@ static void dmi_append_with_strings(void* data, size_t size, int num_strings, ..
     for (int i = 0; i < num_strings; i++) {
         char* str = va_arg(args, char*);
         int len = strlen(str);
-        strcpy((char*)dmi_table + dmi_size, str);
+        memcpy((char*)dmi_table + dmi_size, str, len + 1);
         dmi_size += len + 1;
         dmi_table[dmi_size - 1] = 0;
     }

@@ -1,8 +1,5 @@
-#include <Windows.h>
-#include <setupapi.h>
-#include <stddef.h>
-
-#include "../lib/mice/mice.h"
+#pragma once
+#include "common.h"
 
 static HDEVINFO(WINAPI* TrueSetupDiGetClassDevsA)(const GUID* ClassGuid, PCWSTR Enumerator, HWND hwndParent,
                                                   DWORD Flags);

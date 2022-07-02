@@ -1,6 +1,6 @@
-#include <Windows.h>
-#include <stdbool.h>
-#include <stdio.h>
+#pragma once
+
+#include "../common.h"
 
 static BOOL(WINAPI* TrueGetCommState)(HANDLE hFile, LPDCB lpDCB);
 static BOOL(WINAPI* TrueSetCommState)(HANDLE hFile, LPDCB lpDCB);
@@ -24,7 +24,8 @@ typedef BOOL(FnClearCommError)(void* com, LPDWORD lpErrors, LPCOMSTAT lpStat);
 
 typedef struct com_hook {
     LPHANDLE virtual_handle;
-    WCHAR wName[7];  // max is COM255
+    WCHAR wName[7];  // max is "COM255"
+    WCHAR wDosName[11];  // max is "\\\\.\\COM255"
     BYTE com;
 
     FnGetCommState* GetCommState;
@@ -44,4 +45,5 @@ typedef struct com_hook {
 
 com_hook_t* new_com_hook(BYTE port);
 void hook_com(com_hook_t* hook);
-void hook_com();
+
+void hook_commio();

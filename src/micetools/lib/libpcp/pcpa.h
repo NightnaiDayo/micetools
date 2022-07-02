@@ -51,6 +51,9 @@ typedef struct pcpa {
     // char* field_0x254;
     pcp_parse_data_t recv_data;
     pcp_send_data_t send_data;
+
+    // Our additions
+    pcpa_callback* before_cb;
 } pcpa_t;
 
 void pcpaClose(pcpa_t* stream);

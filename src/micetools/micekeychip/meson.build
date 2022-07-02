@@ -13,7 +13,7 @@ endif
 rc = import('windows').compile_resources('micekeychip.rc', depend_files: micekeychip_ico)
 executable(
     'micekeychip',
-    win_subsystem: 'console',
+    win_subsystem: subsystem,
     sources: [
         'main.c',
         'mxk.c',

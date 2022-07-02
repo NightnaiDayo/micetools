@@ -7,16 +7,13 @@ pcpa_cb_table_t CALLBACK_FUNCTION_BUFFER[40];
 byte BINARY_DATA[4096];
 size_t BINARY_DATA_LEN;
 
-void mxkBinaryCallback(pcpa_t* stream, void* data) {
-    pcpaSetSendBinaryBuffer(stream, BINARY_DATA, BINARY_DATA_LEN);
-}
+void mxkBinaryCallback(pcpa_t* stream, void* data) { pcpaSetSendBinaryBuffer(stream, BINARY_DATA, BINARY_DATA_LEN); }
 
 int mxkInit() {
     // Enable colour
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD dwMode = 0;
-    if (GetConsoleMode(hConsole, &dwMode))
-        SetConsoleMode(hConsole, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    if (GetConsoleMode(hConsole, &dwMode)) SetConsoleMode(hConsole, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 
     WSADATA wsaData;
     int err = WSAStartup(2, &wsaData);
@@ -24,8 +21,18 @@ int mxkInit() {
     return err;
 }
 
+void log_callback(struct pcpa* stream, void* data) {
+    FILE* log_file = fopen("pcp.log", "a");
+    if (log_file != NULL) {
+        fprintf(log_file, "%s\n", (char*)data);
+        fclose(log_file);
+    }
+}
+
 e_pcpa_t mxkPcpStreamInit() {
     e_pcpa_t err;
+
+    PCP.before_cb = log_callback;
 
     err = pcpaInitStream(&PCP);
     if (err != e_pcpa_ok) {
@@ -34,8 +41,7 @@ e_pcpa_t mxkPcpStreamInit() {
     }
 
     err = pcpaSetCallbackFuncBuffer(&PCP, CALLBACK_FUNCTION_BUFFER,
-                                    (sizeof CALLBACK_FUNCTION_BUFFER) /
-                                        (sizeof CALLBACK_FUNCTION_BUFFER[0]));
+                                    (sizeof CALLBACK_FUNCTION_BUFFER) / (sizeof CALLBACK_FUNCTION_BUFFER[0]));
     if (err != e_pcpa_ok) {
         printf("pcpaSetCallBackFuncBuffer Error. Code:%d\n", err);
         return err;
@@ -58,8 +64,7 @@ e_pcpa_t mxkPcpStreamInit() {
     pcpaSetCallbackFunc(&PCP, AB_FORMATTYPE, mxkPcpAbFormatType, NULL);
     pcpaSetCallbackFunc(&PCP, AB_REGION, mxkPcpAbRegion, NULL);
     pcpaSetCallbackFunc(&PCP, AB_PLATFORMID, mxkPcpAbPlatformId, NULL);
-    pcpaSetCallbackFunc(&PCP, AB_NETWORKADDRESS, mxkPcpAbNetworkAddress,
-                        NULL);
+    pcpaSetCallbackFunc(&PCP, AB_NETWORKADDRESS, mxkPcpAbNetworkAddress, NULL);
     pcpaSetCallbackFunc(&PCP, AB_DVD, mxkPcpAbDvd, NULL);
     pcpaSetCallbackFunc(&PCP, AB_SEED, mxkPcpAbSeed, NULL);
     // Billing
@@ -101,21 +106,20 @@ e_pcpa_t mxkPcpStreamInit() {
     }
     int open_mode = Config.pcp_bind_global ? OPEN_MODE_GLOBAL : OPEN_MODE_1;
 
-    err = pcpaOpenServerWithBinary(&PCP, open_mode, text_port, binary_port,
-                                   300000);
+    err = pcpaOpenServerWithBinary(&PCP, open_mode, text_port & 0xffff, binary_port & 0xffff, 300000);
     if (err != e_pcpa_ok && err != e_pcpa_to) {
         printf("pcpaOpenServerWithBinary Error. Code %d\n", err);
         return e_pcpa_not_open;
     }
     if (open_mode == OPEN_MODE_GLOBAL)
-        printf("Listening on 0.0.0.0:%d (:%d)\n", text_port, binary_port);
+        printf("Listening on 0.0.0.0:%d (:%d)\n", text_port & 0xffff, binary_port & 0xffff);
     else
-        printf("Listening on 127.0.0.1:%d (:%d)\n", text_port, binary_port);
+        printf("Listening on 127.0.0.1:%d (:%d)\n", text_port & 0xffff, binary_port & 0xffff);
     return e_pcpa_ok;
 }
 
 #define TICK_MS 16
-#define PRINT_DEBUG
+// #define PRINT_DEBUG
 #ifdef PRINT_DEBUG
 // Larger TICK_MS for testing
 #undef TICK_MS

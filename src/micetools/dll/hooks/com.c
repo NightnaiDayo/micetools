@@ -1,12 +1,13 @@
 #include "com.h"
 
-#include "../lib/mice/mice.h"
-
 com_hook_t* com_hook_list = NULL;
 com_hook_t* new_com_hook(BYTE port) {
     com_hook_t* hook = (com_hook_t*)malloc(sizeof *hook);
 
+    memset(hook->wName, 0, sizeof hook->wName);
     swprintf(hook->wName, (sizeof hook->wName) / (sizeof hook->wName[0]), L"COM%d", port);
+    memset(hook->wDosName, 0, sizeof hook->wDosName);
+    swprintf(hook->wDosName, (sizeof hook->wDosName) / (sizeof hook->wDosName[0]), L"\\\\.\\COM%d", port);
     hook->com = port;
 
     hook->GetCommState = NULL;
