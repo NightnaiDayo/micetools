@@ -106,6 +106,6 @@ void mxkPcpPbCaCertification(pcpa_t* stream, void* data) {
     pcpaSetSendPacket(stream, BIL_CACERT, "0");
     pcpaAddSendPacket(stream, "port", "40107");
     char sSize[16];  // todo: nicer lol
-    _itoa(CA_CERT_LEN, sSize, 10);
+    _itoa_s(CA_CERT_LEN, sSize, sizeof sSize, 10);
     pcpaAddSendPacket(stream, "size", sSize);
 }

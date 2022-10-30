@@ -12,5 +12,6 @@ static BOOL(WINAPI* TrueDeregisterEventSource)(HANDLE hEventLog);
 int(WINAPIV* Trueprintf)(const char* _Format, ...);
 static int(WINAPIV* Truefprintf)(FILE* _File, const char* _Format, ...);
 static int(WINAPIV* Truefprintf_s)(FILE* _Stream, const char* _Format, ...);
+static int(WINAPIV* Truevfprintf_s)(FILE* _Stream, const char* _Format, va_list _ArgList);
 
 void hook_logging();

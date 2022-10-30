@@ -1,4 +1,4 @@
-#include <amtimer.h>
+#include <amTimer.h>
 
 int frequency_loaded = 0;
 LARGE_INTEGER frequency;
@@ -13,7 +13,7 @@ amtime_t* amiTimerGet(amtime_t* time) {
         frequency_loaded = 1;
     }
     QueryPerformanceCounter(&counter);
-    time->microseconds = (counter.QuadPart * 1000000) / frequency.QuadPart;
-    time->seconds = counter.QuadPart / frequency.QuadPart;
+    time->microseconds = (unsigned int)((counter.QuadPart * 1000000) / frequency.QuadPart);
+    time->seconds = (unsigned int)(counter.QuadPart / frequency.QuadPart);
     return time;
 }

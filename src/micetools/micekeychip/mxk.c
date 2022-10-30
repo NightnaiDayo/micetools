@@ -22,7 +22,8 @@ int mxkInit() {
 }
 
 void log_callback(struct pcpa* stream, void* data) {
-    FILE* log_file = fopen("pcp.log", "a");
+    FILE* log_file;
+    fopen_s(&log_file, "pcp.log", "a");
     if (log_file != NULL) {
         fprintf(log_file, "%s\n", (char*)data);
         fclose(log_file);

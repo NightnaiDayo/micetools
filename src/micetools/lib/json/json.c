@@ -43,7 +43,7 @@
 
 typedef unsigned int json_uchar;
 
-const struct _json_value json_value_none;
+const struct _json_value json_value_none = { 0 };
 
 static int would_overflow(json_int_t value, json_char b) { return ((JSON_INT_MAX - (b - '0')) / 10) < value; }
 
@@ -263,8 +263,8 @@ json_value *json_parse_ex(json_settings *settings, const json_char *json, size_t
                                 if (state.first_pass)
                                     string_length += 2;
                                 else {
-                                    string[string_length++] = 0xC0 | (uchar >> 6);
-                                    string[string_length++] = 0x80 | (uchar & 0x3F);
+                                    string[string_length++] = (char)(0xC0 | (uchar >> 6));
+                                    string[string_length++] = (char)(0x80 | (uchar & 0x3F));
                                 }
 
                                 break;
@@ -274,9 +274,9 @@ json_value *json_parse_ex(json_settings *settings, const json_char *json, size_t
                                 if (state.first_pass)
                                     string_length += 3;
                                 else {
-                                    string[string_length++] = 0xE0 | (uchar >> 12);
-                                    string[string_length++] = 0x80 | ((uchar >> 6) & 0x3F);
-                                    string[string_length++] = 0x80 | (uchar & 0x3F);
+                                    string[string_length++] = 0xE0 | (char)((uchar >> 12));
+                                    string[string_length++] = 0x80 | (char)(((uchar >> 6) & 0x3F));
+                                    string[string_length++] = 0x80 | (char)((uchar & 0x3F));
                                 }
 
                                 break;
@@ -285,10 +285,10 @@ json_value *json_parse_ex(json_settings *settings, const json_char *json, size_t
                             if (state.first_pass)
                                 string_length += 4;
                             else {
-                                string[string_length++] = 0xF0 | (uchar >> 18);
-                                string[string_length++] = 0x80 | ((uchar >> 12) & 0x3F);
-                                string[string_length++] = 0x80 | ((uchar >> 6) & 0x3F);
-                                string[string_length++] = 0x80 | (uchar & 0x3F);
+                                string[string_length++] = 0xF0 | (char)((uchar >> 18));
+                                string[string_length++] = 0x80 | (char)(((uchar >> 12) & 0x3F));
+                                string[string_length++] = 0x80 | (char)(((uchar >> 6) & 0x3F));
+                                string[string_length++] = 0x80 | (char)((uchar & 0x3F));
                             }
 
                             break;

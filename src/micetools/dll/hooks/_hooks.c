@@ -9,4 +9,6 @@ void hook_all() {
     hook_processes();
     hook_network();
     hook_time();
+    hook_registry();
+    hook_drives();
 }

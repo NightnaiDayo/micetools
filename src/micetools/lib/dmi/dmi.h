@@ -33,6 +33,10 @@ typedef struct {
     BYTE ReleaseDate;
     BYTE ROMSize;
     uint64_t Chars;
+    BYTE VerMajor;
+    BYTE VerMinor;
+    BYTE ECVerMajor;
+    BYTE ECVerMinor;
 } DMI_BIOS;
 
 #pragma pack(1)
@@ -51,8 +55,8 @@ typedef struct {
 } DMI_STRING;
 
 static void dmi_init(void);
-static void dmi_append(void* data, size_t size);
-static void dmi_append_with_strings(void* data, size_t size, int num_strings, ...);
+static void dmi_append(void* data, WORD size);
+static void dmi_append_with_strings(void* data, WORD size, int num_strings, ...);
 
 void dmi_build_default(void);
 BYTE dmi_calc_checksum(const char* buf, int len);

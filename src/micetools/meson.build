@@ -4,5 +4,5 @@ subdir('micepatch')
 subdir('micekeychip')
 subdir('launcher')
 subdir('dll')
-
-subdir('micetest')
+subdir('miceboot')
+subdir('util')

@@ -19,7 +19,7 @@ char* trim_string(char* string) {
 char format_buf[WORK_FORMAT_MAX];  // Will do. We guard against overflow in Fake[f]printf
 
 int WINAPIV Fakeprintf(const char* _Format, ...) {
-    int flen = strlen(_Format);
+    size_t flen = strlen(_Format);
     if (flen == strcspn(_Format, "\n") + 1 && flen < (sizeof format_buf)) {
         strcpy_s(format_buf, WORK_FORMAT_MAX, _Format);
         format_buf[flen - 1] = 0;
@@ -31,11 +31,11 @@ int WINAPIV Fakeprintf(const char* _Format, ...) {
     int ret = vlog_game("printf", _Format, args);
 
     va_end(args);
-    return vlog_game("printf", _Format, args);
+    return ret;
 }
 
 int WINAPIV Fakefprintf(FILE* _File, const char* _Format, ...) {
-    int flen = strlen(_Format);
+    size_t flen = strlen(_Format);
     if (flen == strcspn(_Format, "\n") + 1 && flen < (sizeof format_buf)) {
         strcpy_s(format_buf, WORK_FORMAT_MAX, _Format);
         format_buf[flen - 1] = 0;
@@ -58,6 +58,9 @@ int WINAPIV Fakefprintf_s(FILE* _Stream, const char* _Format, ...) {
 
     va_end(args);
     return ret;
+}
+int WINAPIV Fakevfprintf_s(FILE* _Stream, const char* _Format, va_list _ArgList) {
+    return vlog_game("vfprintf_s", _Format, _ArgList);
 }
 HANDLE WINAPI FakeRegisterEventSourceA(LPCSTR lpUNCServerName, LPCSTR lpSourceName) { return (HANDLE)0xDEADBEEF; }
 
@@ -92,6 +95,7 @@ void hook_logging() {
     hook("MSVCR90.DLL", "printf", Fakeprintf, (void**)&Trueprintf, 6);
     hook("MSVCR90.DLL", "fprintf", Fakefprintf, (void**)&Truefprintf, 6);
     hook("MSVCR90.DLL", "fprintf_s", Fakefprintf_s, (void**)&Truefprintf_s, 6);
+    hook("MSVCR90.DLL", "vfprintf_s", Fakevfprintf_s, (void**)&Truevfprintf_s, 6);
 
     hook("Advapi32.dll", "RegisterEventSourceA", FakeRegisterEventSourceA, (void**)&TrueRegisterEventSourceA, 6);
     hook("Advapi32.dll", "ReportEventA", FakeReportEventA, (void**)&TrueReportEventA, 6);

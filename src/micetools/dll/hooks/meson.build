@@ -8,4 +8,6 @@ hooks_files = files(
     'processes.c',
     'setupapi.c',
     'time.c',
+    'registry.c',
+    'drive.c',
 )

@@ -21,5 +21,6 @@ shared_library(
     link_with: [
         dmi_lib,
         mice_lib,
+        amlib,
     ]
 )

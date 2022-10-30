@@ -50,7 +50,7 @@ int jvs_buttons[2][16] = {
     },
 };
 
-short jvs_unpad(char* paddedData, short length, char* unpaddedData) {
+short jvs_unpad(unsigned char* paddedData, short length, unsigned char* unpaddedData) {
     short index = 0;
     bool escape = false;
     for (short i = 0; i < length; i++) {
@@ -64,12 +64,13 @@ short jvs_unpad(char* paddedData, short length, char* unpaddedData) {
     return index;
 }
 
-short jvs_pad(char* unpaddedData, short length, char* paddedData, short paddedMax) {
+short jvs_pad(unsigned char* unpaddedData, short length, unsigned char* paddedData,
+              short paddedMax) {
     short index = 0;
     for (short i = 0; i < length; i++) {
         if (i > paddedMax) return -1;
 
-        if (unpaddedData[i] == JVS_MARK || unpaddedData[i] == JVS_SYNC) {
+        if (i != 0 && (unpaddedData[i] == JVS_MARK || unpaddedData[i] == JVS_SYNC)) {
             paddedData[index++] = JVS_MARK;
             paddedData[index++] = unpaddedData[i] - 1;
         } else {
@@ -81,7 +82,8 @@ short jvs_pad(char* unpaddedData, short length, char* paddedData, short paddedMa
 
 const char JVS_ID[] = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551 ;Ver1.00;98/10";
 
-void mxjvs_exchange(char* paddedIn, short inCount, char* outData, int maxOut, int* outCount) {
+void mxjvs_exchange(unsigned char* paddedIn, short inCount, unsigned char* outData, short maxOut,
+                    int* outCount) {
     unsigned char* inData = malloc(inCount);
     inCount = jvs_unpad(paddedIn, inCount, inData);
     unsigned char* response = malloc(maxOut);
@@ -105,7 +107,8 @@ void mxjvs_exchange(char* paddedIn, short inCount, char* outData, int maxOut, in
     unsigned char sum = 0;
     for (int i = 1; i < inCount - 1; i++) sum += inData[i];
     if (sum != inData[inCount - 1]) {
-        log_error("mxjvs", "Checksum failed. Computed 0x%02x, expected 0x%02x", sum, inData[inCount - 1]);
+        log_error("mxjvs", "Checksum failed. Computed 0x%02x, expected 0x%02x", sum,
+                  inData[inCount - 1]);
         status = JVS_STATUS_SUM;
         goto jvs_exchange_error;
     }
@@ -202,7 +205,7 @@ void mxjvs_exchange(char* paddedIn, short inCount, char* outData, int maxOut, in
 
                 break;
             case JVS_CMD_RECEIVE_MAIN_ID:
-                unsigned char tempRead = -1;
+                unsigned char tempRead = 0xff;
                 while (tempRead != 0) jvs_read(tempRead);
                 // TODO: Do we need to report here?
                 break;
@@ -228,8 +231,10 @@ void mxjvs_exchange(char* paddedIn, short inCount, char* outData, int maxOut, in
                         for (int bit = 0; bit < 8; bit++) {
                             int scancode = jvs_buttons[i][j * 8 + bit];
 
-                            // Buttons on maimai use beam interrupt sensors, so logical high = unpressed.
-                            bool invert = ((j == 0 && (bit == 0 || bit == 2 || bit == 3)) || (j == 1 && bit >= 3));
+                            // Buttons on maimai use beam interrupt sensors, so logical high =
+                            // unpressed.
+                            bool invert = ((j == 0 && (bit == 0 || bit == 2 || bit == 3)) ||
+                                           (j == 1 && bit >= 3));
 
                             if (invert)
                                 buttons |= (GetAsyncKeyState(scancode) >= 0) << bit;
@@ -254,6 +259,16 @@ void mxjvs_exchange(char* paddedIn, short inCount, char* outData, int maxOut, in
 
                 break;
 
+            case JVS_CMD_READ_COIN:
+                jvs_write(JVS_REPORT_OK);
+                unsigned char coin_count;
+                jvs_read(coin_count);
+                for (; coin_count; coin_count--) {
+                    jvs_write(0x00);  // coin MSB
+                    jvs_write(0x00);  // coin LSB
+                }
+                break;
+
             case JVS_CMD_READ_ANALOGS:
                 jvs_write(JVS_REPORT_OK);
                 // TODO: Actually emulate these (super low priority)
@@ -276,7 +291,8 @@ void mxjvs_exchange(char* paddedIn, short inCount, char* outData, int maxOut, in
                     if (i == 0) {
                         if (!!(gpio_value & 0x80) != coin_solenoid) {
                             coin_solenoid = !!(gpio_value & 0x80);
-                            log_info("mxjvs", "Coin solenoid: %s", coin_solenoid ? "Locked" : "Unlocked");
+                            log_info("mxjvs", "Coin solenoid: %s",
+                                     coin_solenoid ? "Locked" : "Unlocked");
                         }
                     }
 
@@ -300,7 +316,7 @@ jvs_exchange_error:
     respIndex = 4;  // As if we've just written status, but nothing else
 
 jvs_exchange_complete:
-    response[2] = respIndex - 2;  // respIndex doesn't include SUM yet
+    response[2] = (respIndex - 2) & 0xFF;  // respIndex doesn't include SUM yet
     response[3] = status;
 
     // Compute and set the checksum
@@ -319,17 +335,18 @@ jvs_exchange_complete:
     free(inData);
 }
 
-BOOL mxjvs_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize,
-                           LPVOID lpOutBuffer, DWORD nOutBufferSize, LPDWORD lpBytesReturned,
-                           LPOVERLAPPED lpOverlapped) {
+BOOL mxjvs_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer,
+                           DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
+                           LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     switch (dwIoControlCode) {
         case IOCTL_MXJVS_EXCHANGE:
-            log_misc("mxjvs",
-                     "DeviceIoControl(<mxjvs>, <exchange>, 0x%p, 0x%x, -, "
-                     "0x%x, -, -)",
-                     lpInBuffer, nInBufferSize, nOutBufferSize);
+            log_trace("mxjvs",
+                      "DeviceIoControl(<mxjvs>, <exchange>, 0x%p, 0x%x, -, "
+                      "0x%x, -, -)",
+                      lpInBuffer, nInBufferSize, nOutBufferSize);
 
-            mxjvs_exchange(lpInBuffer, nInBufferSize & 0xffff, lpOutBuffer, nOutBufferSize, lpBytesReturned);
+            mxjvs_exchange(lpInBuffer, nInBufferSize & 0xffff, lpOutBuffer, nOutBufferSize & 0xFFFF,
+                           (int*)lpBytesReturned);
 
             break;
         default:
@@ -353,8 +370,8 @@ BOOL mxjvs_GetCommModemStatus(void* com, LPDWORD lpModelStat) {
 BOOL mxjvs_SetCommState(void* com, LPDCB lpDCB) {
     char PARITY[] = { 'N', 'O', 'E', 'M', 'S' };
     char* STOP[] = { "1", "1.5", "2" };
-    log_info("mxjvs", "Switching to %d baud (%d%c%s)", lpDCB->BaudRate, lpDCB->ByteSize, PARITY[lpDCB->Parity],
-             STOP[lpDCB->StopBits]);
+    log_info("mxjvs", "Switching to %d baud (%d%c%s)", lpDCB->BaudRate, lpDCB->ByteSize,
+             PARITY[lpDCB->Parity], STOP[lpDCB->StopBits]);
     return TRUE;
 }
 
@@ -362,7 +379,9 @@ void setup_mxjvs() {
     file_hook_t* mxjvs = new_file_hook(L"\\\\.\\mxjvs");
     mxjvs->DeviceIoControl = &mxjvs_DeviceIoControl;
 
-    com_hook_t* jvscom = new_com_hook(-1);
+    com_hook_t* jvscom = new_com_hook(0);
+    wcscpy_s(jvscom->wName, sizeof jvscom->wName, L"\\\\.\\mxjvs");
+    wcscpy_s(jvscom->wDosName, sizeof jvscom->wDosName, L"\\\\.\\mxjvs");
     jvscom->GetCommState = mxjvs_GetCommState;
     jvscom->SetCommState = mxjvs_SetCommState;
     jvscom->SetCommTimeouts = mxjvs_SetCommTimeouts;
@@ -372,6 +391,4 @@ void setup_mxjvs() {
 
     hook_file(mxjvs);
     hook_com(jvscom);
-    free(jvscom->virtual_handle);
-    jvscom->virtual_handle = mxjvs->virtual_handle;
 }

@@ -69,7 +69,7 @@ bool inject_dll(HANDLE process, LPCSTR inject) {
 
 HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL delay) {
     STARTUPINFOA startupInfo;
-    PROCESS_INFORMATION processInformation;
+    PROCESS_INFORMATION processInformation = { 0 };
 
     memset(&startupInfo, 0, sizeof(startupInfo));
     startupInfo.cb = sizeof(startupInfo);
@@ -78,16 +78,23 @@ HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL delay) {
     // snprintf(real_inject_path, MAX_PATH + 1, ".\\%s", inject);
     // GetFullPathNameA(real_inject_path, MAX_PATH + 1, &real_inject_path, NULL);
 
-    // Validate that we're not about to try something insane
-    DWORD found = SearchPathA(NULL, inject, NULL, 0, NULL, NULL);
+    DWORD found;
+    // Does the exe we're starting exist?
+    found = SearchPathA(NULL, path, NULL, 0, NULL, NULL);
     if (found == 0) {
-        fprintf(stderr, "Fatal: Cannot inject %s: not found: %03x\n", inject, GetLastError());
+        fprintf(stderr, "Fatal: Cannot start %s: not found\n", path);
+        goto abort;
+    }
+    // Does the DLL we want to inject exist?
+    found = SearchPathA(NULL, inject, NULL, 0, NULL, NULL);
+    if (found == 0) {
+        fprintf(stderr, "Fatal: Cannot inject %s: not found\n", inject);
         goto abort;
     }
 
     // Start the binary
-    if (FAILED(CreateProcessA(path, cmdline, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &startupInfo,
-                              &processInformation))) {
+    if (!CreateProcessA(path, cmdline, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &startupInfo,
+                              &processInformation)) {
         fprintf(stderr, "Fatal: CreateProcessA failed: %03x\n", GetLastError());
         goto abort;
     }
@@ -107,16 +114,16 @@ HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL delay) {
 
 abort:
     if (processInformation.hProcess) {
-        if (FAILED(CloseHandle(processInformation.hThread)))
+        if (!CloseHandle(processInformation.hThread))
             fprintf(stderr, "Fatal: CloseHandle(hProcess) failed: %03x\n", GetLastError());
 
-        if (FAILED(TerminateProcess(processInformation.hProcess, 1)))
+        if (!TerminateProcess(processInformation.hProcess, 1))
             fprintf(stderr, "Fatal: TerminateProcess failed: %03x\n", GetLastError());
     }
     if (processInformation.hThread) {
-        if (FAILED(CloseHandle(processInformation.hThread)))
+        if (!CloseHandle(processInformation.hThread))
             fprintf(stderr, "Fatal: CloseHandle(hThread) failed: %03x\n", GetLastError());
     }
 
-    return NULL;
+    return INVALID_HANDLE_VALUE;
 }

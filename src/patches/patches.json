@@ -47,5 +47,12 @@
         "binary_name": "ORIG_mxsegaboot.exe",
         "apply": true,
         "patches_file": "mxsegaboot.patch.json"
+    },
+    {
+        "name": "mxgfetcher logs",
+        "description": "Enable logging facilities",
+        "binary_name": "mxgfetcher.exe",
+        "apply": true,
+        "patches_file": "mxgfetcher.patch.json"
     }
 ]

@@ -39,9 +39,9 @@ typedef struct pcpa {
     pcpa_cb_table_t* callback_table;
     uint callback_max;
     uint callback_count;
-    char* recv_buffer;
+    unsigned char* recv_buffer;
     size_t recv_buffer_len;
-    char* send_buffer;
+    unsigned char* send_buffer;
     size_t send_buffer_len;
     binary_mode_t binary_mode;
     pcpa_callback* binary_mode_before_cb;

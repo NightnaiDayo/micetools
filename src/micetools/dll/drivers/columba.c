@@ -12,14 +12,12 @@ typedef struct {
 #define DMI_HEADER_START 0x000f0000
 #define DMI_TABLES_START 0x000f1000
 
-BOOL columba_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize,
-                             LPVOID lpOutBuffer, DWORD nOutBufferSize, LPDWORD lpBytesReturned,
-                             LPOVERLAPPED lpOverlapped) {
+BOOL columba_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer,
+                             DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
+                             LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     switch (dwIoControlCode) {
-        case IOCTL_COLUMBA_READ_DMI:
-            log_misc("columba",
-                     "DeviceIoControl(<columba>, <read dmi>, 0x%p, 0x%x, -, "
-                     "0x%x, -, -)",
+        case IOCTL_COLUMBA_READ:
+            log_misc("columba", "DeviceIoControl(<columba>, <read>, 0x%p, 0x%x, -, 0x%x, -, -)",
                      lpInBuffer, nInBufferSize, nOutBufferSize);
             columba_request* request = (columba_request*)lpInBuffer;
             log_info("columba", "Physical read: 0x%04x %ss at %08X", request->bytes,
@@ -50,12 +48,14 @@ BOOL columba_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffe
                 memcpy(lpOutBuffer, dmi_table, dmi_size);
                 if (lpBytesReturned) *lpBytesReturned = 0x10000;
             } else {
-                log_error("columna", "Request to unmapped memory location: %08x", request->addr);
+                log_error("columba", "Request to unmapped memory location: %08x",
+                            request->addr);
                 return FALSE;
             }
 
             break;
         default:
+            // Observed: IOCTL_KSEC_RNG_REKEY
             log_warning("columba", "unhandled 0x%08x", dwIoControlCode);
             return FALSE;
     }

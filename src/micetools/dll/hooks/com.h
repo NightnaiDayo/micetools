@@ -24,8 +24,8 @@ typedef BOOL(FnClearCommError)(void* com, LPDWORD lpErrors, LPCOMSTAT lpStat);
 
 typedef struct com_hook {
     LPHANDLE virtual_handle;
-    WCHAR wName[7];  // max is "COM255"
-    WCHAR wDosName[11];  // max is "\\\\.\\COM255"
+    WCHAR wName[16];
+    WCHAR wDosName[16];
     BYTE com;
 
     FnGetCommState* GetCommState;
@@ -42,6 +42,8 @@ typedef struct com_hook {
 
     struct com_hook* next;
 } com_hook_t;
+
+extern com_hook_t* com_hook_list;
 
 com_hook_t* new_com_hook(BYTE port);
 void hook_com(com_hook_t* hook);

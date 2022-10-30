@@ -25,7 +25,7 @@ bool fetch_int(json_value* object, char* name, size_t* value) {
     json_value* fetched;
     if (!fetch(object, name, &fetched)) return false;
     if (fetched->type != json_integer) return false;
-    *value = fetched->u.integer;
+    *value = (size_t)fetched->u.integer;
     return true;
 }
 bool fetch_bool(json_value* object, char* name, bool* value) {
@@ -39,7 +39,7 @@ void free_patches(patches_t* patches) {
     if (patches->nopatchsets == 0) return;
     for (int i = patches->nopatchsets - 1; i >= 0; i--) {
         if (patches->patchsets[i] != NULL) {
-            for (int j = 0; j < patches->patchsets[i]->nopatches; j++) {
+            for (size_t j = 0; j < patches->patchsets[i]->nopatches; j++) {
                 if (patches->patchsets[i]->patches[j].from != NULL) free(patches->patchsets[i]->patches[j].from);
                 if (patches->patchsets[i]->patches[j].to != NULL) free(patches->patchsets[i]->patches[j].to);
             }
@@ -181,8 +181,8 @@ bool parse_patches(patches_t* patches, json_value** set_json, int set_count, cha
                 snprintf(error, json_error_max, "invalid hex string in patch %s[%d]", name, j);
                 goto failed;
             }
-            char* bin_from = patchset->patches[j].from = (char*)malloc(size / 2);
-            char* bin_to = patchset->patches[j].to = (char*)malloc(size / 2);
+            unsigned char* bin_from = patchset->patches[j].from = (unsigned char*)malloc(size / 2);
+            unsigned char* bin_to = patchset->patches[j].to = (unsigned char*)malloc(size / 2);
             if (!hex_to_bin(from, bin_from, size)) {
                 snprintf(error, json_error_max, "invalid hex string in patch %s[%d].from", name, j);
                 goto failed;

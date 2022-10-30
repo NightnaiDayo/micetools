@@ -4,29 +4,32 @@
 
 LPBYTE dmi_table = NULL;
 WORD dmi_size = 0;
-size_t _dmi_max = 0;
+WORD _dmi_max = 0;
 
 DMI_BIOS deafult_dmi_bios = {
     .Head.Type = 0x00,
     .Head.Length = 0x12,
     .Head.Handle = 0x0000,
-    .Vendor = 0x00,
-    .Version = 0x00,
-    .StartSegment = 0x0000,
-    .ReleaseDate = 0x00,
-    .ROMSize = 0x00,
-    .Chars = 0x04,
+    .Vendor = 0x01,          // "American Megatrends Inc."
+    .Version = 0x02,         // "080015 "
+    .StartSegment = 0x0000,  // '00 f0'h
+    .ReleaseDate = 0x03,     // "07/28/2011"
+    .ROMSize = 0x00,         // 03h
+    .Chars = 0x1f,           // '1F 90 DA 8B'h
+    .VerMajor = 0x08,
+    .VerMinor = 0x0f,
+    .ECVerMajor = 0xff,
+    .ECVerMinor = 0xff,
 };
 
 DMI_SYSTEM default_dmi_system = {
     .Head.Type = 0x01,
     .Head.Length = 0x08,
     .Head.Handle = 0x0001,
-    // TODO: Are these used?
-    .Manufacturer = 0x00,
-    .ProductName = 0x00,
-    .Version = 0x00,
-    .Serial = 0x00,
+    .Manufacturer = 0x01,  // "NEC"
+    .ProductName = 0x02,   // "To Be Filled By O.E.M."
+    .Version = 0x03,       // "To Be Filled By O.E.M."
+    .Serial = 0x04,        // "To Be Filled By O.E.M."
 };
 
 DMI_STRING deafult_dmi_string = {
@@ -44,7 +47,7 @@ static void dmi_init(void) {
     dmi_size = 0;
 }
 
-static void dmi_append(void* data, size_t size) {
+static void dmi_append(void* data, WORD size) {
     if (!dmi_table) return;
     while (dmi_size + (size + 1) >= _dmi_max) {
         LPBYTE new_table = (LPBYTE)realloc(dmi_table, _dmi_max += 0xff);
@@ -57,7 +60,7 @@ static void dmi_append(void* data, size_t size) {
     dmi_table[dmi_size++] = 0;
 }
 
-static void dmi_append_with_strings(void* data, size_t size, int num_strings, ...) {
+static void dmi_append_with_strings(void* data, WORD size, int num_strings, ...) {
     va_list args;
     va_start(args, num_strings);
 
@@ -65,7 +68,7 @@ static void dmi_append_with_strings(void* data, size_t size, int num_strings, ..
     dmi_size -= 2;
     for (int i = 0; i < num_strings; i++) {
         char* str = va_arg(args, char*);
-        int len = strlen(str);
+        WORD len = strlen(str) & 0xffff;
         memcpy((char*)dmi_table + dmi_size, str, len + 1);
         dmi_size += len + 1;
         dmi_table[dmi_size - 1] = 0;
@@ -77,13 +80,16 @@ static void dmi_append_with_strings(void* data, size_t size, int num_strings, ..
 
 void dmi_build_default() {
     dmi_init();
-    dmi_append(&deafult_dmi_bios, sizeof deafult_dmi_bios);
+    dmi_append_with_strings(&deafult_dmi_bios, sizeof deafult_dmi_bios, 3,
+                            "American Megatrends Inc.", "080015 ", "07/28/2011");
+
     // Platform AAM: Board type one of "Supermicro"(=1) or "Advantech"(=2)
     // Platform AAL: Board type one of "NEC"(=0) or "AAL2"(=3)
+    dmi_append_with_strings(&default_dmi_system, sizeof default_dmi_system, 4, "NEC",
+                            "To Be Filled By O.E.M.", "To Be Filled By O.E.M.",
+                            "To Be Filled By O.E.M.");
 
-    dmi_append_with_strings(&default_dmi_system, sizeof default_dmi_system, 1, "Supermicro");
-
-    deafult_dmi_string.NoStrings = 3;
+    deafult_dmi_string.NoStrings = 5;
 
     dmi_append_with_strings(&deafult_dmi_string, sizeof deafult_dmi_string,
                             // OEM strings:
@@ -100,7 +106,8 @@ void dmi_build_default() {
                             //      AAM = 4
                             //      Supermicro = 4
                             //      Advantech = 4
-                            5, ".", ".", "AAM", ".", "AAL");
+                            // These values are pulled from an 846-5004D
+                            5, "DAC-BJ02", "DAC-BJ02", "AAL", "Advantech", "AAL2");
 }
 
 BYTE dmi_calc_checksum(const char* buf, int len) {

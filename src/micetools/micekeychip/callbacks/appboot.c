@@ -72,6 +72,6 @@ void mxkPcpAbSeed(pcpa_t* stream, void* data) {
     pcpaSetSendPacket(stream, AB_SEED, "0");
     pcpaAddSendPacket(stream, "port", "40107");
     char sSize[16];  // todo: nicer lol
-    _itoa(SEED_BUF_LEN, sSize, 10);
+    _itoa_s(SEED_BUF_LEN, sSize, sizeof sSize, 10);
     pcpaAddSendPacket(stream, "size", sSize);
 }

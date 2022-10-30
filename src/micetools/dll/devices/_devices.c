@@ -3,4 +3,5 @@
 void install_devices() {
     install_led_bd();
     install_touch_bd();
+    install_aime_bd();
 }

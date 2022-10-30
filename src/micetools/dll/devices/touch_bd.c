@@ -3,7 +3,7 @@
 static BYTE read_one(com_device_t* dev) {
     while (!comdev_available(dev)) Sleep(50);
     BYTE data;
-    comdev_read(dev, (char*)&data, 1);
+    comdev_read(dev, &data, 1);
     return data;
 }
 
@@ -21,7 +21,7 @@ DWORD WINAPI touch_bd_thread(com_device_t* dev) {
     while (1) {
         if (touch_is_enabled && !comdev_available(dev)) {
             // Active mode!
-            comdev_write(dev, "(@@@@@@@@@@@@)", 14);
+            comdev_write(dev, (unsigned char*)"(@@@@@@@@@@@@)", 14);
             Sleep(100);
             continue;
         }

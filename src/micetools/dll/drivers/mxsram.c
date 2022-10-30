@@ -28,7 +28,7 @@ BOOL mxsram_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer
                             LPVOID lpOutBuffer, DWORD nOutBufferSize, LPDWORD lpBytesReturned,
                             LPOVERLAPPED lpOverlapped) {
     DWORD SRAM_VERSION = 0x0001;
-    DWORD SRAM_SECTOR_SIZE = 0x100;  // Max is 0x800
+    DWORD SRAM_SECTOR_SIZE = 4;  // Max is 0x800
 
     switch (dwIoControlCode) {
         case IOCTL_MXSRAM_PING:  // Get version
@@ -48,11 +48,11 @@ BOOL mxsram_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer
 
             DISK_GEOMETRY out = *(PDISK_GEOMETRY)lpOutBuffer;
             memset(&out, 0, sizeof(out));
-            out.Cylinders.QuadPart = 1;
+            out.Cylinders.QuadPart = 256;
             out.MediaType = FixedMedia;
-            out.TracksPerCylinder = 224;
-            out.SectorsPerTrack = 32;
-            out.BytesPerSector = 1;
+            out.TracksPerCylinder = 24;
+            out.SectorsPerTrack = 8;
+            out.BytesPerSector = 512;
             if (lpBytesReturned) *lpBytesReturned = sizeof(DISK_GEOMETRY);
             break;
         case IOCTL_MXSRAM_GET_SECTOR_SIZE:
@@ -73,6 +73,7 @@ BOOL mxsram_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer
 }
 
 DWORD mxsram_SetFilePointer(void* file, LONG lDistanceToMove, PLONG lpDistanceToMoveHigh, DWORD dwMoveMethod) {
+    printf("MXSRSFP %08x\n", lDistanceToMove);
     if (dwMoveMethod == FILE_BEGIN) {
         SRAM_POINTER = lDistanceToMove;
     } else if (dwMoveMethod == FILE_CURRENT) {

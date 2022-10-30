@@ -1,6 +1,10 @@
 amlib = static_library(
     'am',
     sources: [
-        'amtimer.c',
+        'amTimer.c',
+        'amEeprom.c',
+    ],
+    link_with: [
+        mice_lib
     ],
 )

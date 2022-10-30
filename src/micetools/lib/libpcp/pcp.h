@@ -5,6 +5,7 @@
 #define ZERO_BUF(x) memset((x), 0, sizeof(*x))
 
 #include <Winsock2.h>
+#include <ws2ipdef.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,7 +30,7 @@ typedef unsigned char byte;
 typedef unsigned short ushort;
 typedef unsigned int uint;
 
-typedef int timeout_t;
+typedef unsigned int timeout_t;
 
 #define PCP_BUF_MAX 256
 #define PCP_CMDS_MAX 64
@@ -43,7 +44,7 @@ typedef struct pcp_parse_data {
     uint cmd_count;
 } pcp_parse_data_t;
 typedef struct pcp_send_data {
-    char data[PCP_BUF_MAX];
+    unsigned char data[PCP_BUF_MAX];
     size_t length;
 } pcp_send_data_t;
 
@@ -63,8 +64,9 @@ typedef enum binary_mode {
 #define PCPT_SO_LINGER 2
 #define PCPT_TCP_NODELAY 3
 
+#define SOCKET_INVAL ((SOCKET)-1)
 #define HANDLE_INVAL -1
-#define TIMEOUT_NONE -1
+#define TIMEOUT_NONE ((DWORD)-1)
 
 #define PCPT_CLOSED 0
 #define PCPT_LISTENING 1

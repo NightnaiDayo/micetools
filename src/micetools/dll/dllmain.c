@@ -39,12 +39,15 @@ void enable_traces() {
     free_patches(&patches);
 }
 
+
+
 void prebind_hooks() {
     hook_all();
     install_devices();
-
     // TODO: Figure out why we're needing to call this manually (medium priority)
     if (wcscmp(exePath, L"ALLNetProc.exe") == 0) {
+        log_warning(BOOT_LOGGER, "Making explicit call to OPENSSL_add_all_algorithms_noconf");
+
         // OPENSSL_add_all_algorithms_noconf
         ((void (*)(void))(0x00459770))();
     }
@@ -57,11 +60,17 @@ void init_injection() {
 
     enable_traces();
 
+    // Columba: Driver-level memory access, used to read the DMI tables
     setup_columba();
+    // MX SRAM: SRAM-based nv memory
     setup_mxsram();
+    // MX SuperIO: Communicate with the HW monitor chip
     setup_mxsuperio();
+    // MX JVS: Interacting with JVS-based devices
     setup_mxjvs();
+    // MX HW Reset: Forcibly reboot the machine
     setup_mxhwreset();
+    // MX SMBus: Communicate over the LPC bus. This contains the EEPROM, and PCA9535
     setup_mxsmbus();
 
     if (!add_fake_device(&PLATFORM_GUID, L"\\\\.\\platform")) {

@@ -40,9 +40,9 @@ typedef struct pcpt {
     uint tcp_nodelay;
     WSAEVENT client_event;
     WSAEVENT server_event;
-    char* send_buf;
+    unsigned char* send_buf;
     size_t* send_buf_count;
-    char* recv_buf;
+    unsigned char* recv_buf;
     size_t* recv_buf_count;
     uint field_0x40;
     SOCKADDR client_addr;
@@ -59,7 +59,7 @@ e_pcpt_t pcptCheckEvent(HANDLE event, timeout_t timeout_ms, SOCKET socket, uint 
 e_pcpt_t pcptIsBusy(pcpt_t* sock, timeout_t timeout_ms);
 e_pcpt_t pcptOpenDataSockServer(pcpt_t* sock, timeout_t timeout_ms);
 e_pcpt_t pcptOpenServer(pcpt_t* sock, int open_mode, ushort port);
-e_pcpt_t pcptRecv(pcpt_t* sock, char* recv_buf, size_t* recv_buf_len, timeout_t timeout_ms);
-e_pcpt_t pcptSend(pcpt_t* sock, char* send_buf, size_t* send_len, uint param_4, timeout_t timeout_ms);
+e_pcpt_t pcptRecv(pcpt_t* sock, unsigned char* recv_buf, size_t* recv_buf_len, timeout_t timeout_ms);
+e_pcpt_t pcptSend(pcpt_t* sock, unsigned char* send_buf, size_t* send_len, uint param_4, timeout_t timeout_ms);
 e_pcpt_t pcptSendAllMsg(pcpt_t* sock, timeout_t timeout_ms);
 void pcptSetConfig(pcpt_t* sock, uint config, uint value);

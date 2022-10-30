@@ -3,8 +3,3 @@ build/
 builddir/
 srcdir/
 .vscode/
-
-# Don't distribute the libpcp sources
-src/micetools/lib/libpcp/*.c
-# And keep build artifacts out of git!
-src/libpcp.lib
