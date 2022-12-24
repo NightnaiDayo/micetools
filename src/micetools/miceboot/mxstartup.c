@@ -192,7 +192,7 @@ bool GetKeyFile(LPCSTR src, LPCSTR dst) {
 }
 
 bool GetSystemKeyFile() { return GetKeyFile(SYSTEM_KEYFILE_ADS, SYSTEM_KEY_FILE); };
-bool GetOOUpdateKeyFile() { return GetKeyFile(OS_UPDATE_KEYFILE_ADS, OS_UPDATE_KEY_FILE); };
+bool GetOSUpdateKeyFile() { return GetKeyFile(OS_UPDATE_KEYFILE_ADS, OS_UPDATE_KEY_FILE); };
 bool SetDiskAccessPrivilege() {
     int i;
     for (i = 0; i < 100; i++) {

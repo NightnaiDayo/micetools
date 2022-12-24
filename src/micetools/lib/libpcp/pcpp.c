@@ -80,7 +80,7 @@ bool pcppCheckPrompt(pcpp_t* stream) {
     return found;
 }
 
-e_pcpt_t pcppCheckRecvMsg(unsigned char* recv_data, size_t buf_len, int param_3) {
+e_pcpp_t pcppCheckRecvMsg(unsigned char* recv_data, size_t buf_len, int param_3) {
     bool bVar1 = true;
     int local_8 = 0;
 

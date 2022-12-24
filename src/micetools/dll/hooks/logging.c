@@ -1,5 +1,6 @@
-#include "../util/_util.h"
 #include "logging.h"
+
+#include "../util/_util.h"
 
 char* trim_string(char* string) {
     size_t len = strlen(string) - 1;
@@ -62,25 +63,32 @@ int WINAPIV Fakefprintf_s(FILE* _Stream, const char* _Format, ...) {
 int WINAPIV Fakevfprintf_s(FILE* _Stream, const char* _Format, va_list _ArgList) {
     return vlog_game("vfprintf_s", _Format, _ArgList);
 }
-HANDLE WINAPI FakeRegisterEventSourceA(LPCSTR lpUNCServerName, LPCSTR lpSourceName) { return (HANDLE)0xDEADBEEF; }
+HANDLE WINAPI FakeRegisterEventSourceA(LPCSTR lpUNCServerName, LPCSTR lpSourceName) {
+    return (HANDLE)0xDEADBEEF;
+}
 
-BOOL WINAPI FakeReportEventA(HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dwEventID, PSID lpUserSid,
-                             WORD wNumStrings, DWORD dwDataSize, LPCSTR* lpStrings, LPVOID lpRawData) {
+BOOL WINAPI FakeReportEventA(HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dwEventID,
+                             PSID lpUserSid, WORD wNumStrings, DWORD dwDataSize, LPCSTR* lpStrings,
+                             LPVOID lpRawData) {
     switch (wType) {
         case EVENTLOG_SUCCESS:
         case EVENTLOG_AUDIT_SUCCESS:
-            for (int i = 0; i < wNumStrings; i++) log_misc("evtlog", trim_string((char*)lpStrings[i]));
+            for (int i = 0; i < wNumStrings; i++)
+                log_misc("evtlog", trim_string((char*)lpStrings[i]));
             break;
         case EVENTLOG_AUDIT_FAILURE:
         case EVENTLOG_ERROR_TYPE:
-            for (int i = 0; i < wNumStrings; i++) log_error("evtlog", trim_string((char*)lpStrings[i]));
+            for (int i = 0; i < wNumStrings; i++)
+                log_error("evtlog", trim_string((char*)lpStrings[i]));
             break;
         case EVENTLOG_WARNING_TYPE:
-            for (int i = 0; i < wNumStrings; i++) log_warning("evtlog", trim_string((char*)lpStrings[i]));
+            for (int i = 0; i < wNumStrings; i++)
+                log_warning("evtlog", trim_string((char*)lpStrings[i]));
             break;
         case EVENTLOG_INFORMATION_TYPE:
         default:
-            for (int i = 0; i < wNumStrings; i++) log_info("evtlog", trim_string((char*)lpStrings[i]));
+            for (int i = 0; i < wNumStrings; i++)
+                log_info("evtlog", trim_string((char*)lpStrings[i]));
             break;
     }
     return TRUE;
@@ -89,7 +97,8 @@ BOOL WINAPI FakeReportEventA(HANDLE hEventLog, WORD wType, WORD wCategory, DWORD
 BOOL WINAPI FakeDeregisterEventSource(HANDLE hEventLog) { return TRUE; }
 
 // static VOID(WINAPI* TrueOutputDebugStringA)(LPCSTR lpOutputString);
-// VOID WINAPI FakeOutputDebugStringA(LPCSTR lpOutputString) { log_info("debug", "%s", lpOutputString); }
+// VOID WINAPI FakeOutputDebugStringA(LPCSTR lpOutputString) { log_info("debug", "%s",
+// lpOutputString); }
 
 void hook_logging() {
     hook("MSVCR90.DLL", "printf", Fakeprintf, (void**)&Trueprintf, 6);
@@ -97,7 +106,9 @@ void hook_logging() {
     hook("MSVCR90.DLL", "fprintf_s", Fakefprintf_s, (void**)&Truefprintf_s, 6);
     hook("MSVCR90.DLL", "vfprintf_s", Fakevfprintf_s, (void**)&Truevfprintf_s, 6);
 
-    hook("Advapi32.dll", "RegisterEventSourceA", FakeRegisterEventSourceA, (void**)&TrueRegisterEventSourceA, 6);
+    hook("Advapi32.dll", "RegisterEventSourceA", FakeRegisterEventSourceA,
+         (void**)&TrueRegisterEventSourceA, 6);
     hook("Advapi32.dll", "ReportEventA", FakeReportEventA, (void**)&TrueReportEventA, 6);
-    hook("Advapi32.dll", "DeregisterEventSource", FakeDeregisterEventSource, (void**)&TrueDeregisterEventSource, 6);
+    hook("Advapi32.dll", "DeregisterEventSource", FakeDeregisterEventSource,
+         (void**)&TrueDeregisterEventSource, 6);
 }

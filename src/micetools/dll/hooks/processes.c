@@ -8,17 +8,35 @@ const wchar_t* HOOK_BINARIES[] = {
 
 #define DISABLE_PROC_SPAWNING
 
+BOOL WINAPI FakeCreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine,
+                               LPSECURITY_ATTRIBUTES lpProcessAttributes,
+                               LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles,
+                               DWORD dwCreationFlags, LPVOID lpEnvironment,
+                               LPCSTR lpCurrentDirectory, LPSTARTUPINFOW lpStartupInfo,
+                               LPPROCESS_INFORMATION lpProcessInformation) {
+    log_info("spawn", "CreateProcessA %s %s", lpApplicationName, lpCommandLine);
+
+    HANDLE fake_evt = CreateEvent(NULL, TRUE, FALSE, NULL);
+    SetEvent(fake_evt);
+
+    if (lpProcessInformation) {
+        lpProcessInformation->hProcess = fake_evt;
+    }
+    return TRUE;
+}
 BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
                                LPSECURITY_ATTRIBUTES lpProcessAttributes,
                                LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles,
                                DWORD dwCreationFlags, LPVOID lpEnvironment,
                                LPCWSTR lpCurrentDirectory, LPSTARTUPINFOW lpStartupInfo,
                                LPPROCESS_INFORMATION lpProcessInformation) {
-// #ifdef DISABLE_PROC_SPAWNING
-//     log_error("spawn", "CreateProcessW %ls %ls", lpApplicationName, lpCommandLine);
-//     return FALSE;
-// #else
-    log_info("spawn", "CreateProcessW %ls %ls", lpApplicationName, lpCommandLine);
+    // #ifdef DISABLE_PROC_SPAWNING
+    //     log_error("spawn", "CreateProcessW %ls %ls", lpApplicationName, lpCommandLine);
+    //     return FALSE;
+    // #else
+    // log_info("spawn", "CreateProcessW %ls %ls", lpApplicationName, lpCommandLine);
+    log_info("spawn", "CreateProcessW %ls", lpApplicationName);
+    return TRUE;
 
     CHAR applicationName[MAX_PATH + 1];
     WideCharToMultiByte(CP_ACP, 0, lpApplicationName, -1, applicationName, sizeof applicationName,
@@ -29,15 +47,16 @@ BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
         CHAR commandLine[MAX_PATH + 1];
         WideCharToMultiByte(CP_ACP, 0, lpCommandLine, -1, commandLine, sizeof commandLine, NULL,
                             NULL);
-        child = start_and_inject(applicationName, commandLine, MICELIB, false);
+        child = start_and_inject(applicationName, commandLine, MICELIB, false, 0, NULL);
     } else {
-        child = start_and_inject(applicationName, NULL, MICELIB, false);
+        child = start_and_inject(applicationName, NULL, MICELIB, false, 0, NULL);
     }
 
     return !FAILED(child);
-// #endif
+    // #endif
 }
 
 void hook_processes() {
     hook("Kernel32.dll", "CreateProcessW", FakeCreateProcessW, (void**)&TrueCreateProcessW, 6);
+    hook("Kernel32.dll", "CreateProcessA", FakeCreateProcessA, (void**)&TrueCreateProcessA, 6);
 }

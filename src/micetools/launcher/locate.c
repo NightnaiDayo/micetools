@@ -1,4 +1,5 @@
 #include "locate.h"
+
 #include "../lib/mice/mice.h"
 
 const char* KNOWN_GAMES[] = {
@@ -43,12 +44,10 @@ bool locate_game(char* path, size_t len) {
 }
 
 bool locate_library(char* path, size_t len) {
-    if (locate_file(path, len, MICELIB)) {
-        return true;
-    }
+    if (locate_file(path, len, MiceConfig.launcher.mice_dll)) return true;
 
     // Don't call DllMain! We don't want to hook ourself!
-    HANDLE mice = LoadLibraryExA(MICELIB, NULL, DONT_RESOLVE_DLL_REFERENCES);
+    HANDLE mice = LoadLibraryExA(MiceConfig.launcher.mice_dll, NULL, DONT_RESOLVE_DLL_REFERENCES);
     if (mice != NULL) {
         GetModuleFileNameA(mice, path, len);
         return true;

@@ -81,9 +81,9 @@ bool comdev_write(com_device_t* com, const unsigned char* buffer, short bytes) {
 short comdev_available(com_device_t* com) { return ringbuf_available(&com->in); }
 BYTE comdev_peek(com_device_t* com) { return com->in.buffer[com->in.read]; }
 
-BYTE one_byte;
 // Read data from a com device, unescaping as we go
 void comio_read(com_device_t* com, BYTE* data, BYTE len) {
+    BYTE one_byte;
     for (; len; len--) {
         comdev_read_blocking(com, &one_byte, 1);
         if (one_byte == COMIO_MARK) {
@@ -95,6 +95,7 @@ void comio_read(com_device_t* com, BYTE* data, BYTE len) {
 }
 // Write data to a com device, escaping as we go
 void comio_write(com_device_t* com, BYTE* data, BYTE len) {
+    BYTE one_byte;
     for (; len; len--) {
         one_byte = *(data++);
         if (one_byte == COMIO_MARK || one_byte == COMIO_SYNC) {
@@ -106,6 +107,7 @@ void comio_write(com_device_t* com, BYTE* data, BYTE len) {
     }
 }
 void comio_next_req(com_device_t* com, comio_recv_head_t* head, BYTE* data) {
+    BYTE one_byte;
     do {
         if (comdev_available(com) < (sizeof *head + 1)) {
             SwitchToThread();
@@ -126,8 +128,8 @@ void comio_next_req(com_device_t* com, comio_recv_head_t* head, BYTE* data) {
     unsigned char sum;
     comio_read(com, &sum, 1);
 }
-void comio_reply(com_device_t* com, comio_recv_head_t* req, BYTE status, BYTE len,
-                 BYTE* data) {
+void comio_reply(com_device_t* com, comio_recv_head_t* req, BYTE status, BYTE len, BYTE* data) {
+    BYTE one_byte;
     one_byte = COMIO_SYNC;
     comdev_write(com, &one_byte, 1);
 
@@ -146,10 +148,8 @@ void comio_reply(com_device_t* com, comio_recv_head_t* req, BYTE status, BYTE le
         comio_write(com, data, len);
     // Checksum
     one_byte = 0;
-    for (BYTE i = 0; i < sizeof resp; i++)
-        one_byte += ((LPBYTE)&resp)[i];
-    for (BYTE i = 0; i < len; i++)
-        one_byte += data[i];
+    for (BYTE i = 0; i < sizeof resp; i++) one_byte += ((LPBYTE)&resp)[i];
+    for (BYTE i = 0; i < len; i++) one_byte += data[i];
     comio_write(com, &one_byte, 1);
 }
 

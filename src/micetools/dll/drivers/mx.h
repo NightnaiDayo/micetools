@@ -23,3 +23,6 @@ void setup_mxsuperio();
 
 FnDeviceIoControl columba_DeviceIoControl;
 void setup_columba();
+
+FnDeviceIoControl mxparallel_DeviceIoControl;
+void setup_mxparallel();

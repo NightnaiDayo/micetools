@@ -1,5 +1,7 @@
 #include "exe.h"
 
+#include <stdlib.h>
+
 bool inject_debug_wait(HANDLE process) {
     BOOL present;
 
@@ -14,10 +16,11 @@ bool inject_debug_wait(HANDLE process) {
     fprintf(stderr, "Debugger attached, resuming\n");
     return true;
 }
-bool remote_call(HANDLE process, LPVOID function, LPCSTR argument) {
+bool remote_call(HANDLE process, LPVOID function, LPCSTR argument, DWORD* result) {
     int nchars = strlen(argument);
 
-    LPVOID arg_addr = VirtualAllocEx(process, NULL, nchars + 1, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    LPVOID arg_addr =
+        VirtualAllocEx(process, NULL, nchars + 1, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (arg_addr == NULL) {
         fprintf(stderr, "Fatal: VirtualAllocEx failed: %03x\n", GetLastError());
         return false;
@@ -28,7 +31,8 @@ bool remote_call(HANDLE process, LPVOID function, LPCSTR argument) {
         return false;
     }
 
-    HANDLE remote_thread = CreateRemoteThread(process, NULL, 0, (LPTHREAD_START_ROUTINE)function, arg_addr, 0, NULL);
+    HANDLE remote_thread =
+        CreateRemoteThread(process, NULL, 0, (LPTHREAD_START_ROUTINE)function, arg_addr, 0, NULL);
     if (remote_thread == NULL) {
         fprintf(stderr, "Fatal: CreateRemoteThread failed: %03x\n", GetLastError());
         return false;
@@ -39,12 +43,11 @@ bool remote_call(HANDLE process, LPVOID function, LPCSTR argument) {
         return false;
     }
 
-    DWORD result;
-    if (FAILED(GetExitCodeThread(remote_thread, &result))) {
+    if (FAILED(GetExitCodeThread(remote_thread, result))) {
         fprintf(stderr, "Fatal: GetExitCodeThread failed: %03x\n", GetLastError());
         return false;
     }
-    if (result == 0) {
+    if (*result == 0) {
         fprintf(stderr, "Fatal: GetExitCodeThread failed: result == 0\n");
         return false;
     }
@@ -64,10 +67,12 @@ bool inject_dll(HANDLE process, LPCSTR inject) {
         return false;
     }
 
-    return remote_call(process, addr_LoadLibraryA, inject);
+    DWORD result;
+    return remote_call(process, addr_LoadLibraryA, inject, &result);
 }
 
-HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL delay) {
+HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL debug_wait, DWORD delay,
+                        LPCSTR extra_injections) {
     STARTUPINFOA startupInfo;
     PROCESS_INFORMATION processInformation = { 0 };
 
@@ -93,16 +98,37 @@ HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL delay) {
     }
 
     // Start the binary
-    if (!CreateProcessA(path, cmdline, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &startupInfo,
-                              &processInformation)) {
+    if (!CreateProcessA(path, cmdline, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL,
+                        &startupInfo, &processInformation)) {
         fprintf(stderr, "Fatal: CreateProcessA failed: %03x\n", GetLastError());
         goto abort;
     }
 
-    if (delay) {
+    if (debug_wait) {
         if (!inject_debug_wait(processInformation.hProcess)) goto abort;
     }
+    // Sleep(5000);
     if (!inject_dll(processInformation.hProcess, inject)) goto abort;
+
+    if (extra_injections != NULL && extra_injections[0] != '\0') {
+        char* copy = (char*)malloc(strlen(extra_injections) + 1);
+        memcpy_s(copy, strlen(extra_injections) + 1, extra_injections,
+                 strlen(extra_injections) + 1);
+
+        char* next_token;
+        char* token = strtok_s(copy, "\n", &next_token);
+        while (token != NULL) {
+            if (!inject_dll(processInformation.hProcess, token)) goto abort;
+            token = strtok_s(NULL, "\n", &next_token);
+        }
+
+        free(copy);
+    }
+
+    if (delay) {
+        fprintf(stderr, "Delaying for %dms\n", delay);
+        Sleep(delay);
+    }
 
     // Injection completed, let the program continue execution
     if (FAILED(ResumeThread(processInformation.hThread))) {

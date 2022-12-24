@@ -18,6 +18,8 @@ static BYTE get_touch_id(BYTE id) {
 BOOL touch_is_enabled = false;
 BYTE thresh = 0x00;  // Lazy caching of single value
 DWORD WINAPI touch_bd_thread(com_device_t* dev) {
+    log_info("touch_bd", "%ls woke up", dev->com->wName);
+
     while (1) {
         if (touch_is_enabled && !comdev_available(dev)) {
             // Active mode!
@@ -79,6 +81,17 @@ DWORD WINAPI touch_bd_thread(com_device_t* dev) {
 }
 
 void install_touch_bd() {
-    com_device_t* touch = new_com_device(3);
-    com_device_thread(touch, touch_bd_thread);
+    char* text = MiceConfig.devices.touch_bd;
+    char* copy = (char*)malloc(strlen(text) + 1);
+    memcpy_s(copy, strlen(text) + 1, text, strlen(text) + 1);
+
+    char* next_token;
+    char* token = strtok_s(copy, ",", &next_token);
+    while (token != NULL) {
+        BYTE com_port = atoi(token) & 0xFF;
+        if (com_port) com_device_thread(new_com_device(com_port), touch_bd_thread);
+        token = strtok_s(NULL, ",", &next_token);
+    }
+
+    free(copy);
 }

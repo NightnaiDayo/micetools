@@ -10,10 +10,6 @@
 #define LOG_MISC 5
 #define LOG_TRACE 6
 
-#define LOG_LEVEL LOG_TRACE
-
-// #define LOG_TO_FILE
-
 #define COMM_LOGGER "comm"
 #define HOOKS_LOGGER "hooks"
 #define BOOT_LOGGER "boot"

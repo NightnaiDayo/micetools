@@ -1,6 +1,7 @@
 subdir('drivers')
 subdir('devices')
 subdir('hooks')
+subdir('gui')
 
 shared_library(
     'mice',
@@ -13,6 +14,7 @@ shared_library(
         drivers_files,
         devices_files,
         hooks_files,
+        gui_files,
 
         'comdevice.c',
 
@@ -22,5 +24,10 @@ shared_library(
         dmi_lib,
         mice_lib,
         amlib,
-    ]
+        mxklib,
+    ],
+    include_directories: [
+        openssl_inc,
+    ],
+    dependencies: [cimgui.get_variable('cimgui_dep')]
 )

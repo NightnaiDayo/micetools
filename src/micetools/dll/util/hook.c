@@ -1,8 +1,9 @@
 #include "hook.h"
-#include "log.h"
 
 #include <memory.h>
 #include <stdlib.h>
+
+#include "log.h"
 
 function_hook_t* hook_list = NULL;
 
@@ -81,15 +82,18 @@ void setup_hooks() {
 
         HMODULE dll = LoadLibraryA(hook->dll);
         if (dll == NULL) {
-            log_error(HOOKS_LOGGER, "failed to load dll %s. %s skipped", hook->dll, hook->name);
+            log_error(HOOKS_LOGGER, "failed to load dll %s (%03x). %s skipped", hook->dll,
+                      GetLastError(), hook->name);
             hook = hook->next;
             continue;
         }
 
-        if ((*(hook->store) = GetProcAddress(dll, hook->name)) == NULL) {
+        void* original = GetProcAddress(dll, hook->name);
+        if (original == NULL) {
             log_warning(HOOKS_LOGGER, "failed to get original %s", hook->name);
         } else {
-            *((void**)hook->store) = CreateHook(*hook->store, hook->patch, hook->length);
+            void* gateway = CreateHook(original, hook->patch, hook->length);
+            if (hook->store != NULL) *hook->store = gateway;
             log_misc(HOOKS_LOGGER, "hooked %s", hook->name);
         }
 

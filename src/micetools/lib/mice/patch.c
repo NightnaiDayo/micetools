@@ -40,8 +40,10 @@ void free_patches(patches_t* patches) {
     for (int i = patches->nopatchsets - 1; i >= 0; i--) {
         if (patches->patchsets[i] != NULL) {
             for (size_t j = 0; j < patches->patchsets[i]->nopatches; j++) {
-                if (patches->patchsets[i]->patches[j].from != NULL) free(patches->patchsets[i]->patches[j].from);
-                if (patches->patchsets[i]->patches[j].to != NULL) free(patches->patchsets[i]->patches[j].to);
+                if (patches->patchsets[i]->patches[j].from != NULL)
+                    free(patches->patchsets[i]->patches[j].from);
+                if (patches->patchsets[i]->patches[j].to != NULL)
+                    free(patches->patchsets[i]->patches[j].to);
             }
             free(patches->patchsets[i]);
         }
@@ -78,7 +80,8 @@ json_value* load_json_from_file(char* path, char* error) {
     return json_parse_ex(&settings, json_buf, sz, error);
 }
 
-bool parse_patches(patches_t* patches, json_value** set_json, int set_count, char* error) {
+bool parse_patches(patches_t* patches, json_value** set_json, int set_count, char* error,
+                   const char* test_binary_name) {
     patches->nopatchsets = set_count;
     patches->patchsets = (patchset_t**)malloc(set_count * sizeof(patchset_t*));
     for (int i = 0; i < set_count; i++) patches->patchsets[i] = NULL;
@@ -109,6 +112,18 @@ bool parse_patches(patches_t* patches, json_value** set_json, int set_count, cha
             snprintf(error, json_error_max, "'apply' missing for patch %d (%s)", i, name);
             goto failed;
         }
+
+        if (binary_name && test_binary_name) {
+            if (strcmp(binary_name, test_binary_name) != 0) {
+                patchset->name = name;
+                patchset->description = description;
+                patchset->binary_name = binary_name;
+                patchset->apply = apply;
+                patchset->nopatches = 0;
+                continue;
+            }
+        }
+
         json_value* set_patches;
         if (!fetch(set_json[i], "patches", &set_patches) || set_patches->type != json_array) {
             char* patches_file_path;
@@ -116,15 +131,18 @@ bool parse_patches(patches_t* patches, json_value** set_json, int set_count, cha
                 char load_error[json_error_max];
                 set_patches = load_json_from_file(patches_file_path, load_error);
                 if (set_patches == NULL) {
-                    fprintf(stderr, "W: patcher: Failed to load '%s': %s\n", patches_file_path, load_error);
+                    fprintf(stderr, "W: patcher: Failed to load '%s': %s\n", patches_file_path,
+                            load_error);
                     continue;
                 }
                 if (set_patches->type != json_array) {
-                    fprintf(stderr, "W: patcher: Failed to load '%s': not an array\n", patches_file_path);
+                    fprintf(stderr, "W: patcher: Failed to load '%s': not an array\n",
+                            patches_file_path);
                     continue;
                 }
             } else {
-                snprintf(error, json_error_max, "Neither 'patches' nor 'patchs_file' in patch %d (%s)", i, name);
+                snprintf(error, json_error_max,
+                         "Neither 'patches' nor 'patchs_file' in patch %d (%s)", i, name);
                 goto failed;
             }
         }
@@ -174,7 +192,8 @@ bool parse_patches(patches_t* patches, json_value** set_json, int set_count, cha
             patchset->patches[j].offset = at;
             size_t size = strlen(from);
             if (size != strlen(to)) {
-                snprintf(error, json_error_max, "'from' and 'to' lengths differ in patch %s[%d]", name, j);
+                snprintf(error, json_error_max, "'from' and 'to' lengths differ in patch %s[%d]",
+                         name, j);
                 goto failed;
             }
             if (size % 2 != 0) {
@@ -203,7 +222,7 @@ failed:
     return false;
 }
 
-bool load_patches(patches_t* patches, char* path, char* error) {
+bool load_patches(patches_t* patches, char* path, char* error, const char* test_binary_name) {
     patches->nopatchsets = 0;
 
     json_value* parsed = load_json_from_file(path, error);
@@ -223,6 +242,7 @@ bool load_patches(patches_t* patches, char* path, char* error) {
         return false;
     }
 
-    if (!parse_patches(patches, patches_json, loaded_patches, error)) return false;
+    if (!parse_patches(patches, patches_json, loaded_patches, error, test_binary_name))
+        return false;
     return true;
 }

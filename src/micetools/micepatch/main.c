@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
 
     char error[json_error_max];
     patches_t all_patches;
-    if (!load_patches(&all_patches, argv[1], error)) {
+    if (!load_patches(&all_patches, argv[1], error, NULL)) {
         fprintf(stderr, "%s\n", error);
         return -1;
     }

@@ -9,6 +9,18 @@
 
 #include "../lib/am/amEeprom.h"
 
+BYTE get_region() {
+    HANDLE mxsmbus = amEepromCreateDeviceFile(&MXSMBUS_GUID, NULL, 0);
+    if (mxsmbus == INVALID_HANDLE_VALUE) return FALSE;
+
+    BYTE data[0x20];
+    amEepromReadBlock(mxsmbus, 0, sizeof data, data);
+
+    CloseHandle(mxsmbus);
+
+    return data[12];
+}
+
 BOOL change_region(BYTE region) {
     HANDLE mxsmbus = amEepromCreateDeviceFile(&MXSMBUS_GUID, NULL, 0);
     if (mxsmbus == INVALID_HANDLE_VALUE) return FALSE;
@@ -42,11 +54,27 @@ fail:
 
 int main(int argc, char** argv) {
     if (argc != 2) {
-        printf("Usage: %s <region>\n", argv[0]);
-        return -1;
+        BYTE region = get_region();
+        printf("Current region: %02x\n", region);
+        return 0;
     }
-    BYTE region = argv[1][0] - '0';
-    printf("Changing to region: %d\n", region);
+    BYTE region;
+
+    if (argv[1][0] <= '9')
+        region |= (argv[1][0] - '0') << 4;
+    else if (argv[1][0] <= 'A')
+        region |= (argv[1][0] - 'A' + 10) << 4;
+    else
+        region |= (argv[1][0] - 'a' + 10) << 4;
+
+    if (argv[1][1] <= '9')
+        region |= argv[1][1] - '0';
+    else if (argv[1][1] <= 'F')
+        region |= argv[1][1] - 'A' + 10;
+    else
+        region |= argv[1][1] - 'a' + 10;
+
+    printf("Changing to region: %02x\n", region);
 
     if (!change_region(region)) {
         printf("Failed to change region: %03x", GetLastError());

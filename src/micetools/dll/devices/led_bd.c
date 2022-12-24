@@ -75,7 +75,8 @@ typedef struct rs232c_recv_head {
 
 BYTE extra[0xff];
 static DWORD WINAPI led_bd_thread(com_device_t* dev) {
-    log_warning("led_bd", "%ls woke up", dev->com->wName);
+    log_info("led_bd", "%ls woke up", dev->com->wName);
+
     while (1) {
         rs232c_recv_head_t head;
         if (comdev_available(dev) < sizeof head) {
@@ -89,13 +90,13 @@ static DWORD WINAPI led_bd_thread(com_device_t* dev) {
 
         switch (head.op) {
             case 0x01:
-                log_warning("led_bd", "01");
+                log_trace("led_bd", "01");
                 comdev_write(dev, (unsigned char*)"\xe0\x01\x11\x03\x01\x01\x01\x18", 8);
                 //                  syn dst src len sts op. rep chk
                 break;
 
             case 0x10:
-                log_warning("led_bd", "10");
+                log_trace("led_bd", "10");
                 comdev_write(dev, (unsigned char*)"\xe0\x01\x11\x03\x01\x10\x01\x27", 8);
                 //                  syn dst src len sts op. rep chk
                 break;
@@ -105,13 +106,14 @@ static DWORD WINAPI led_bd_thread(com_device_t* dev) {
                 COLOURS[extra[0]][1] = extra[2];
                 COLOURS[extra[0]][2] = extra[3];
 
-                log_warning("led_bd", "31: %02x = (%02x %02x %02x)", extra[0], extra[1], extra[2], extra[3]);
+                log_trace("led_bd", "31: %02x = (%02x %02x %02x)", extra[0], extra[1], extra[2],
+                            extra[3]);
                 comdev_write(dev, (unsigned char*)"\xe0\x01\x11\x03\x01\x31\x01\x48", 8);
                 //                  syn dst src len sts op. rep chk
                 break;
             case 0x32:
-                log_warning("led_bd", "32: %02x %02x %02x %02x %02x %02x %02x", extra[0], extra[1], extra[2], extra[3],
-                            extra[4], extra[5], extra[6], extra[7]);
+                log_trace("led_bd", "32: %02x %02x %02x %02x %02x %02x %02x", extra[0], extra[1],
+                            extra[2], extra[3], extra[4], extra[5], extra[6], extra[7]);
 
                 for (unsigned char i = extra[2] - 1; i < extra[1]; i++) {
                     COLOURS[i][0] = extra[3];
@@ -123,8 +125,8 @@ static DWORD WINAPI led_bd_thread(com_device_t* dev) {
                 //                  syn dst src len sts op. rep chk
                 break;
             case 0x33:
-                log_warning("led_bd", "33: %02x %02x %02x %02x %02x %02x %02x", extra[0], extra[1], extra[2], extra[3],
-                            extra[4], extra[5], extra[6], extra[7]);
+                log_trace("led_bd", "33: %02x %02x %02x %02x %02x %02x %02x", extra[0], extra[1],
+                            extra[2], extra[3], extra[4], extra[5], extra[6], extra[7]);
                 comdev_write(dev, (unsigned char*)"\xe0\x01\x11\x03\x01\x33\x01\x4a", 8);
                 //                  syn dst src len sts op. rep chk
                 COLOURS[extra[0]][0] = extra[extra[5]];
@@ -133,7 +135,7 @@ static DWORD WINAPI led_bd_thread(com_device_t* dev) {
                 break;
 
             case 0x39:
-                log_warning("led_bd", "39: %02x %02x %02x", extra[0], extra[1], extra[2]);
+                log_trace("led_bd", "39: %02x %02x %02x", extra[0], extra[1], extra[2]);
                 comdev_write(dev, (unsigned char*)"\xe0\x01\x11\x03\x01\x39\x01\x50", 8);
                 //                  syn dst src len sts op. rep chk
 
@@ -142,18 +144,18 @@ static DWORD WINAPI led_bd_thread(com_device_t* dev) {
                 COLOURS[9][2] = extra[0];
                 break;
             case 0x3b:
-                log_warning("led_bd", "3b");
+                log_trace("led_bd", "3b");
                 comdev_write(dev, (unsigned char*)"\xe0\x01\x11\x03\x01\x3b\x01\x52", 8);
                 //                  syn dst src len sts op. rep chk
                 break;
             case 0x3c:
-                log_warning("led_bd", "3c (I am %ls)", dev->com->wName);
+                log_trace("led_bd", "3c (I am %ls)", dev->com->wName);
                 comdev_write(dev, (unsigned char*)"\xe0\x01\x11\x03\x01\x3c\x01\x53", 8);
                 //                  syn dst src len sts op. rep chk
                 break;
             case 0x3f:
-                log_warning("led_bd", "3f: %02x %02x %02x %02x %02x %02x", extra[0], extra[1], extra[2], extra[3],
-                            extra[4], extra[5], extra[6]);
+                log_trace("led_bd", "3f: %02x %02x %02x %02x %02x %02x", extra[0], extra[1],
+                            extra[2], extra[3], extra[4], extra[5], extra[6]);
                 comdev_write(dev, (unsigned char*)"\xe0\x01\x11\x03\x01\x3f\x01\x56", 8);
                 //                  syn dst src len sts op. rep chk
                 break;
@@ -161,14 +163,14 @@ static DWORD WINAPI led_bd_thread(com_device_t* dev) {
             case 0x7c:
                 // extra[0] goes from 0 to 7
                 // Could this be some sort of calibration for the buttons?
-                log_warning("led_bd", "7c: %02x", extra[0]);
+                log_trace("led_bd", "7c: %02x", extra[0]);
                 comdev_write(dev, (unsigned char*)"\xe0\x01\x11\x04\x01\x7c\x01\x00\x94", 9);
                 // \/ causes 7b to be used
                 // comdev_write(dev, (unsigned char*)"\xe0\x01\x11\x04\x01\x7c\x01\x10\xa4", 9);
                 //                  syn dst src len sts op. rep --- chk
                 break;
             case 0x7b:
-                log_warning("led_bd", "7b: %02x %02x %02x", extra[0], extra[1], extra[2]);
+                log_trace("led_bd", "7b: %02x %02x %02x", extra[0], extra[1], extra[2]);
                 comdev_write(dev, (unsigned char*)"\xe0\x01\x11\x03\x01\x7b\x01\x92", 8);
                 //                  syn dst src len sts op. rep chk
                 break;
@@ -211,12 +213,17 @@ void led_overlay(IDirect3DDevice9* dev) {
 void install_led_bd() {
     register_gui_hook(&led_overlay);
 
-    com_device_t* com5 = new_com_device(5);
-    com_device_thread(com5, led_null_thread);
-    com_device_t* leds_1p = new_com_device(6);
-    com_device_thread(leds_1p, led_bd_thread);
-    com_device_t* com7 = new_com_device(7);
-    com_device_thread(com7, led_null_thread);
-    com_device_t* leds_2p = new_com_device(8);
-    com_device_thread(leds_2p, led_bd_thread);
+    char* text = MiceConfig.devices.led_bd;
+    char* copy = (char*)malloc(strlen(text) + 1);
+    memcpy_s(copy, strlen(text) + 1, text, strlen(text) + 1);
+
+    char* next_token;
+    char* token = strtok_s(copy, ",", &next_token);
+    while (token != NULL) {
+        BYTE com_port = atoi(token) & 0xFF;
+        if (com_port) com_device_thread(new_com_device(com_port), led_bd_thread);
+        token = strtok_s(NULL, ",", &next_token);
+    }
+
+    free(copy);
 }

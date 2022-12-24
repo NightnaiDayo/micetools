@@ -1,5 +1,7 @@
 #include "gui.h"
 
+extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 static HWND window;
 BOOL CALLBACK EnumWindowsCallback(HWND handle, LPARAM lParam) {
     DWORD wndProcId;
@@ -34,8 +36,9 @@ BOOL GetD3D9Device(void** pTable, size_t Size) {
     if (dummyDeviceCreated != S_OK) {
         d3dpp.Windowed = !d3dpp.Windowed;
 
-        dummyDeviceCreated = pD3D->lpVtbl->CreateDevice(pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, d3dpp.hDeviceWindow,
-                                                        D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &pDummyDevice);
+        dummyDeviceCreated = pD3D->lpVtbl->CreateDevice(
+            pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, d3dpp.hDeviceWindow,
+            D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &pDummyDevice);
         if (dummyDeviceCreated != S_OK) {
             pD3D->lpVtbl->Release(pD3D);
             return false;
@@ -51,7 +54,8 @@ BOOL GetD3D9Device(void** pTable, size_t Size) {
 
 static HRESULT(WINAPI* TrueEndScene)(IDirect3DDevice9*);
 
-void draw_rect(IDirect3DDevice9* dev, int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b) {
+void draw_rect(IDirect3DDevice9* dev, int x, int y, int w, int h, unsigned char r, unsigned char g,
+               unsigned char b) {
     D3DCOLOR rectColor = D3DCOLOR_XRGB(r, g, b);
     D3DRECT BarRect = { x, y, x + w, y + h };
 
@@ -82,16 +86,12 @@ void register_gui_hook(FnEndScene* end_scene) {
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass,
                          DWORD_PTR dwRefData) {
-    // ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
+    ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
 
     return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
-HWND WINAPI FakeCreateWindowExA(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y,
-                                int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance,
-                                LPVOID lpParam) {
-    HWND hWnd = TrueCreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent,
-                                    hMenu, hInstance, lpParam);
 
+void post_win_create(HWND hWnd) {
     void* d3d9Device[119];
 
     if (GetD3D9Device(d3d9Device, sizeof(d3d9Device))) {
@@ -101,11 +101,27 @@ HWND WINAPI FakeCreateWindowExA(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWi
     if (hWnd && !SetWindowSubclass(hWnd, WndProc, (int)&WndProc, (DWORD_PTR)NULL)) {
         log_error("gui", "failed to SetWindowSubclass(%d)", GetLastError());
     }
+}
 
+HWND WINAPI FakeCreateWindowExA(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName,
+                                DWORD dwStyle, int X, int Y, int nWidth, int nHeight,
+                                HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam) {
+    HWND hWnd = TrueCreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth,
+                                    nHeight, hWndParent, hMenu, hInstance, lpParam);
+    post_win_create(hWnd);
+    return hWnd;
+}
+HWND WINAPI FakeCreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName,
+                                DWORD dwStyle, int X, int Y, int nWidth, int nHeight,
+                                HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam) {
+    HWND hWnd = TrueCreateWindowExW(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth,
+                                    nHeight, hWndParent, hMenu, hInstance, lpParam);
+    post_win_create(hWnd);
     return hWnd;
 }
 
 void hook_gui() {
     //
     hook("User32.dll", "CreateWindowExA", FakeCreateWindowExA, (void**)&TrueCreateWindowExA, 7);
+    hook("User32.dll", "CreateWindowExW", FakeCreateWindowExW, (void**)&TrueCreateWindowExW, 7);
 }

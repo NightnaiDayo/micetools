@@ -1,0 +1,65 @@
+#ifndef SECTION
+#define SECTION(s, comment)
+#endif
+#ifndef HEADER
+#define HEADER(comment)
+#endif
+#ifndef ENDSECTION
+#define ENDSECTION(s)
+#endif
+
+HEADER("The main config file for micetools")
+
+SECTION(mice, "General mice settings")
+CFG_int(mice, log_level, 4, "1 = Game\n2 = Error\n3 = Warning\n4 = Info\n5 = Misc\n6 = Trace")
+CFG_bool(mice, log_to_file, false, "Also log out to log_file")
+CFG_str(mice, log_file, "log.txt", "The file to log to if log_to_file is enabled")
+CFG_bool(mice, apply_patches, true, "Load and apply patches from patches_file at runtime")
+CFG_str(mice, patches_file, "patches.json", "The file to read patches from")
+ENDSECTION(mice)
+
+SECTION(launcher, "These options are only used during initial bootstrapping")
+CFG_str(launcher, game_binary, "", "Override binary detection")
+CFG_bool(launcher, wait_for_debugger, false, "Wait for a debugger to attach when starting")
+CFG_int(launcher, startup_delay, 0, "Pause during startup")
+CFG_str(launcher, mice_dll, "mice86.dll", "The path to mice's DLL")
+CFG_str(launcher, inject, "", "Extra DLLs to inject during boot")
+ENDSECTION(launcher)
+
+SECTION(devices, "Specify COM ports for devices to attach, comma seperated")
+CFG_str(devices, aime_bd, "2", "AIME reader board")
+CFG_str(devices, touch_bd, "3", "maimai touch screen")
+CFG_str(devices, led_bd, "5,6,7,8", "maimai led boards")
+ENDSECTION(devices)
+
+SECTION(drivers, "Enable or disable drivers. Disabling any is not recommended.")
+CFG_bool(drivers, columba, true, "Columba memory driver")
+CFG_bool(drivers, mxsram, true, "SRAM driver")
+CFG_bool(drivers, mxsuperio, true, "SuperIO driver")
+CFG_bool(drivers, mxjvs, true, "JVS driver")
+CFG_bool(drivers, mxhwreset, true, "System reboot driver")
+CFG_bool(drivers, mxsmbus, true, "SMBus driver")
+CFG_bool(drivers, mxparallel, true, "Parallel port driver")
+CFG_bool(drivers, platform, true, "amPlatform driver")
+ENDSECTION(drivers)
+
+SECTION(hooks, "Enable or disable hooks. Disabling any is not recommended.")
+CFG_bool(hooks, logging, true, "Hooks logging functions and the eventlog to capture game logs")
+CFG_bool(hooks, gui, true, "Required for overlays to work")
+CFG_bool(hooks, setupapi, true, "Required for SRAM")
+CFG_bool(hooks, commio, true, "Emulates COM devices")
+CFG_bool(hooks, io, true, "Hooks all file IO operations, including driver communication")
+CFG_bool(hooks, processes, true, "Controls process spawning to re-hook children")
+CFG_bool(hooks, network, true, "Provides a virtual network environment for the game")
+CFG_bool(hooks, time, true, "Some binaries try to change the system time; this handles that")
+CFG_bool(hooks, registry, true, "")
+CFG_bool(hooks, drives, true, "Provides an emulation layer for the physical game SSD")
+ENDSECTION(hooks)
+
+#undef CFG_str
+#undef CFG_int
+#undef CFG_bool
+#undef CFG_hex
+#undef SECTION
+#undef ENDSECTION
+#undef HEADER

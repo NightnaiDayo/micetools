@@ -10,5 +10,6 @@
 #include "time.h"
 #include "registry.h"
 #include "drive.h"
+#include "system.h"
 
 void hook_all();

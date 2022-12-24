@@ -54,5 +54,26 @@
         "binary_name": "mxgfetcher.exe",
         "apply": true,
         "patches_file": "mxgfetcher.patch.json"
+    },
+    {
+        "name": "mxmaster logs",
+        "description": "Enable logging facilities",
+        "binary_name": "mxmaster.exe",
+        "apply": true,
+        "patches_file": "mxmaster.patch.json"
+    },
+    {
+        "name": "InitialD8_GLW_RE_SBZZ logs",
+        "description": "Enable logging facilities",
+        "binary_name": "InitialD8_GLW_RE_SBZZ.exe",
+        "apply": true,
+        "patches_file": "InitialD8_GLW_RE_SBZZ.patch.json"
+    },
+    {
+        "name": "InitialD8_GLW_RE_SBZZ logs",
+        "description": "Enable logging facilities",
+        "binary_name": "InitialD8_GLW_RE_SBZZ_dumped.exe",
+        "apply": true,
+        "patches_file": "InitialD8_GLW_RE_SBZZ.patch.json"
     }
 ]

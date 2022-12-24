@@ -6,3 +6,4 @@
 #include "patch.h"
 #include "crc.h"
 #include "ringbuf.h"
+#include "config.h"

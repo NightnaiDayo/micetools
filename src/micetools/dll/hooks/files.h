@@ -28,6 +28,10 @@ static BOOL(WINAPI* TrueReadFile)(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOf
                                   LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped);
 static BOOL(WINAPI* TrueGetFileSizeEx)(HANDLE hFile, PLARGE_INTEGER lpFileSize);
 static BOOL(WINAPI* TrueCloseHandle)(HANDLE hObject);
+static BOOL(WINAPI* TruePathFileExistsA)(LPCSTR pszPath);
+static BOOL(WINAPI* TruePathFileExistsW)(LPCWSTR pszPath);
+static BOOL(WINAPI* TrueDeleteFileA)(LPCSTR lpFileName);
+static BOOL(WINAPI* TrueDeleteFileW)(LPCWSTR lpFileName);
 
 typedef BOOL(FnDeviceIoControl)(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer,
                                 DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,

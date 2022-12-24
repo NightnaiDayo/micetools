@@ -73,7 +73,6 @@ BOOL mxsram_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer
 }
 
 DWORD mxsram_SetFilePointer(void* file, LONG lDistanceToMove, PLONG lpDistanceToMoveHigh, DWORD dwMoveMethod) {
-    printf("MXSRSFP %08x\n", lDistanceToMove);
     if (dwMoveMethod == FILE_BEGIN) {
         SRAM_POINTER = lDistanceToMove;
     } else if (dwMoveMethod == FILE_CURRENT) {

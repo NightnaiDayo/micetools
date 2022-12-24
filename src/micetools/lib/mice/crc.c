@@ -20,6 +20,8 @@ void crc32_build_table() {
 }
 
 unsigned int crc32(int length, unsigned char *data, unsigned int initial) {
+    crc32_build_table();
+
     unsigned int value = ~initial;
     while (length--) {
         value = value >> 8 ^ CRC_TABLE[(*data ^ value) & 0xff];

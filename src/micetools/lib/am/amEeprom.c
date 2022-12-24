@@ -42,7 +42,7 @@ fail:
 }
 
 BOOL amEepromReadBlock(HANDLE mxsmbus, BYTE reg, BYTE len, BYTE *data) {
-    mxsmbus_request_packet smbus_req = {
+    mxsmbus_i2c_packet smbus_req = {
         .status = 0,
         .prt = 0x09,
         .addr = SMBUS_EEPROM,
@@ -52,7 +52,7 @@ BOOL amEepromReadBlock(HANDLE mxsmbus, BYTE reg, BYTE len, BYTE *data) {
     };
 
     DWORD _dummy;
-    BOOL s = DeviceIoControl(mxsmbus, (DWORD)IOCTL_MXSMBUS_I2C, &smbus_req, sizeof smbus_req,
+    BOOL s = DeviceIoControl(mxsmbus, IOCTL_MXSMBUS_I2C, &smbus_req, sizeof smbus_req,
                              &smbus_req, sizeof smbus_req, &_dummy, NULL);
     if (!s) return FALSE;
     if (smbus_req.status) return FALSE;
@@ -61,7 +61,7 @@ BOOL amEepromReadBlock(HANDLE mxsmbus, BYTE reg, BYTE len, BYTE *data) {
 }
 
 BOOL amEepromWriteBlock(HANDLE mxsmbus, BYTE reg, BYTE len, BYTE *data) {
-    mxsmbus_request_packet smbus_req = {
+    mxsmbus_i2c_packet smbus_req = {
         .status = 0,
         .prt = 0x08,
         .addr = SMBUS_EEPROM,
@@ -72,7 +72,7 @@ BOOL amEepromWriteBlock(HANDLE mxsmbus, BYTE reg, BYTE len, BYTE *data) {
     memcpy(smbus_req.data, data, sizeof smbus_req.data);
 
     DWORD _dummy;
-    BOOL s = DeviceIoControl(mxsmbus, (DWORD)IOCTL_MXSMBUS_I2C, &smbus_req, sizeof smbus_req,
+    BOOL s = DeviceIoControl(mxsmbus, IOCTL_MXSMBUS_I2C, &smbus_req, sizeof smbus_req,
                              &smbus_req, sizeof smbus_req, &_dummy, NULL);
     if (!s) return FALSE;
     if (smbus_req.status) return FALSE;
@@ -81,8 +81,6 @@ BOOL amEepromWriteBlock(HANDLE mxsmbus, BYTE reg, BYTE len, BYTE *data) {
 }
 
 void amEepromRepairChecksum(BYTE *data) {
-    crc32_build_table();
-
     DWORD check = crc32(28, data + 4, 0);
     ((DWORD*)data)[0] = check;
 }

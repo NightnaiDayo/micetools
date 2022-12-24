@@ -85,66 +85,12 @@ void hook_file(file_hook_t* hook) {
 };
 
 drive_redirect_t DRIVE_REDIRECT_TABLE[] = {
-    { .drive = "Y:\\", .path = ".\\dev\\Y\\" },
-    // Note: Had tp create last_shime.log
+    // Note: Had to create last_shime.log
     { .drive = "C:\\Documents and Settings\\AppUser\\temp\\", .path = ".\\dev\\temp\\" },
     // {.drive = "C:\\ProgramData/boost_interprocess/", .path = "\\\\.\\ipc\\"},
-
-    { .drive = "C:\\\\Windows\\\\System32\\", .path = "Sys32" },
-    { .drive = "C:\\\\WINDOWS\\\\system32\\", .path = "Sys32" },
 };
 
-LPCSTR redirect_path(LPCSTR path) {
-    for (int i = 0; i < sizeof DRIVE_REDIRECT_TABLE / sizeof DRIVE_REDIRECT_TABLE[0]; i++) {
-        drive_redirect_t row = DRIVE_REDIRECT_TABLE[i];
-        if (strstr(path, row.drive)) {
-            log_misc(HOOKS_LOGGER, "Redirecting '%s' to '%s'", path, row.path);
-
-            size_t new_len = strlen(path) - strlen(row.drive) + strlen(row.path);
-            // TODO: Make this not leak memory!
-            char* new_str = (char*)malloc(new_len + 1);
-            strcpy_s(new_str, new_len + 1, row.path);
-
-            char* dst = new_str + strlen(row.path);
-            size_t len = strlen(path) - strlen(row.drive);
-            const char* src = path + strlen(row.drive);
-
-            for (; len > 0; len--) (dst++)[0] = (src++)[0];
-            dst[0] = 0;
-            log_misc(HOOKS_LOGGER, "New filename: '%s'", new_str);
-            return new_str;
-        }
-    }
-    return path;
-}
-LPCWSTR redirect_path_w(LPCWSTR path) {
-    return path;
-    // TODO: THIS!!
-    for (int i = 0; i < sizeof DRIVE_REDIRECT_TABLE / sizeof DRIVE_REDIRECT_TABLE[0]; i++) {
-        drive_redirect_t row = DRIVE_REDIRECT_TABLE[i];
-        if (wcsstr(path, row.drive)) {
-            log_misc(HOOKS_LOGGER, "Redirecting '%ls' to '%ls'", path, row.path);
-
-            size_t new_len = wcslen(path) - wcslen(row.drive) + wcslen(row.path);
-            // TODO: Make this not leak memory!
-            wchar_t* new_str = (wchar_t*)malloc((new_len + 1) * 2);
-            wcscpy_s(new_str, new_len + 1, row.path);
-
-            wchar_t* dst = new_str + wcslen(row.path) * 2;
-            size_t len = wcslen(path) - wcslen(row.drive);
-            const wchar_t* src = path + wcslen(row.drive) * 2;
-
-            for (; len > 0; len--) {
-                (dst++)[0] = (src++)[0];
-                (dst++)[0] = (src++)[0];
-            }
-            dst[0] = 0;
-            log_misc(HOOKS_LOGGER, "New filename: '%ls'", new_str);
-            return new_str;
-        }
-    }
-    return path;
-}
+char _redirected_path[MAX_PATH];
 
 void find_hooks(LPCWSTR lpFileName, file_hook_t** found_fh, com_hook_t** found_ch) {
     file_hook_t* file_hook = file_hook_list;
@@ -168,6 +114,77 @@ void find_hooks(LPCWSTR lpFileName, file_hook_t** found_fh, com_hook_t** found_c
     }
 };
 
+void make_dirs(char* path) {
+    int count = 0;
+    size_t i;
+    size_t len = strlen(path);
+    while (1) {
+        int n = 0;
+        for (i = 0; i < len; i++) {
+            if (path[i] == '\\' || path[i] == '/' || path[i] == '\0') {
+                if (n++ == count) {
+                    path[i] = '\0';
+                    count++;
+                    break;
+                }
+                path[i] = '\\';
+            }
+        }
+        if (i == len) return;
+        CreateDirectory(path, NULL);
+    }
+}
+
+BOOL redirect_path(LPCSTR path, LPCSTR* redirected) {
+    return FALSE;
+    for (int i = 0; i < sizeof DRIVE_REDIRECT_TABLE / sizeof DRIVE_REDIRECT_TABLE[0]; i++) {
+        drive_redirect_t row = DRIVE_REDIRECT_TABLE[i];
+        if (strncmp(path, row.drive, strlen(row.drive)) == 0) {
+            log_trace(HOOKS_LOGGER, "Redirecting '%s' to '%s'", path, row.path);
+
+            size_t new_len = strlen(path) - strlen(row.drive) + strlen(row.path);
+            strcpy_s(_redirected_path, new_len + 1, row.path);
+
+            char* dst = _redirected_path + strlen(row.path);
+            size_t len = strlen(path) - strlen(row.drive);
+            const char* src = path + strlen(row.drive);
+
+            for (; len > 0; len--) (dst++)[0] = (src++)[0];
+            dst[0] = 0;
+            log_trace(HOOKS_LOGGER, "New filename: '%s'", _redirected_path);
+
+            make_dirs(_redirected_path);
+            *redirected = _redirected_path;
+            return TRUE;
+        }
+    }
+
+    if ((('a' <= path[0] && path[0] <= 'z') || ('A' <= path[0] && path[0] <= 'Z')) &&
+        path[1] == ':' && (path[2] == '/' || path[2] == '\\')) {
+        char drive;
+        if ('A' <= path[0] && path[0] <= 'Z') {
+            drive = path[0] - 'A' + 'a';
+        } else {
+            drive = path[0];
+        }
+        ZeroMemory(_redirected_path, sizeof _redirected_path);
+        snprintf(_redirected_path, sizeof _redirected_path, "dev\\%c\\%s", drive, path + 3);
+
+        make_dirs(_redirected_path);
+        *redirected = _redirected_path;
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+BOOL redirect_path_w(LPCWSTR lpFileName, LPCSTR* redirected) {
+    char cFileName[MAX_PATH] = { 0 };
+    WideCharToMultiByte(CP_ACP, 0, lpFileName, wcslen(lpFileName), cFileName, sizeof cFileName,
+                        NULL, NULL);
+    return redirect_path(cFileName, redirected);
+}
+
 HANDLE WINAPI FakeCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
                               LPSECURITY_ATTRIBUTES lpSecurityAttributes,
                               DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes,
@@ -181,11 +198,19 @@ HANDLE WINAPI FakeCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD d
         return handle;
     }
 
-    lpFileName = redirect_path_w(lpFileName);
+    HANDLE handle;
 
-    HANDLE handle = TrueCreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
-                                    dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-    log_misc(HOOKS_LOGGER, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
+    LPCSTR redirected;
+    if (redirect_path_w(lpFileName, &redirected)) {
+        handle = TrueCreateFileA(redirected, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+                                 dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+        log_misc(HOOKS_LOGGER, "CreateFileW(%s) -> 0x%p", redirected, handle);
+    } else {
+        handle = TrueCreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+                                 dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+        log_misc(HOOKS_LOGGER, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
+    }
+
     return handle;
 }
 HANDLE WINAPI FakeCreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
@@ -204,21 +229,35 @@ HANDLE WINAPI FakeCreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
         return handle;
     }
 
-    lpFileName = redirect_path(lpFileName);
-
+    redirect_path(lpFileName, &lpFileName);
     HANDLE handle = TrueCreateFileA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                                     dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
     log_misc(HOOKS_LOGGER, "CreateFileA(%s) -> 0x%p", lpFileName, handle);
     return handle;
+}
 
-    // lpFileName = redirect_path(lpFileName);
+BOOL WINAPI FakePathFileExistsA(LPCSTR pszPath) {
+    redirect_path(pszPath, &pszPath);
+    return TruePathFileExistsA(pszPath);
+}
+BOOL WINAPI FakePathFileExistsW(LPCSTR pszPath) {
+    LPCSTR redirected;
+    if (redirect_path(pszPath, &redirected)) {
+        return TruePathFileExistsA(redirected);
+    }
+    return TruePathFileExistsW(pszPath);
+}
 
-    // HANDLE result =
-    //     FakeCreateFileW((LPCWSTR)&wideFileName, dwDesiredAccess, dwShareMode,
-    //     lpSecurityAttributes,
-    //                     dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-    // log_trace(HOOKS_LOGGER, "^-> CreateFileA(%s) -> 0x%p", lpFileName, result);
-    // return result;
+BOOL WINAPI FakeDeleteFileA(LPCSTR pszPath) {
+    redirect_path(pszPath, &pszPath);
+    return TrueDeleteFileA(pszPath);
+}
+BOOL WINAPI FakeDeleteFileW(LPCSTR pszPath) {
+    LPCSTR redirected;
+    if (redirect_path(pszPath, &redirected)) {
+        return TrueDeleteFileA(redirected);
+    }
+    return TrueDeleteFileW(pszPath);
 }
 
 BOOL WINAPI FakeDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuffer,
@@ -298,6 +337,12 @@ DWORD WINAPI FakeGetFileSizeEx(HANDLE hFile, PLARGE_INTEGER lpFileSize) {
 
 DWORD WINAPI FakeWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
                            LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped) {
+    if (hFile == GetStdHandle(STD_INPUT_HANDLE) || hFile == GetStdHandle(STD_OUTPUT_HANDLE) ||
+        hFile == GetStdHandle(STD_ERROR_HANDLE)) {
+        return TrueWriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten,
+                             lpOverlapped);
+    }
+
     log_trace("file", "WriteFile(%08x)", hFile);
     file_hook_t* hook = get_handle_file_hook(hFile);
     if (hook != NULL) {
@@ -310,8 +355,7 @@ DWORD WINAPI FakeWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesT
         }
     }
 
-    return FALSE;
-
+    // return FALSE;
     return TrueWriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten,
                          lpOverlapped);
 }
@@ -343,7 +387,7 @@ BOOL WINAPI FakeCloseHandle(HANDLE hObject) {
 }
 
 int WINAPIV Fake_stat64i32(const char* path, struct _stat64i32* buffer) {
-    path = redirect_path((char*)path);
+    redirect_path((char*)path, &path);
     return True_stat64i32(path, buffer);
 };
 
@@ -360,6 +404,11 @@ void hook_io() {
     hook("Kernel32.dll", "WriteFile", FakeWriteFile, (void**)&TrueWriteFile, 6);
     hook("Kernel32.dll", "ReadFile", FakeReadFile, (void**)&TrueReadFile, 6);
     hook("Kernel32.dll", "GetFileSizeEx", FakeGetFileSizeEx, (void**)&TrueGetFileSizeEx, 6);
+
+    hook("Shlwapi.dll", "PathFileExistsA", FakePathFileExistsA, (void**)&TruePathFileExistsA, 5);
+    hook("Shlwapi.dll", "PathFileExistsW", FakePathFileExistsW, (void**)&TruePathFileExistsW, 5);
+    hook("Kernel32.dll", "DeleteFileA", FakeDeleteFileA, (void**)&TrueDeleteFileA, 5);
+    hook("Kernel32.dll", "DeleteFileW", FakeDeleteFileW, (void**)&TrueDeleteFileW, 5);
 
     hook("MSVCR90.DLL", "_stat64i32", Fake_stat64i32, (void**)&True_stat64i32, 5);
 }

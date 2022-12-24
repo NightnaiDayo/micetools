@@ -3,6 +3,7 @@ subdir('json')
 subdir('dmi')
 subdir('mice')
 subdir('am')
+subdir('mxk')
 
 fs = import('fs')
 subdir('libpcp')

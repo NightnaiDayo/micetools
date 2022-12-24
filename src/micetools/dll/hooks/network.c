@@ -59,16 +59,16 @@ typedef struct {
 } dns;
 dns INTERCEPT_DNS[] = {
     // Startup
-    { "naominet.jp", { 192, 168, 103, 254 } },
+    { "naominet.jp", { 10, 79, 140, 238 } },
     // Billing
-    { "ib.naominet.jp", { 192, 168, 103, 254 } },
+    { "ib.naominet.jp", { 10, 79, 140, 238 } },
     // Aime
-    { "aime.naominet.jp", { 192, 168, 103, 254 } },
+    { "aime.naominet.jp", { 10, 79, 140, 238 } },
     // Routers (ping targets)
-    { "tenporouter.loc", { 192, 168, 103, 254 } },
-    { "bbrouter.loc", { 192, 168, 103, 254 } },  // Must match tenporouter
-    { "mobirouter.loc", { 192, 168, 103, 254 } },
-    { "dslrouter.loc", { 192, 168, 103, 254 } },
+    { "tenporouter.loc", { 10, 79, 140, 238 } },
+    { "bbrouter.loc", { 10, 79, 140, 238 } },  // Must match tenporouter
+    { "mobirouter.loc", { 10, 79, 140, 238 } },
+    { "dslrouter.loc", { 10, 79, 140, 238 } },
 };
 
 DNS_RECORDA dummy_record;

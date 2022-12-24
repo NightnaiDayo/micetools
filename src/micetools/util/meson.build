@@ -5,7 +5,8 @@ executable(
         'micedump.c',
     ],
     link_with: [
-        amlib
+        amlib,
+        mxklib,
     ],
 )
 
@@ -25,5 +26,13 @@ executable(
     win_subsystem: subsystem,
     sources: [
         'micemonitor.c',
+    ],
+)
+
+executable(
+    'kcproxy',
+    win_subsystem: subsystem,
+    sources: [
+        'proxy.c',
     ],
 )

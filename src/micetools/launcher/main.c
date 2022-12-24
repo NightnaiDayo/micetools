@@ -6,7 +6,8 @@
 
 const char* VERSION = "0.0-pre";
 
-bool boot_delay = false;
+bool debug_wait = false;
+int boot_delay = 0;
 bool gametest = false;
 bool designviewer = false;
 bool spriteviewer = false;
@@ -35,8 +36,8 @@ void parse_cmdline(int argc, char* argv[]) {
             char* val = argv[++i];
             memcpy(exe_name, val, strlen(val) + 1);
         } else if (strcmp(argv[i], "--mice-d") == 0) {
-            boot_delay = true;
-        } else if (strcmp(argv[i], "-t") == 0) {
+            debug_wait = true;
+        } else if (strcmp(argv[i], "-mice-t") == 0) {
             gametest = true;
         } else if (strcmp(argv[i], "-dv") == 0) {
             designviewer = true;
@@ -46,7 +47,7 @@ void parse_cmdline(int argc, char* argv[]) {
             noisetest = true;
         } else {
             if (commandline[0] == 0)
-                strncpy_s(commandline, strlen(argv[i]), argv[i], sizeof commandline);
+                snprintf(commandline, sizeof commandline, "%s", argv[i]);
             else
                 snprintf(commandline, sizeof commandline, "%s %s", commandline, argv[i]);
         }
@@ -54,9 +55,17 @@ void parse_cmdline(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+    load_mice_config();
+
     fprintf(stderr, "Micetools version: %s\n", VERSION);
 
     parse_cmdline(argc, argv);
+
+    if (exe_name[0] == '\0' && MiceConfig.launcher.game_binary[0] != '\0') {
+        snprintf(exe_name, sizeof exe_name, "%s", MiceConfig.launcher.game_binary);
+    }
+    if (MiceConfig.launcher.wait_for_debugger) debug_wait = true;
+    boot_delay = MiceConfig.launcher.startup_delay;
 
     if (exe_name[0] == '\0') {
         if (!locate_game(exe_name, MAX_PATH + 1)) {
@@ -85,11 +94,13 @@ int main(int argc, char* argv[]) {
 
     char micepath[MAX_PATH + 1];
     if (!locate_library(micepath, MAX_PATH + 1)) {
-        fprintf(stderr, "Fatal: Failed to locate micelib\n");
+        fprintf(stderr, "Fatal: Failed to locate micelib. Check your mice_dll setting!\n");
         return 0;
     }
 
-    HANDLE game_proc = start_and_inject(exe_name, cmdline, micepath, boot_delay);
+    char* extra_injections = MiceConfig.launcher.inject;
+    HANDLE game_proc =
+        start_and_inject(exe_name, cmdline, micepath, debug_wait, boot_delay, extra_injections);
     if (!game_proc) return -1;
 
     if (FAILED(WaitForSingleObject(game_proc, INFINITE))) {

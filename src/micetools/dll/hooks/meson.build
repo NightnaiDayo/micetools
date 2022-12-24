@@ -10,4 +10,5 @@ hooks_files = files(
     'time.c',
     'registry.c',
     'drive.c',
+    'system.c',
 )

@@ -8,13 +8,12 @@ BUILD_DRIVE := M:
 MICE_32 := "$(BUILD_DIR_32)/src\mice.exe"
 MICE_64 := "$(BUILD_DIR_64)/src\mice.exe"
 
-VCVARS_32 := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars32.bat"
-VCVARS_64 := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
+# VCVARS_32 := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars32.bat"
+# VCVARS_64 := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
 
 # For windows XP:
-# VCVARS_32 := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars32.bat" -vcvars_ver=14.16
-# VCVARS_64 := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat" -vcvars_ver=14.16
-
+VCVARS_32 := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars32.bat" -vcvars_ver=14.16
+VCVARS_64 := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat" -vcvars_ver=14.16
 
 .ONESHELL:
 
@@ -71,6 +70,7 @@ dist:
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\micedump.exe" "$(DIST_DIR)/util/micedump.exe"
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\micetinker.exe" "$(DIST_DIR)/util/micetinker.exe"
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\micemonitor.exe" "$(DIST_DIR)/util/micemonitor.exe"
+	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\kcproxy.exe" "$(DIST_DIR)/util/kcproxy.exe"
 
 	@copy /Y "src/micetools/miceboot\TrueCrypt.cmd" "$(DIST_DIR)/Execute/TrueCrypt.cmd"
 

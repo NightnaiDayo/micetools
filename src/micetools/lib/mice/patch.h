@@ -32,8 +32,9 @@ bool fetch(json_value* object, char* name, json_value** value);
 bool fetch_string(json_value* object, char* name, char** value);
 bool fetch_int(json_value* object, char* name, size_t* value);
 bool fetch_bool(json_value* object, char* name, bool* value);
-bool parse_patches(patches_t* patches, json_value** set_json, int set_count, char* error);
+bool parse_patches(patches_t* patches, json_value** set_json, int set_count, char* error,
+                   const char* test_binary_name);
 
 // Main two exports
 void free_patches(patches_t* patches);
-bool load_patches(patches_t* patches, char* path, char* error);
+bool load_patches(patches_t* patches, char* path, char* error, const char* test_binary_name);

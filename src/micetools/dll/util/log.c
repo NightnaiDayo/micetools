@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "../../lib/mice/config.h"
 #include "../hooks/logging.h"
 
 extern BOOL(WINAPI* TrueWriteFile)(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
@@ -24,7 +25,7 @@ char* log_prelude() {
     return _log_prelude;
 }
 
-HANDLE LOG_FILE = NULL;
+HANDLE log_file = NULL;
 VOID trace_hook(char* output);
 CRITICAL_SECTION logger_lock;
 
@@ -39,14 +40,54 @@ char* log_colours[] = {
 };
 #define LOG_PREFIXES "!GEWIMT"
 
-void logcb(LPCSTR param_1) { log_error("logcb", param_1); }
+void force_console_bind() {
+    // AttachConsole(ATTACH_PARENT_PROCESS);
+    if (GetStdHandle(STD_ERROR_HANDLE) > (HANDLE)0x10) {
+        FILE* newstream;
+        if (GetStdHandle(STD_INPUT_HANDLE)) {
+            freopen_s(&newstream, "CONIN$", "r", stdin);
+            setvbuf(stdin, NULL, _IONBF, 0);
+        }
+        if (GetStdHandle(STD_OUTPUT_HANDLE)) {
+            freopen_s(&newstream, "CONOUT$", "w", stdout);
+            setvbuf(stdout, NULL, _IONBF, 0);
+        }
+        if (GetStdHandle(STD_ERROR_HANDLE)) {
+            freopen_s(&newstream, "CONOUT$", "w", stderr);
+            setvbuf(stderr, NULL, _IONBF, 0);
+        }
+    }
+}
+
+void logcb(LPCSTR param_1) { log_game("amLog", param_1); }
+void __stdcall amLogCallback(DWORD level, char* format) {
+    if (level == 0)
+        log_game("amLog:E", format);
+    else if (level == 0)
+        log_game("amLog:W", format);
+    else
+        log_game("amLog:I", format);
+}
+
+DWORD pLogcb;
+DWORD* ppLogcb;
 
 extern WCHAR exePath[MAX_PATH + 1];
 int _do_log(BYTE log_level, const char* caller, const char* format, va_list args) {
+    // TODO: These are all horrible bodges
     if (wcscmp(exePath, L"mxnetwork.exe") == 0) {
         // *((DWORD*)(0x004438e8)) = (DWORD)(&logcb);
         *((DWORD*)(0x004438e8)) = 0x00000000;
     }
+    if (wcscmp(exePath, L"maimai_dump_.exe") == 0) {
+        *((DWORD*)(0x00c820ec)) = 0x00000001;
+        pLogcb = (DWORD)(&amLogCallback);
+        ppLogcb = &pLogcb;
+        *((DWORD***)(0x00c820F4)) = &ppLogcb;
+        // *((DWORD*)(0x004438e8)) = (DWORD)(&logcb);
+    }
+
+    force_console_bind();
 
     char prefix = LOG_PREFIXES[log_level];
 
@@ -65,19 +106,21 @@ int _do_log(BYTE log_level, const char* caller, const char* format, va_list args
     buf[len + 1] = '\0';
 
     // No +1 here to not get the \n
-    if (LOG_LEVEL >= log_level) {
+    if (MiceConfig.mice.log_level >= log_level) {
         HANDLE sout = GetStdHandle(STD_OUTPUT_HANDLE);
         if (HAS_COLOUR)
-            (TrueWriteFile ? TrueWriteFile : WriteFile)(sout, log_colours[log_level],
-                                                        strlen(log_colours[log_level]), NULL, NULL);
+            (TrueWriteFile ? *TrueWriteFile : WriteFile)(
+                sout, log_colours[log_level], strlen(log_colours[log_level]), NULL, NULL);
         if (sout != INVALID_HANDLE_VALUE)
             (TrueWriteFile ? TrueWriteFile : WriteFile)(sout, buf, len, NULL, NULL);
         puts(HAS_COLOUR ? "\033[0m" : "");
+        FlushFileBuffers(sout);
     }
-#ifdef LOG_TO_FILE
-    if (LOG_FILE && LOG_FILE != INVALID_HANDLE_VALUE)
-        (TrueWriteFile ? TrueWriteFile : WriteFile)(LOG_FILE, buf, len + 1, NULL, NULL);
-#endif
+
+    if (MiceConfig.mice.log_to_file) {
+        if (log_file && log_file != INVALID_HANDLE_VALUE)
+            (TrueWriteFile ? TrueWriteFile : WriteFile)(log_file, buf, len + 1, NULL, NULL);
+    }
 
     free(buf);
 
@@ -153,21 +196,8 @@ VOID trace_hook(char* output) {
 void setup_logging() {
     // Force stdio even for GUI applications
     // TODO: Is there a more robust way to check if we have a proper stdio?
-    AttachConsole(ATTACH_PARENT_PROCESS);
-    if (GetStdHandle(STD_ERROR_HANDLE) > (HANDLE)0x10) {
-        FILE* newstream;
-        if (GetStdHandle(STD_INPUT_HANDLE)) {
-            freopen_s(&newstream, "CONIN$", "r", stdin);
-            setvbuf(stdin, NULL, _IONBF, 0);
-        }
-        if (GetStdHandle(STD_OUTPUT_HANDLE)) {
-            freopen_s(&newstream, "CONOUT$", "w", stdout);
-            setvbuf(stdout, NULL, _IONBF, 0);
-        }
-        if (GetStdHandle(STD_ERROR_HANDLE)) {
-            freopen_s(&newstream, "CONOUT$", "w", stderr);
-            setvbuf(stderr, NULL, _IONBF, 0);
-        }
+    if (false) {
+        force_console_bind();
     }
 
     // Enable colour in CMD
@@ -178,9 +208,9 @@ void setup_logging() {
 
     InitializeCriticalSection(&logger_lock);
 
-#ifdef LOG_TO_FILE
-    if (LOG_FILE == NULL)
-        LOG_FILE =
-            CreateFileA("log.txt", GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, 0, NULL);
-#endif
+    if (MiceConfig.mice.log_to_file) {
+        if (log_file == NULL && MiceConfig.mice.log_file[0] != '\0')
+            log_file = CreateFileA(MiceConfig.mice.log_file, GENERIC_WRITE, FILE_SHARE_READ, NULL,
+                                   CREATE_ALWAYS, 0, NULL);
+    }
 }
