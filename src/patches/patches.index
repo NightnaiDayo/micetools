@@ -1,0 +1,12 @@
+InitialD8_GLW_RE_SBZZ_dumped.exe: InitialD8_GLW_RE_SBZZ.patch
+InitialD8_GLW_RE_SBZZ.exe:        InitialD8_GLW_RE_SBZZ.patch
+mxmaster.exe:                     mxmaster.patch
+mxgfetcher.exe:                   mxgfetcher.patch
+ORIG_mxsegaboot.exe:              mxsegaboot.patch
+mxsegaboot.exe:                   mxsegaboot.patch
+ALLNetProc_win.exe:               ALLNetProc.patch
+ALLNetProc.exe:                   ALLNetProc.patch
+Game.exe:                         Game.patch
+mxnetwork.exe:                    mxnetwork.patch
+maimai_dump_.exe:                 maimai_dump_.patch
+RingGame.exe:                     UnderNightInBirthExLate[st].patch

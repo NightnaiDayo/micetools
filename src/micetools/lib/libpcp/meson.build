@@ -18,6 +18,6 @@ libpcp = static_library(
         ws2,
     ],
     link_with: [
-        amlib,
+        amiTimer,
     ],
 )

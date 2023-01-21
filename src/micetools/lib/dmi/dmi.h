@@ -4,16 +4,20 @@
 extern LPBYTE dmi_table;
 extern WORD dmi_size;
 
-// #define PACK(...) __pragma(pack(push, 1)) __VA_ARGS__ __pragma(pack(pop))
+enum DmiType {
+    DmiTypeBios = 0,
+    DmiTypeSystem = 1,
+    DmiTypeString = 11,
+};
+typedef BYTE DmiType_t;
 
-#pragma pack(1)
+#pragma pack(push, 1)
 typedef struct {
-    BYTE Type;
+    DmiType_t Type;
     BYTE Length;
     WORD Handle;
 } DMI_SECTION_HEADER;
 
-#pragma pack(1)
 typedef struct {
     CHAR Signature[5];
     BYTE Checksum;
@@ -24,7 +28,6 @@ typedef struct {
     BYTE Reserved;
 } DMI_HEADER;
 
-#pragma pack(1)
 typedef struct {
     DMI_SECTION_HEADER Head;
     BYTE Vendor;
@@ -39,7 +42,6 @@ typedef struct {
     BYTE ECVerMinor;
 } DMI_BIOS;
 
-#pragma pack(1)
 typedef struct {
     DMI_SECTION_HEADER Head;
     BYTE Manufacturer;
@@ -48,11 +50,11 @@ typedef struct {
     BYTE Serial;
 } DMI_SYSTEM;
 
-#pragma pack(1)
 typedef struct {
     DMI_SECTION_HEADER Head;
     BYTE NoStrings;
 } DMI_STRING;
+#pragma pack(pop)
 
 static void dmi_init(void);
 static void dmi_append(void* data, WORD size);

@@ -1,0 +1,10 @@
+void amRtcConvertStructToTimet(void);
+void amRtcConvertSystemToTimet(void);
+void amRtcConvertTimetToStruct(void);
+void amRtcConvertTimetToSystem(void);
+void amRtcFinalize(void);
+void amRtcGetServerTime(void);
+void amRtcInit(void);
+void amRtcSetClockAndTimeZone(void);
+void amRtcSetSysClockSetting(void);
+void amRtcStartupTimeZone(void);

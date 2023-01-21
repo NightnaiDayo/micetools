@@ -1,0 +1,14 @@
+*00843b9c: 00000000 > 01000000 # amiTimerDebugLevel
+*00843bd8: 00000000 > 01000000 # amCreditDebugLevel
+*00843fc0: 00000000 > 01000000 # amBackupDebugLevel
+*008443d0: 00000000 > 01000000 # amAuthDebugLevel
+*008448d8: 00000000 > 01000000 # amDipswDebugLevel
+*008448e0: 00000000 > 01000000 # amJvsDebugLevel
+*00850c30: 00000000 > 01000000 # amMasterDebugLevel
+*00851550: 00000000 > 01000000 # amAimeDebugLevel
+*00851a78: 00000000 > 01000000 # amEepromDebugLevel
+*00851d10: 00000000 > 01000000 # amJvspDebugLevel
+*00851d1c: 00000000 > 01000000 # amSramDebugLevel
+*00851d20: 00000000 > 01000000 # amPlatformDebugLevel
+*00851da0: 00000000 > 01000000 # pcpDebugLevel
+*00855fd8: 00000000 > 01000000 # amJvstDebugLevel

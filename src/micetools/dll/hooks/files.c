@@ -1,66 +1,19 @@
+#define _MICE_FILES
 #include "files.h"
 
-open_hook_t* open_hooks_list = NULL;
-HANDLE open_hook(file_hook_t* file_hook, com_hook_t* com_hook) {
+HANDLE open_hook(file_hook_t* file_hook) {
     open_hook_t* opened = (open_hook_t*)malloc(sizeof(open_hook_t));
-    memset(opened, 0, sizeof *opened);
+    ZeroMemory(opened, sizeof *opened);
 
-    opened->file_hook = file_hook;
-    opened->com_hook = com_hook;
+    opened->hook = file_hook;
 
-    CHAR path[MAX_PATH];
-    GetModuleFileNameA(NULL, path, MAX_PATH);
-    HANDLE handle =
-        _CreateFileA(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
-    if (handle == INVALID_HANDLE_VALUE) {
-        log_error(HOOKS_LOGGER, "Failed to create dummy handle: %03x", GetLastError());
-        return INVALID_HANDLE_VALUE;
-    }
-    opened->handle = handle;
-    opened->next = open_hooks_list;
-    open_hooks_list = opened;
+    HANDLE handle = GetDummyHandle();
+    opened->ctx.m_Handle = handle;
+    opened->ctx.m_HookData = file_hook->hook_data;
+
+    SetDataForHandle(handle, HDATA_FILE, opened, TRUE);
 
     return handle;
-}
-void close_hook(HANDLE handle) {
-    if (handle == INVALID_HANDLE_VALUE) return;
-
-    _CloseHandle(handle);
-
-    open_hook_t* opened = NULL;
-    open_hook_t* root = open_hooks_list;
-    if (open_hooks_list->handle == handle) {
-        open_hook_t* next = open_hooks_list->next;
-        free(open_hooks_list);
-        open_hooks_list = next;
-        return;
-    }
-
-    while (root != NULL) {
-        if (root->next && root->next->handle == handle) {
-            opened = root->next;
-            root->next = opened->next;
-            free(opened);
-            return;
-        }
-        root = root->next;
-    }
-}
-file_hook_t* get_handle_file_hook(HANDLE handle) {
-    open_hook_t* root = open_hooks_list;
-    while (root != NULL) {
-        if (root->handle == handle) return root->file_hook;
-        root = root->next;
-    }
-    return NULL;
-}
-com_hook_t* get_handle_com_hook(HANDLE handle) {
-    open_hook_t* root = open_hooks_list;
-    while (root != NULL) {
-        if (root->handle == handle) return root->com_hook;
-        root = root->next;
-    }
-    return NULL;
 }
 
 file_hook_t* file_hook_list = NULL;
@@ -92,26 +45,16 @@ drive_redirect_t DRIVE_REDIRECT_TABLE[] = {
 
 char _redirected_path[MAX_PATH];
 
-void find_hooks(LPCWSTR lpFileName, file_hook_t** found_fh, com_hook_t** found_ch) {
+file_hook_t* find_hook(LPCWSTR lpFileName) {
     file_hook_t* file_hook = file_hook_list;
     while (file_hook != NULL) {
         if (wcscmp(lpFileName, file_hook->filename) == 0 ||
             (file_hook->altFilename != NULL && wcscmp(lpFileName, file_hook->altFilename) == 0)) {
-            *found_fh = file_hook;
-            break;
+            return file_hook;
         }
         file_hook = file_hook->next;
     }
-
-    com_hook_t* com_hook = com_hook_list;
-    while (com_hook != NULL) {
-        if (wcscmp(lpFileName, com_hook->wName) == 0 ||
-            wcscmp(lpFileName, com_hook->wDosName) == 0) {
-            *found_ch = com_hook;
-            break;
-        }
-        com_hook = com_hook->next;
-    }
+    return NULL;
 };
 
 void make_dirs(char* path) {
@@ -135,8 +78,20 @@ void make_dirs(char* path) {
     }
 }
 
+char WORKING_DIR[MAX_PATH + 1] = { 0 };
+char get_gamedata_drive() {
+    if (WORKING_DIR[0] == 0x00) {
+        GetCurrentDirectoryA(sizeof WORKING_DIR, WORKING_DIR);
+    }
+    return WORKING_DIR[0];
+}
+
+inline char char_lower(char value) {
+    if ('A' <= value <= 'Z') return value - 'A' + 'a';
+    return value;
+}
+
 BOOL redirect_path(LPCSTR path, LPCSTR* redirected) {
-    return FALSE;
     for (int i = 0; i < sizeof DRIVE_REDIRECT_TABLE / sizeof DRIVE_REDIRECT_TABLE[0]; i++) {
         drive_redirect_t row = DRIVE_REDIRECT_TABLE[i];
         if (strncmp(path, row.drive, strlen(row.drive)) == 0) {
@@ -161,14 +116,14 @@ BOOL redirect_path(LPCSTR path, LPCSTR* redirected) {
 
     if ((('a' <= path[0] && path[0] <= 'z') || ('A' <= path[0] && path[0] <= 'Z')) &&
         path[1] == ':' && (path[2] == '/' || path[2] == '\\')) {
-        char drive;
-        if ('A' <= path[0] && path[0] <= 'Z') {
-            drive = path[0] - 'A' + 'a';
-        } else {
-            drive = path[0];
+        // TODO: Ca
+        if (char_lower(path[0]) == char_lower(get_gamedata_drive())) {
+            return FALSE;
         }
+
         ZeroMemory(_redirected_path, sizeof _redirected_path);
-        snprintf(_redirected_path, sizeof _redirected_path, "dev\\%c\\%s", drive, path + 3);
+        snprintf(_redirected_path, sizeof _redirected_path, "dev\\%c\\%s", char_lower(path[0]),
+                 path + 3);
 
         make_dirs(_redirected_path);
         *redirected = _redirected_path;
@@ -189,11 +144,9 @@ HANDLE WINAPI FakeCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD d
                               LPSECURITY_ATTRIBUTES lpSecurityAttributes,
                               DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes,
                               HANDLE hTemplateFile) {
-    file_hook_t* found_fh = NULL;
-    com_hook_t* found_ch = NULL;
-    find_hooks(lpFileName, &found_fh, &found_ch);
-    if (found_fh != NULL || found_ch != NULL) {
-        HANDLE handle = open_hook(found_fh, found_ch);
+    file_hook_t* found_fh = find_hook(lpFileName);
+    if (found_fh != NULL) {
+        HANDLE handle = open_hook(found_fh);
         log_info(HOOKS_LOGGER, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
         return handle;
     }
@@ -220,11 +173,9 @@ HANDLE WINAPI FakeCreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
     WCHAR wideFileName[MAX_PATH + 1];
     MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, (LPWSTR)&wideFileName, MAX_PATH + 1);
 
-    file_hook_t* found_fh = NULL;
-    com_hook_t* found_ch = NULL;
-    find_hooks(wideFileName, &found_fh, &found_ch);
-    if (found_fh != NULL || found_ch != NULL) {
-        HANDLE handle = open_hook(found_fh, found_ch);
+    file_hook_t* found_fh = find_hook(wideFileName);
+    if (found_fh != NULL) {
+        HANDLE handle = open_hook(found_fh);
         log_info(HOOKS_LOGGER, "CreateFileA(%s) -> 0x%p", lpFileName, handle);
         return handle;
     }
@@ -240,21 +191,24 @@ BOOL WINAPI FakePathFileExistsA(LPCSTR pszPath) {
     redirect_path(pszPath, &pszPath);
     return TruePathFileExistsA(pszPath);
 }
-BOOL WINAPI FakePathFileExistsW(LPCSTR pszPath) {
+BOOL WINAPI FakePathFileExistsW(LPCWSTR pszPath) {
     LPCSTR redirected;
-    if (redirect_path(pszPath, &redirected)) {
+    if (redirect_path_w(pszPath, &redirected)) {
         return TruePathFileExistsA(redirected);
     }
     return TruePathFileExistsW(pszPath);
 }
 
 BOOL WINAPI FakeDeleteFileA(LPCSTR pszPath) {
-    redirect_path(pszPath, &pszPath);
-    return TrueDeleteFileA(pszPath);
-}
-BOOL WINAPI FakeDeleteFileW(LPCSTR pszPath) {
     LPCSTR redirected;
     if (redirect_path(pszPath, &redirected)) {
+        return TrueDeleteFileA(redirected);
+    }
+    return TrueDeleteFileA(pszPath);
+}
+BOOL WINAPI FakeDeleteFileW(LPCWSTR pszPath) {
+    LPCSTR redirected;
+    if (redirect_path_w(pszPath, &redirected)) {
         return TrueDeleteFileA(redirected);
     }
     return TrueDeleteFileW(pszPath);
@@ -263,126 +217,136 @@ BOOL WINAPI FakeDeleteFileW(LPCSTR pszPath) {
 BOOL WINAPI FakeDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuffer,
                                 DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
                                 LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
-    file_hook_t* hook = get_handle_file_hook(hDevice);
-    if (hook != NULL) {
-        if (hook->DeviceIoControl) {
-            // TODO: Less jank
-            if (lpOverlapped != NULL) SetEvent(lpOverlapped->hEvent);
+    open_hook_t* pHData = GetDataForHandle(hDevice, HDATA_FILE);
+    if (pHData == NULL) {
+        log_trace(HOOKS_LOGGER, "DeviceIoControl(0x%p, 0x%08x, 0x%p, 0x%x, -, 0x%x, 0, 0)", hDevice,
+                  dwIoControlCode, lpInBuffer, nInBufferSize, nOutBufferSize);
 
-            BOOL ret =
-                hook->DeviceIoControl(hook->data, dwIoControlCode, lpInBuffer, nInBufferSize,
-                                      lpOutBuffer, nOutBufferSize, lpBytesReturned, lpOverlapped);
-            if (ret && lpOverlapped && lpBytesReturned) {
-                lpOverlapped->InternalHigh = *lpBytesReturned;
-            }
-            return ret;
-        } else {
-            log_error(HOOKS_LOGGER, "DeviceIoControl(%ls) unimplemented", hook->filename);
-            return FALSE;
-        }
+        return TrueDeviceIoControl(hDevice, dwIoControlCode, lpInBuffer, nInBufferSize, lpOutBuffer,
+                                   nOutBufferSize, lpBytesReturned, lpOverlapped);
     }
 
-    log_trace(HOOKS_LOGGER, "DeviceIoControl(0x%p, 0x%08x, 0x%p, 0x%x, -, 0x%x, 0, 0)", hDevice,
-              dwIoControlCode, lpInBuffer, nInBufferSize, nOutBufferSize);
+    file_hook_t* file_hook = pHData->hook;
+    if (!file_hook->DeviceIoControl) {
+        log_error(HOOKS_LOGGER, "DeviceIoControl(%ls) unimplemented", file_hook->filename);
+        return FALSE;
+    }
 
-    return TrueDeviceIoControl(hDevice, dwIoControlCode, lpInBuffer, nInBufferSize, lpOutBuffer,
-                               nOutBufferSize, lpBytesReturned, lpOverlapped);
+    BOOL ret =
+        file_hook->DeviceIoControl(&(pHData->ctx), dwIoControlCode, lpInBuffer, nInBufferSize,
+                                   lpOutBuffer, nOutBufferSize, lpBytesReturned, lpOverlapped);
+    if (lpOverlapped) {
+        SetEvent(lpOverlapped->hEvent);
+        if (ret && lpBytesReturned) {
+            lpOverlapped->InternalHigh = *lpBytesReturned;
+        }
+    }
+    return ret;
 }
 
 DWORD WINAPI FakeSetFilePointer(HANDLE hFile, LONG lDistanceToMove, PLONG lpDistanceToMoveHigh,
                                 DWORD dwMoveMethod) {
-    file_hook_t* hook = get_handle_file_hook(hFile);
-    if (hook != NULL) {
-        if (hook->SetFilePointer) {
-            return hook->SetFilePointer(hook->data, lDistanceToMove, lpDistanceToMoveHigh,
-                                        dwMoveMethod);
-        } else {
-            log_error(HOOKS_LOGGER, "SetFilePointer(%ls) unimplemented", hook->filename);
-            return FALSE;
-        }
+    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    if (pHData == NULL)
+        return TrueSetFilePointer(hFile, lDistanceToMove, lpDistanceToMoveHigh, dwMoveMethod);
+
+    if (dwMoveMethod == FILE_BEGIN) {
+        if (*lpDistanceToMoveHigh)
+            pHData->ctx.m_Pointer.HighPart = *lpDistanceToMoveHigh;
+        else
+            pHData->ctx.m_Pointer.HighPart = 0;
+        pHData->ctx.m_Pointer.LowPart = lDistanceToMove;
+    } else if (dwMoveMethod == FILE_END) {
+        log_error("files", "FILE_END unimplemented");
+        return 0xFFFFFFFF;
+    } else {
+        if (lpDistanceToMoveHigh) pHData->ctx.m_Pointer.HighPart += *lpDistanceToMoveHigh;
+        pHData->ctx.m_Pointer.LowPart += lDistanceToMove;
     }
 
-    return TrueSetFilePointer(hFile, lDistanceToMove, lpDistanceToMoveHigh, dwMoveMethod);
+    return pHData->ctx.m_Pointer.LowPart;
 }
 
 BOOL WINAPI FakeSetFilePointerEx(HANDLE hFile, LARGE_INTEGER liDistanceToMove,
                                  PLARGE_INTEGER lpNewFilePointer, DWORD dwMoveMethod) {
-    file_hook_t* hook = get_handle_file_hook(hFile);
-    if (hook != NULL) {
-        if (hook->SetFilePointerEx) {
-            return hook->SetFilePointerEx(hook->data, liDistanceToMove, lpNewFilePointer,
-                                          dwMoveMethod);
-        } else {
-            log_error(HOOKS_LOGGER, "SetFilePointerEx(%ls) unimplemented", hook->filename);
+    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    if (pHData != NULL) {
+        if (dwMoveMethod == FILE_BEGIN) {
+            pHData->ctx.m_Pointer = liDistanceToMove;
+        } else if (dwMoveMethod == FILE_END) {
+            log_error("files", "FILE_END unimplemented");
             return FALSE;
+        } else {
+            pHData->ctx.m_Pointer.QuadPart += liDistanceToMove.QuadPart;
         }
+        if (lpNewFilePointer) lpNewFilePointer->QuadPart = pHData->ctx.m_Pointer.QuadPart;
+
+        return TRUE;
     }
 
     return TrueSetFilePointerEx(hFile, liDistanceToMove, lpNewFilePointer, dwMoveMethod);
 }
 
 DWORD WINAPI FakeGetFileSizeEx(HANDLE hFile, PLARGE_INTEGER lpFileSize) {
-    file_hook_t* hook = get_handle_file_hook(hFile);
-    if (hook != NULL) {
-        if (hook->GetFileSizeEx) {
-            return hook->GetFileSizeEx(hook->data, lpFileSize);
-        } else {
-            log_error(HOOKS_LOGGER, "GetFileSizeEx(%ls) unimplemented", hook->filename);
-            return FALSE;
-        }
+    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    if (pHData == NULL) {
+        return TrueGetFileSizeEx(hFile, lpFileSize);
     }
-
-    return TrueGetFileSizeEx(hFile, lpFileSize);
+    file_hook_t* file_hook = pHData->hook;
+    if (!file_hook->GetFileSizeEx) {
+        log_error(HOOKS_LOGGER, "GetFileSizeEx(%ls) unimplemented", file_hook->filename);
+        return FALSE;
+    }
+    return file_hook->GetFileSizeEx(&(pHData->ctx), lpFileSize);
 }
 
 DWORD WINAPI FakeWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
                            LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped) {
-    if (hFile == GetStdHandle(STD_INPUT_HANDLE) || hFile == GetStdHandle(STD_OUTPUT_HANDLE) ||
-        hFile == GetStdHandle(STD_ERROR_HANDLE)) {
+    if (hFile == GetStdHandle(STD_OUTPUT_HANDLE) || hFile == GetStdHandle(STD_ERROR_HANDLE)) {
         return TrueWriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten,
                              lpOverlapped);
     }
 
-    log_trace("file", "WriteFile(%08x)", hFile);
-    file_hook_t* hook = get_handle_file_hook(hFile);
-    if (hook != NULL) {
-        if (hook->WriteFile) {
-            return hook->WriteFile(hook->data, lpBuffer, nNumberOfBytesToWrite,
-                                   lpNumberOfBytesWritten, lpOverlapped);
-        } else {
-            log_error(HOOKS_LOGGER, "WriteFile(%ls) unimplemented", hook->filename);
-            return FALSE;
-        }
+    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    if (pHData == NULL) {
+        return TrueWriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten,
+                             lpOverlapped);
     }
 
-    // return FALSE;
-    return TrueWriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten,
-                         lpOverlapped);
+    file_hook_t* file_hook = pHData->hook;
+    if (!file_hook->WriteFile) {
+        log_error(HOOKS_LOGGER, "WriteFile(%ls) unimplemented", file_hook->filename);
+        return FALSE;
+    }
+    return file_hook->WriteFile(&(pHData->ctx), lpBuffer, nNumberOfBytesToWrite,
+                                lpNumberOfBytesWritten, lpOverlapped);
 }
 
 BOOL WINAPI FakeReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
                          LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped) {
-    file_hook_t* hook = get_handle_file_hook(hFile);
-    if (hook != NULL) {
-        if (hook->ReadFile) {
-            return hook->ReadFile(hook->data, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead,
-                                  lpOverlapped);
-        } else {
-            log_error(HOOKS_LOGGER, "ReadFile(%ls) unimplemented", hook->filename);
-            return FALSE;
-        }
+    if (hFile == GetStdHandle(STD_INPUT_HANDLE)) {
+        return TrueReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead,
+                            lpOverlapped);
     }
 
-    return TrueReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
+    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    if (pHData == NULL) {
+        return TrueReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead,
+                            lpOverlapped);
+    }
+
+    file_hook_t* file_hook = pHData->hook;
+
+    if (!file_hook->ReadFile) {
+        log_error(HOOKS_LOGGER, "ReadFile(%ls) unimplemented", file_hook->filename);
+        return FALSE;
+    }
+    return file_hook->ReadFile(&(pHData->ctx), lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead,
+                               lpOverlapped);
 }
 
 BOOL WINAPI FakeCloseHandle(HANDLE hObject) {
-    file_hook_t* hook = get_handle_file_hook(hObject);
-    if (hook != NULL) {
-        log_misc("file", "close %08x", hObject);
-        close_hook(hObject);
-        return TRUE;
-    }
+    RemoveDataForHandle(hObject, HDATA_ANY);
     return TrueCloseHandle(hObject);
 }
 
@@ -407,8 +371,8 @@ void hook_io() {
 
     hook("Shlwapi.dll", "PathFileExistsA", FakePathFileExistsA, (void**)&TruePathFileExistsA, 5);
     hook("Shlwapi.dll", "PathFileExistsW", FakePathFileExistsW, (void**)&TruePathFileExistsW, 5);
-    hook("Kernel32.dll", "DeleteFileA", FakeDeleteFileA, (void**)&TrueDeleteFileA, 5);
-    hook("Kernel32.dll", "DeleteFileW", FakeDeleteFileW, (void**)&TrueDeleteFileW, 5);
+    hook("Kernel32.dll", "DeleteFileA", FakeDeleteFileA, (void**)&TrueDeleteFileA, 7);
+    hook("Kernel32.dll", "DeleteFileW", FakeDeleteFileW, (void**)&TrueDeleteFileW, 7);
 
     hook("MSVCR90.DLL", "_stat64i32", Fake_stat64i32, (void**)&True_stat64i32, 5);
 }

@@ -22,7 +22,7 @@ BOOL WINAPI FakeCreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine,
     if (lpProcessInformation) {
         lpProcessInformation->hProcess = fake_evt;
     }
-    return TRUE;
+    return FALSE;
 }
 BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
                                LPSECURITY_ATTRIBUTES lpProcessAttributes,
@@ -36,6 +36,8 @@ BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
     // #else
     // log_info("spawn", "CreateProcessW %ls %ls", lpApplicationName, lpCommandLine);
     log_info("spawn", "CreateProcessW %ls", lpApplicationName);
+
+    lpProcessInformation->hThread = GetDummyHandle();
     return TRUE;
 
     CHAR applicationName[MAX_PATH + 1];

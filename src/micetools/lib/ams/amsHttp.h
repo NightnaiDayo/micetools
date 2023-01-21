@@ -1,0 +1,11 @@
+void amsHttpByWinHttpDownload(void);
+void amsHttpByWinHttpGetResponseCode(void);
+void amsHttpByWinHttpGetResponseData(void);
+void amsHttpByWinHttpGetResponseSize(void);
+void amsHttpByWinHttpInit(void);
+void amsHttpByWinHttpParseUrl(void);
+void amsHttpByWinHttpSetUserAgent(void);
+void amsHttpContextCheckPreCondition(void);
+void amsHttpContextSetup(void);
+void amsHttpDownload(void);
+void amsHttpShareDataSetup(void);

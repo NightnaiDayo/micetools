@@ -7,7 +7,7 @@ WORD dmi_size = 0;
 WORD _dmi_max = 0;
 
 DMI_BIOS deafult_dmi_bios = {
-    .Head.Type = 0x00,
+    .Head.Type = DmiTypeBios,
     .Head.Length = 0x12,
     .Head.Handle = 0x0000,
     .Vendor = 0x01,          // "American Megatrends Inc."
@@ -23,7 +23,7 @@ DMI_BIOS deafult_dmi_bios = {
 };
 
 DMI_SYSTEM default_dmi_system = {
-    .Head.Type = 0x01,
+    .Head.Type = DmiTypeSystem,
     .Head.Length = 0x08,
     .Head.Handle = 0x0001,
     .Manufacturer = 0x01,  // "NEC"
@@ -33,7 +33,7 @@ DMI_SYSTEM default_dmi_system = {
 };
 
 DMI_STRING deafult_dmi_string = {
-    .Head.Type = 0x0b,
+    .Head.Type = DmiTypeString,
     .Head.Length = 0x05,
     .Head.Handle = 0x0002,
     .NoStrings = 0x00,

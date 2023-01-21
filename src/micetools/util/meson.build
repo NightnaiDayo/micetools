@@ -2,11 +2,25 @@ executable(
     'micedump',
     win_subsystem: subsystem,
     sources: [
-        'micedump.c',
+        'micedump/main.c',
+        'micedump/dmi.c',
+        'micedump/eeprom.c',
+        'micedump/kc_mxkeychip.c',
+        # 'micedump/kc_n2.c',
+        # 'micedump/kc_pic.c',
+        'micedump/platform.c',
+        'micedump/sram.c',
+        # 'micedump/superio.c',
     ],
     link_with: [
-        amlib,
         mxklib,
+        amiTimer,
+        amOemstring,
+        amEeprom,
+        amSram,
+        amPlatform,
+        amDongle,
+        amSerialId,
     ],
 )
 
@@ -17,7 +31,8 @@ executable(
         'micetinker.c',
     ],
     link_with: [
-        amlib
+        amiTimer,
+        amEeprom,
     ],
 )
 
@@ -26,13 +41,5 @@ executable(
     win_subsystem: subsystem,
     sources: [
         'micemonitor.c',
-    ],
-)
-
-executable(
-    'kcproxy',
-    win_subsystem: subsystem,
-    sources: [
-        'proxy.c',
     ],
 )

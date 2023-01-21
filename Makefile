@@ -52,6 +52,7 @@ dist:
 	@-mkdir $(DIST_DIR)\Execute\S > NUL 2>&1
 
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/micekeychip\micekeychip.exe" "$(DIST_DIR)/micekeychip.exe"
+	@copy /Y "$(BUILD_DIR_32)/src/micetools/micemaster\micemaster.exe" "$(DIST_DIR)/micemaster.exe"
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/lib/libpcp\libpcp.lib" "$(DIST_DIR)/libpcp.lib"
 
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/launcher\mice.exe" "$(DIST_DIR)/mice86.exe"
@@ -66,11 +67,10 @@ dist:
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/miceboot\TrueCrypt.exe" "$(DIST_DIR)/Execute/TrueCrypt.exe"
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/miceboot\mxmaster.exe" "$(DIST_DIR)/Execute/S/mxmaster.exe"
 
-	@copy /Y "$(BUILD_DIR_32)/src/micetools/micepatch\micepatch.exe" "$(DIST_DIR)/util/micepatch.exe"
+#	@copy /Y "$(BUILD_DIR_32)/src/micetools/micepatch\micepatch.exe" "$(DIST_DIR)/util/micepatch.exe"
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\micedump.exe" "$(DIST_DIR)/util/micedump.exe"
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\micetinker.exe" "$(DIST_DIR)/util/micetinker.exe"
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\micemonitor.exe" "$(DIST_DIR)/util/micemonitor.exe"
-	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\kcproxy.exe" "$(DIST_DIR)/util/kcproxy.exe"
 
 	@copy /Y "src/micetools/miceboot\TrueCrypt.cmd" "$(DIST_DIR)/Execute/TrueCrypt.cmd"
 

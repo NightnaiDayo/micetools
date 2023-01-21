@@ -20,8 +20,8 @@ e_pcpa_t _pcpaGetErrorFromPcpp(e_pcpp_t err) {
             return (e_pcpa_t)-15;
         case e_pcpp_timeout_open:
             return e_pcpa_timeout_open;
-        case -11:
-            return (e_pcpa_t)-13;
+        case e_pcpp_no_server:
+            return e_pcpa_no_server;
         case e_pcpp_recv_unset:
             return e_pcpa_cb_table_full;
         case -9:
@@ -64,7 +64,7 @@ void pcpaClose(pcpa_t *stream) {
     }
     pcppClose(&stream->pcpp);
     stream->err = e_pcpa_unknown;
-    stream->state = 0;
+    stream->state = pcpa_state_none;
     stream->callback_table = NULL;
     stream->callback_max = 0;
     stream->callback_count = 0;
@@ -97,7 +97,7 @@ e_pcpa_t pcpaInitStream(pcpa_t *stream) {
     }
 
     stream->err = e_pcpa_unknown;
-    stream->state = 0;
+    stream->state = pcpa_state_none;
     stream->callback_table = NULL;
     stream->callback_max = 0;
     stream->callback_count = 0;
@@ -113,6 +113,26 @@ e_pcpa_t pcpaInitStream(pcpa_t *stream) {
     ZERO(stream->recv_data);
     ZERO(stream->send_data);
     return e_pcpa_ok;
+}
+
+e_pcpa_t pcpaOpenClient(pcpa_t *stream, char *ipAddr, ushort port, uint param_4,
+                        timeout_t timeout) {
+    if (stream == NULL) {
+        PCP_LOG("error PCPA stream isn\'t set\n");
+        return e_pcpa_stream_unset;
+    }
+    if (ipAddr == 0) {
+        PCP_LOG("error PCPA IpAddr isn\'t set\n");
+        return e_pcpa_param_invalid;
+    }
+
+    stream->state = pcpa_state_wait_prompt;
+    e_pcpa_t err =
+        _pcpaGetErrorFromPcpp(pcppOpenClient(&stream->pcpp, ipAddr, port, param_4, timeout));
+    stream->err = err;
+    if (err != e_pcpa_to) stream->state = pcpa_state_none;
+
+    return err;
 }
 
 e_pcpa_t pcpaOpenServerWithBinary(pcpa_t *stream, int open_mode, u_short port, u_short binary_port,
@@ -154,7 +174,7 @@ e_pcpa_t pcpaOpenServerWithBinary(pcpa_t *stream, int open_mode, u_short port, u
             return stream->err = e_pcpa_generic;
     }
 
-    stream->state = 0;
+    stream->state = pcpa_state_none;
     return e_pcpa_ok;
 }
 
@@ -186,7 +206,8 @@ e_pcpa_t pcpaSetCallbackFunc(pcpa_t *stream, char *keyword, pcpa_callback *callb
 
     if (stream->callback_count >= stream->callback_max) return e_pcpa_cb_table_full;
 
-    sprintf_s(stream->callback_table[stream->callback_count].keyword, PCP_KEYWORD_MAX, "%s", keyword);
+    sprintf_s(stream->callback_table[stream->callback_count].keyword, PCP_KEYWORD_MAX, "%s",
+              keyword);
     stream->callback_table[stream->callback_count].callback = callback;
     stream->callback_table[stream->callback_count].data = data;
     stream->callback_count++;
@@ -194,7 +215,8 @@ e_pcpa_t pcpaSetCallbackFunc(pcpa_t *stream, char *keyword, pcpa_callback *callb
     return stream->err = e_pcpa_ok;
 }
 
-e_pcpa_t pcpaSetCallbackFuncBuffer(pcpa_t *stream, pcpa_cb_table_t *callback_table, uint callbacks_max) {
+e_pcpa_t pcpaSetCallbackFuncBuffer(pcpa_t *stream, pcpa_cb_table_t *callback_table,
+                                   uint callbacks_max) {
     if (stream == NULL) {
         PCP_LOG("error PCPA stream isn\'t set\n");
         return e_pcpa_stream_unset;
@@ -251,7 +273,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
     do {
         ms = 0;
         switch (stream->state) {
-            case 0:
+            case pcpa_state_none:
                 amiTimerGet(&time);
                 ms = _amTimeDelta(time, time_start);
                 if (timeout_ms != -1) {
@@ -263,7 +285,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                         local_14 = timeout;
                     }
                 }
-                stream->state = 3;
+                stream->state = pcpa_state_wait_request;
                 iVar5 = pcppRecvRequest(&stream->pcpp, &stream->recv_data, timeout);
                 eVar4 = _errP2A(iVar5);
                 stream->err = eVar4;
@@ -277,15 +299,15 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                             goto joined_r0x00454a58;
                         }
                     } else {
-                        stream->state = 0;
+                        stream->state = pcpa_state_none;
                     }
                 }
                 break;
             default:
                 stream->err = e_pcpa_unknown;
                 goto LAB_00454d84;
-            case 3:
-            case 4:
+            case pcpa_state_wait_request:
+            case pcpa_state_send_response:
             case 9:
                 amiTimerGet(&time);
                 ms = _amTimeDelta(time, time_start);
@@ -303,13 +325,13 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                 stream->err = eVar4;
                 timeout = local_14;
                 if (eVar4 != e_pcpa_to) {
-                    if (stream->state == 4) {
+                    if (stream->state == pcpa_state_send_response) {
                         memset(&stream->send_data, 0, PCP_BUF_MAX);
                         (stream->send_data).length = 0;
                     }
                     if (stream->err == e_pcpa_ok) {
                         if (stream->binary_mode == binary_mode_none) {
-                            stream->state = (stream->state != 3) - 1 & 10;
+                            stream->state = (stream->state != pcpa_state_wait_request) - 1 & 10;
                             amiTimerGet(&time);
                             if (timeout_ms != -1) {
                                 ms = _amTimeDelta(time, time_start);
@@ -321,10 +343,11 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                             }
                         } else {
                             pcpaCloseBinary(stream);
-                            stream->state = 0;
+                            stream->state = pcpa_state_none;
                             stream->binary_mode = binary_mode_none;
                             if (stream->binary_mode_after_cb != NULL) {
-                                (*stream->binary_mode_after_cb)(stream, stream->binary_mode_after_data);
+                                (*stream->binary_mode_after_cb)(stream,
+                                                                stream->binary_mode_after_data);
                                 stream->binary_mode_after_cb = NULL;
                             }
                             amiTimerGet(&time);
@@ -337,16 +360,17 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                         if ((stream->state == 9) && (stream->binary_mode != binary_mode_none)) {
                             pcpaCloseBinary(stream);
                             if (stream->binary_mode_after_cb != NULL) {
-                                (*stream->binary_mode_after_cb)(stream, stream->binary_mode_after_data);
+                                (*stream->binary_mode_after_cb)(stream,
+                                                                stream->binary_mode_after_data);
                                 stream->binary_mode_after_cb = NULL;
                             }
                             stream->binary_mode = binary_mode_none;
                         }
-                        stream->state = 0;
+                        stream->state = pcpa_state_none;
                     }
                 }
                 break;
-            case 7:
+            case pcpa_state_send_request_binary:
                 callback = stream->binary_mode_before_cb;
                 (stream->pcpp).last_active = _amTimeMs(time_start);
                 if (callback != NULL) {
@@ -367,7 +391,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                 eVar4 = pcpaSendBinary(stream, timeout);
                 stream->err = eVar4;
                 if (eVar4 == e_pcpa_to) {
-                    stream->state = 9;
+                    stream->state = pcpa_state_wait_binary;
                 } else {
                     pcpaCloseBinary(stream);
                     if (stream->binary_mode_after_cb != NULL) {
@@ -375,7 +399,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                         stream->binary_mode_after_cb = NULL;
                     }
                     stream->binary_mode = binary_mode_none;
-                    stream->state = 0;
+                    stream->state = pcpa_state_none;
                     if (stream->err == e_pcpa_ok) {
                     LAB_00454a1a:
                         amiTimerGet(&time);
@@ -388,7 +412,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                     }
                 }
                 break;
-            case 8:
+            case pcpa_state_wait_response_binary:
                 callback = stream->binary_mode_before_cb;
                 (stream->pcpp).last_active = _amTimeMs(time_start);
                 if (callback != NULL) {
@@ -409,7 +433,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                 eVar4 = pcpaRecvBinary(stream, timeout);
                 stream->err = eVar4;
                 if (eVar4 == e_pcpa_to) {
-                    stream->state = 9;
+                    stream->state = pcpa_state_wait_binary;
                 } else {
                     pcpaCloseBinary(stream);
                     if (stream->binary_mode_after_cb != NULL) {
@@ -417,7 +441,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                         stream->binary_mode_after_cb = NULL;
                     }
                     stream->binary_mode = binary_mode_none;
-                    stream->state = 0;
+                    stream->state = pcpa_state_none;
                     if (stream->err == e_pcpa_ok) goto LAB_00454a1a;
                     PCP_LOG("error pcpaRecvBinary\n");
                 }
@@ -456,7 +480,8 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                         iVar3 = 0;
                     LAB_004547cd:
                         if (iVar3 == 0) {
-                            (stream->callback_table[ms].callback)(stream, stream->callback_table[ms].data);
+                            (stream->callback_table[ms].callback)(stream,
+                                                                  stream->callback_table[ms].data);
                             goto LAB_004547f1;
                         }
                         ms = ms + 1;
@@ -478,11 +503,11 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                 eVar4 = _errP2A(iVar5);
                 stream->err = eVar4;
                 if (eVar4 == e_pcpa_to) {
-                    stream->state = 4;
+                    stream->state = pcpa_state_send_response;
                 } else {
                     memset(&stream->send_data, 0, PCP_BUF_MAX);
                     (stream->send_data).length = 0;
-                    stream->state = 0;
+                    stream->state = pcpa_state_none;
                 }
                 if (stream->binary_mode != binary_mode_none) {
                     stream->state = (stream->binary_mode == binary_mode_send) ? 7 : 8;
@@ -511,10 +536,11 @@ e_pcpa_t pcpaRecvBinary(pcpa_t *stream, uint something) {
         return stream->err = e_pcpa_cb_table_full;
     }
 
-    stream->state = 8;
+    stream->state = pcpa_state_wait_response_binary;
     e_pcpa_t err;
-    stream->err = err = _errP2A(pcppRecvBinary(&stream->pcpp, stream->recv_buffer, stream->recv_buffer_len, something));
-    if (err != e_pcpa_to) stream->state = 0;
+    stream->err = err = _errP2A(
+        pcppRecvBinary(&stream->pcpp, stream->recv_buffer, stream->recv_buffer_len, something));
+    if (err != e_pcpa_to) stream->state = pcpa_state_none;
 
     return err;
 }
@@ -532,15 +558,16 @@ e_pcpa_t pcpaSendBinary(pcpa_t *stream, uint param_2) {
         return stream->err;
     }
 
-    stream->state = 7;
+    stream->state = pcpa_state_send_request_binary;
     e_pcpa_t err;
-    stream->err = err = _errP2A(pcppSendBinary(&stream->pcpp, stream->send_buffer, stream->send_buffer_len, param_2));
-    if (err != e_pcpa_to) stream->state = 0;
+    stream->err = err = _errP2A(
+        pcppSendBinary(&stream->pcpp, stream->send_buffer, stream->send_buffer_len, param_2));
+    if (err != e_pcpa_to) stream->state = pcpa_state_none;
 
     return err;
 }
 
-e_pcpa_t pcpaSetSendBinaryBuffer(pcpa_t *stream, byte *send_buffer, size_t len) {
+e_pcpa_t pcpaSetSendBinaryBuffer(pcpa_t *stream, unsigned char *send_buffer, size_t len) {
     if (stream == NULL) {
         PCP_LOG("error PCPA stream isn\'t set\n");
         return e_pcpa_stream_unset;
@@ -598,7 +625,7 @@ e_pcpa_t pcpaSetBinaryMode(pcpa_t *stream, binary_mode_t binary_mode) {
     return e_pcpa_ok;
 }
 
-e_pcpa_t pcpaSetRecvBinaryBuffer(pcpa_t *stream, byte *recv_buffer, size_t len) {
+e_pcpa_t pcpaSetRecvBinaryBuffer(pcpa_t *stream, unsigned char *recv_buffer, size_t len) {
     if (stream == NULL) {
         PCP_LOG("error PCPA stream isn\'t set\n");
         return e_pcpa_stream_unset;
@@ -627,4 +654,163 @@ char *pcpaGetKeyword(pcpa_t *stream, uint keyword_num) {
         return NULL;
     }
     return pcppGetKeyword(&stream->recv_data, keyword_num);
+}
+
+e_pcpa_t pcpaIsBusy(pcpa_t *pcpa, timeout_t timeout) {
+    amtime_t now;
+    amtime_t start;
+
+    if (pcpa == NULL) {
+        PCP_LOG("error PCPA stream isn\'t set\n");
+        return e_pcpa_stream_unset;
+    }
+
+    amiTimerGet(&start);
+    e_pcpa_t err = _pcpaGetErrorFromPcpp(pcppIsBusy(&pcpa->pcpp, timeout));
+    pcpa->err = err;
+    if (err == e_pcpa_to) return e_pcpa_to;
+
+    if (pcpa->state == pcpa_state_send_request)
+        memset(pcpa->send_data.data, 0, sizeof pcpa->send_data.data);
+    if (pcpa->err != e_pcpa_to) pcpa->state = pcpa_state_none;
+
+    if (pcpa->state == 11) {
+        pcpa->state = 12;
+        if (timeout != TIMEOUT_NONE) {
+            amiTimerGet(&now);
+            uint dt = _amTimeDelta(now, start);
+            if (dt < timeout) {
+                timeout -= dt;
+            } else {
+                timeout = 0;
+            }
+        }
+        err = _pcpaGetErrorFromPcpp(pcppRecvResponse(&pcpa->pcpp, &pcpa->recv_data, timeout));
+        pcpa->err = err;
+        if (err != e_pcpa_to) pcpa->state = pcpa_state_none;
+    } else if (pcpa->state == 13) {
+        pcpa->state = 14;
+        if (timeout != TIMEOUT_NONE) {
+            amiTimerGet(&now);
+            uint dt = _amTimeDelta(now, start);
+            if (dt < timeout) {
+                timeout -= dt;
+            } else {
+                timeout = 0;
+            }
+        }
+
+        e_pcpp_t pcpp_err;
+        if (pcpa->binary_mode == binary_mode_send) {
+            pcpp_err =
+                pcppSendBinary(&pcpa->pcpp, pcpa->send_buffer, pcpa->send_buffer_len, timeout);
+        } else {
+            pcpp_err =
+                pcppRecvBinary(&pcpa->pcpp, pcpa->recv_buffer, pcpa->recv_buffer_len, timeout);
+        }
+        err = _pcpaGetErrorFromPcpp(pcpp_err);
+        pcpa->err = err;
+        if (err != e_pcpa_to) {
+            pcppCloseBinary(&pcpa->pcpp);
+            return pcpa->err;
+        }
+    } else if (pcpa->state == 14 && pcpa->err != e_pcpa_to) {
+        pcppCloseBinary(&pcpa->pcpp);
+        return pcpa->err;
+    }
+    return pcpa->err;
+}
+
+e_pcpa_t pcpaSendRequest(pcpa_t *stream, timeout_t timeout) {
+    if (stream == NULL) {
+        PCP_LOG("error PCPA stream isn\'t set\n");
+        return e_pcpa_stream_unset;
+    }
+
+    stream->state = pcpa_state_send_request;
+    e_pcpa_t err =
+        _pcpaGetErrorFromPcpp(pcppSendRequestTable(&stream->pcpp, &stream->send_data, timeout));
+    stream->err = err;
+    if (err != e_pcpa_to) {
+        if (err != e_pcpa_ok) PCP_LOG("Error : pcppSendRequestTable(%d)\n", err);
+        memset(&stream->send_data, 0, sizeof stream->send_data);
+        stream->state = pcpa_state_none;
+    }
+    return stream->err;
+}
+
+e_pcpa_t pcpaRecvResponse(pcpa_t *stream, timeout_t timeout) {
+    if (stream == NULL) {
+        PCP_LOG("error PCPA stream isn\'t set\n");
+        return e_pcpa_stream_unset;
+    }
+
+    stream->state = pcpa_state_wait_response;
+    e_pcpa_t err =
+        _pcpaGetErrorFromPcpp(pcppRecvResponse(&stream->pcpp, &stream->recv_data, timeout));
+    stream->err = err;
+    if (err != e_pcpa_to) {
+        if (err != e_pcpa_ok) PCP_LOG("Error : pcppRecvResponse(%d)\n", err);
+        stream->state = pcpa_state_none;
+    }
+    return err;
+}
+
+e_pcpa_t pcpaOpenBinaryClient(pcpa_t *stream, ushort port, timeout_t timeout) {
+    if (stream == NULL) {
+        PCP_LOG("error PCPA stream isn\'t set\n");
+        return e_pcpa_stream_unset;
+    }
+
+    SOCKADDR_IN *addr = (SOCKADDR_IN *)pcppGetSockAddr(&stream->pcpp, false);
+    stream->state = pcpa_state_open_binary;
+    char *ipAddr = inet_ntoa(addr->sin_addr);
+
+    e_pcpa_t pcpa_err =
+        _pcpaGetErrorFromPcpp(pcppOpenBinaryClient(&stream->pcpp, ipAddr, port, timeout));
+    stream->err = pcpa_err;
+    if (pcpa_err == e_pcpa_to) {
+        stream->state = pcpa_state_none;
+    }
+    return pcpa_err;
+}
+
+e_pcpa_t pcpaAccessClient(pcpa_t *stream, timeout_t timeout) {
+    if (stream == NULL) {
+        PCP_LOG("error PCPA stream isn\'t set\n");
+        return e_pcpa_stream_unset;
+    }
+
+    amtime_t start, now;
+    e_pcpp_t pcpa_err;
+
+    amiTimerGet(&start);
+    stream->state = pcpa_state_send_request_table;
+
+    pcpa_err =
+        _pcpaGetErrorFromPcpp(pcppSendRequestTable(&stream->pcpp, &stream->send_data, timeout));
+    stream->err = pcpa_err;
+    if (pcpa_err != e_pcpa_to) stream->state = pcpa_state_none;
+
+    if (pcpa_err != e_pcpa_ok) return pcpa_err;
+
+    if (pcpa_err == 0) {
+        stream->state = pcpa_state_12;
+
+        if (timeout != TIMEOUT_NONE) {
+            amiTimerGet(&now);
+            uint delta = amiTimerDiffMsec(&start, &now);
+            if (delta < timeout) {
+                timeout -= delta;
+            } else {
+                timeout = 0;
+            }
+        }
+
+        pcpa_err =
+            _pcpaGetErrorFromPcpp(pcppRecvResponse(&stream->pcpp, &stream->recv_data, timeout));
+        stream->err = pcpa_err;
+        if (pcpa_err != e_pcpa_to) stream->state = pcpa_state_none;
+    }
+    return pcpa_err;
 }

@@ -1,6 +1,8 @@
 #pragma once
 #include <Windows.h>
 
+#include "../ami/ami.h"
+
 extern unsigned char KEY_R[16];
 extern unsigned char KEY_S[16];
 extern unsigned char BILLING_PRIVKEY[917];
@@ -39,7 +41,7 @@ enum {
 };
 
 // Structs
-#pragma pack(1)
+#pragma pack(push, 1)
 typedef struct {
     DWORD crc;
     DWORD format;
@@ -54,14 +56,18 @@ typedef struct {
     BYTE __[216];
     BYTE seed[16];
 } appboot_t;
+#pragma pack(pop)
 
 // Crypt
 void mxkSetKeyS(unsigned char* key_s);
 void mxkSetKeyR(unsigned char* key_r);
 void mxkSwapKeys();
 
-void mxkCryptEncryptData(unsigned char* ct, unsigned char* pt);
-void mxkCryptDecryptData(unsigned char* ct, unsigned char* pt);
+void mxkCryptEncryptAes128CBC(const unsigned char* key, const unsigned char* iv, unsigned char* pt, const unsigned char* ct, size_t nbytes);
+void mxkCryptDecryptAes128CBC(const unsigned char* key, const unsigned char* iv, const unsigned char* ct, unsigned char* pt, size_t nbytes);
+
+void mxkCryptEncryptData(unsigned char* ct, const unsigned char* pt);
+void mxkCryptDecryptData(const unsigned char* ct, unsigned char* pt);
 
 void mxkSign(void* buffer, size_t nbytes, unsigned char* signature);
 void mxkSignValue(unsigned int value, unsigned char* signature);
@@ -75,7 +81,7 @@ static void mxkTransportCtrlPortInOrOut(HANDLE mxparallel, BYTE flag);
 BOOL mxkTransportSend(HANDLE mxparallel, unsigned char* data, DWORD nbytes);
 HRESULT mxkTransportRecv(HANDLE mxparallel, unsigned char* data, DWORD nbytes);
 
-BOOL mxkSendPacket(HANDLE mxparallel, unsigned char* packet);
+BOOL mxkSendPacket(HANDLE mxparallel, const unsigned char* packet);
 BOOL mxkRecvPacket(HANDLE mxparallel, unsigned char* packet);
 void mxkTransportInitPic(HANDLE mxparallel);
 
@@ -95,8 +101,8 @@ void mxkPacketReqNvramRead(unsigned char* packet, unsigned short addr, unsigned 
 // MXK
 BOOL mxkExchengeAesKey(HANDLE mxparallel);
 BOOL mxkVersion(HANDLE mxparallel, unsigned short* version);
-BOOL mxkSetMainId(HANDLE mxparallel, unsigned char* main_id);
-BOOL mxkGetMainId(HANDLE mxparallel, const unsigned char* main_id);
+BOOL mxkSetMainId(HANDLE mxparallel, const unsigned char* main_id);
+BOOL mxkGetMainId(HANDLE mxparallel, unsigned char* main_id);
 BOOL mxkGetKeyId(HANDLE mxparallel, unsigned char* main_id);
 BOOL mxkGetAppBootInfo(HANDLE mxparallel, appboot_t* appboot);
 BOOL mxkGetPlayCounter(HANDLE mxparallel, DWORD* play_counter);

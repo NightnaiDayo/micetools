@@ -35,13 +35,14 @@ add_project_arguments(
     # Strip out as much crud as we can to keep XP builds small
     '/Os', '/EHc-', '/EHa-', '/EHs-', '/GL', '/GR-',
 
-    '/wd4706',  # assignment within conditional expression
-    '/wd4214',  # windns.h: nonstandard extension used: bit field types other than int
-    '/wd4201',  # ewfapi.h: nameless struct/union
-    '/wd4200',  # zero-sized arrays
-    '/wd4152',  # hooks: function/data pointer conversion in expression
     '/wd4100',  # basically every hook causes "unreferenced formal parameter"
+    '/wd4152',  # hooks: function/data pointer conversion in expression
+    '/wd4200',  # zero-sized arrays
+    '/wd4201',  # ewfapi.h: nameless struct/union
+    '/wd4204',  # non-constant aggregate initializer
     '/wd4206',  # empty C files
+    '/wd4214',  # windns.h: nonstandard extension used: bit field types other than int
+    '/wd4706',  # assignment within conditional expression
 
     '/wd4189',  # lots of keychip functions aren't 100% implemented yet
 

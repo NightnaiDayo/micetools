@@ -5,9 +5,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#pragma comment(lib, "Setupapi.lib")
 
-#include "../lib/am/amEeprom.h"
+#include "../lib/amEeprom/amEeprom.h"
 #include "../lib/mxk/mxk.h"
 
 #define OpenDriver(x) \
@@ -21,111 +20,7 @@
     puts(RULE);         \
     puts("");
 
-typedef struct {
-    uint64_t physAddr;
-    DWORD dType;
-    DWORD size;
-} columba_request_t;
 
-void scan_for_dmi(HANDLE columba, DWORD *stable_addr) {
-    DWORD bytesOut;
-    // short *stable_len;
-    columba_request_t request;
-    unsigned char readBuf[0x8010];
-
-    uint64_t search_addr = 0xf0000;
-    while (1) {
-        request.physAddr = search_addr;
-        request.dType = 1;
-        request.size = sizeof readBuf;
-
-        BOOL succ = DeviceIoControl(columba, IOCTL_COLUMBA_READ, &request, sizeof request, &readBuf,
-                                    sizeof readBuf, &bytesOut, NULL);
-        if (succ && bytesOut == sizeof readBuf) {
-            for (unsigned int offset = 0; offset < 0x8008; offset++) {
-                if (readBuf[offset] == '_' && readBuf[offset + 1] == 'D' &&
-                    readBuf[offset + 2] == 'M' && readBuf[offset + 3] == 'I' &&
-                    readBuf[offset + 4] == '_') {
-                    *stable_addr = *(DWORD *)&readBuf[offset + 8];
-
-                    return;
-                }
-            }
-        }
-
-        search_addr += 0x7ff0;
-        if (search_addr > 0xfffdf) return;
-    }
-}
-
-BOOL dump_columba() {
-    SECTION_HEAD("columba");
-
-    HANDLE columba = OpenDriver("columba");
-    if (columba == INVALID_HANDLE_VALUE) return FALSE;
-
-    DWORD stable_addr = 0;
-    scan_for_dmi(columba, &stable_addr);
-    if (stable_addr == 0) {
-        CloseHandle(columba);
-        return FALSE;
-    }
-
-    columba_request_t request;
-    unsigned char readBuf[0x10000];
-
-    printf("Found DMI at: %d\n", stable_addr);
-
-    request.physAddr = stable_addr;
-    request.dType = 1;
-    if (stable_addr + 0x10000 < 0x100001) {
-        request.size = 0x10000;
-    } else {
-        request.size = 0x100000 - stable_addr;
-    }
-    DWORD bytesReturned;
-
-    BOOL s = DeviceIoControl(columba, IOCTL_COLUMBA_READ, &request, sizeof request, readBuf,
-                             sizeof readBuf, &bytesReturned, NULL);
-    if (!s || bytesReturned != sizeof readBuf) {
-        CloseHandle(columba);
-        return FALSE;
-    }
-
-    puts("DMI read sucessful.");
-    FILE *dmi;
-    fopen_s(&dmi, "dmi.bin", "wb");
-    fwrite(readBuf, 1, sizeof readBuf, dmi);
-    fclose(dmi);
-    puts(" -> Written to dmi.bin");
-
-    CloseHandle(columba);
-    return TRUE;
-}
-
-BOOL dump_eeprom() {
-    SECTION_HEAD("mxSMBus");
-
-    HANDLE mxsmbus = amEepromCreateDeviceFile(&MXSMBUS_GUID, NULL, 0);
-    if (mxsmbus == INVALID_HANDLE_VALUE) return FALSE;
-
-    DWORD _dummy;
-    DWORD version;
-    DeviceIoControl(mxsmbus, IOCTL_MXSMBUS_GET_VERSION, NULL, 0, &version, sizeof version, &_dummy,
-                    NULL);
-    printf("mxSMBus version: %08x\n", version);
-
-    BYTE data[0x20];
-    for (WORD reg = 0; reg < 256; reg++) {
-        if (!amEepromReadBlock(mxsmbus, reg & 0xFF, 0x20, data)) continue;
-        printf("%02x: ", reg);
-        for (int i = 0; i < 0x20; i++) printf("%02x ", data[i]);
-        puts("");
-    }
-
-    CloseHandle(mxsmbus);
-    return TRUE;
-}
 
 unsigned char sram_buf[1024 * 2048];
 BOOL dump_sram() {

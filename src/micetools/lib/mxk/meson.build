@@ -9,5 +9,5 @@ mxklib = static_library(
     include_directories: [
         openssl_inc,
     ],
-    dependencies: [openssl_lib]
+    dependencies: [openssl_lib],
 )

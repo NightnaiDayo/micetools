@@ -5,30 +5,26 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#pragma comment(lib, "Setupapi.lib")
 
 #include "../lib/am/amEeprom.h"
 
 BYTE get_region() {
-    HANDLE mxsmbus = amEepromCreateDeviceFile(&MXSMBUS_GUID, NULL, 0);
-    if (mxsmbus == INVALID_HANDLE_VALUE) return FALSE;
-
+    amEepromInit(NULL);
     BYTE data[0x20];
-    amEepromReadBlock(mxsmbus, 0, sizeof data, data);
-
-    CloseHandle(mxsmbus);
+    amEepromRead(0, data, sizeof data);
+    amEepromExit();
 
     return data[12];
 }
 
 BOOL change_region(BYTE region) {
-    HANDLE mxsmbus = amEepromCreateDeviceFile(&MXSMBUS_GUID, NULL, 0);
-    if (mxsmbus == INVALID_HANDLE_VALUE) return FALSE;
+    if (amEepromInit(NULL) != AM_EEPROM_STATUS_OK) return FALSE;
 
     BYTE data[0x20];
-    if (!amEepromReadBlock(mxsmbus, 0, sizeof data, data)) {
+    if (amEepromRead(0, data, sizeof data) != AM_EEPROM_STATUS_OK) {
         printf("Failed to read block 0");
-        goto fail;
+        amEepromExit();
+        return FALSE;
     }
 
     puts("Original content:");
@@ -36,20 +32,18 @@ BOOL change_region(BYTE region) {
     puts("");
 
     data[12] = region;
-    amEepromRepairChecksum(data);
+    amCrc32RCreateTable();
+    ((DWORD*)data)[0] = amCrc32RGet(sizeof data - 4, data + 4, 0);
 
-    amEepromWriteBlock(mxsmbus, 0, sizeof data, data);
-    amEepromReadBlock(mxsmbus, 0, sizeof data, data);
+    amEepromWrite(0, data, sizeof data);
+    amEepromRead(0, data, sizeof data);
 
     puts("Tinkered content:");
     for (int i = 0; i < 0x20; i++) printf("%02x ", data[i]);
     puts("");
 
-    CloseHandle(mxsmbus);
+    amEepromExit();
     return TRUE;
-fail:
-    CloseHandle(mxsmbus);
-    return FALSE;
 }
 
 int main(int argc, char** argv) {

@@ -9,18 +9,18 @@ void mxkPcpAbSystemFlag(pcpa_t* stream, void* data) {
     pcpaSetSendPacket(stream, AB_SYSTEMFLAG, sf);
 }
 void mxkPcpAbModelType(pcpa_t* stream, void* data) {
-    char mt[16];
-    snprintf(mt, 16, "%02X", Config.appboot_modeltype);
+    char mt[3];
+    snprintf(mt, 3, "%02X", Config.appboot_modeltype);
     pcpaSetSendPacket(stream, AB_MODELTYPE, mt);
 }
 void mxkPcpAbFormatType(pcpa_t* stream, void* data) {
-    char ft[16];
-    snprintf(ft, 16, "%02X", Config.appboot_formattype);
+    char ft[3];
+    snprintf(ft, 3, "%02X", Config.appboot_formattype);
     pcpaSetSendPacket(stream, AB_FORMATTYPE, ft);
 }
 void mxkPcpAbRegion(pcpa_t* stream, void* data) {
-    char rg[16];
-    snprintf(rg, 16, "%02X", Config.appboot_region);
+    char rg[3];
+    snprintf(rg, 3, "%02X", Config.appboot_region);
     pcpaSetSendPacket(stream, AB_REGION, rg);
 }
 void mxkPcpAbPlatformId(pcpa_t* stream, void* data) {
@@ -30,8 +30,8 @@ void mxkPcpAbNetworkAddress(pcpa_t* stream, void* data) {
     pcpaSetSendPacket(stream, AB_NETWORKADDRESS, Config.appboot_network);
 }
 void mxkPcpAbDvd(pcpa_t* stream, void* data) {
-    char dvd[16];
-    snprintf(dvd, 16, "%02X", Config.appboot_dvdflag);
+    char dvd[3];
+    snprintf(dvd, 3, "%02X", Config.appboot_dvdflag);
     pcpaSetSendPacket(stream, AB_DVD, dvd);
 }
 

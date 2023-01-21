@@ -1,12 +1,17 @@
 #include "log.h"
 
+#include <dbghelp.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#pragma comment(lib, "DbgHelp.lib")
 
 #include "../../lib/mice/config.h"
 #include "../hooks/logging.h"
+
+extern WCHAR exePath[MAX_PATH + 1];
+extern DWORD imageOffset;
 
 extern BOOL(WINAPI* TrueWriteFile)(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
                                    LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped);
@@ -72,19 +77,18 @@ void __stdcall amLogCallback(DWORD level, char* format) {
 DWORD pLogcb;
 DWORD* ppLogcb;
 
-extern WCHAR exePath[MAX_PATH + 1];
 int _do_log(BYTE log_level, const char* caller, const char* format, va_list args) {
     // TODO: These are all horrible bodges
     if (wcscmp(exePath, L"mxnetwork.exe") == 0) {
-        // *((DWORD*)(0x004438e8)) = (DWORD)(&logcb);
-        *((DWORD*)(0x004438e8)) = 0x00000000;
+        // *((DWORD*)(imageOffset + 0x004438e8)) = (DWORD)(&logcb);
+        *((DWORD*)(imageOffset + 0x004438e8)) = 0x00000000;
     }
     if (wcscmp(exePath, L"maimai_dump_.exe") == 0) {
-        *((DWORD*)(0x00c820ec)) = 0x00000001;
+        *((DWORD*)(imageOffset + 0x00c820ec)) = 0x00000001;
         pLogcb = (DWORD)(&amLogCallback);
         ppLogcb = &pLogcb;
-        *((DWORD***)(0x00c820F4)) = &ppLogcb;
-        // *((DWORD*)(0x004438e8)) = (DWORD)(&logcb);
+        *((DWORD***)(imageOffset + 0x00c820F4)) = &ppLogcb;
+        // *((DWORD*)(imageOffset + 0x004438e8)) = (DWORD)(&logcb);
     }
 
     force_console_bind();
@@ -212,5 +216,46 @@ void setup_logging() {
         if (log_file == NULL && MiceConfig.mice.log_file[0] != '\0')
             log_file = CreateFileA(MiceConfig.mice.log_file, GENERIC_WRITE, FILE_SHARE_READ, NULL,
                                    CREATE_ALWAYS, 0, NULL);
+    }
+}
+
+void log_stack(const char* caller) {
+    char name[MAX_PATH * sizeof(TCHAR)];
+    char Storage[sizeof(IMAGEHLP_SYMBOL64) + sizeof(name)];
+
+    IMAGEHLP_SYMBOL64* symbol = (IMAGEHLP_SYMBOL64*)Storage;
+    CONTEXT context;
+    RtlCaptureContext(&context);
+
+    STACKFRAME64 stack = { 0 };
+    stack.AddrPC.Offset = context.Eip;
+    stack.AddrPC.Mode = AddrModeFlat;
+    stack.AddrStack.Offset = context.Esp;
+    stack.AddrStack.Mode = AddrModeFlat;
+    stack.AddrFrame.Offset = context.Ebp;
+    stack.AddrFrame.Mode = AddrModeFlat;
+
+    HANDLE process = GetCurrentProcess();
+    HANDLE thread = GetCurrentThread();
+    BOOL initres = SymInitialize(process, NULL, true);
+    for (ULONG frame = 0;; frame++) {
+        BOOL result = StackWalk64(IMAGE_FILE_MACHINE_I386, process, thread, &stack, &context, NULL,
+                                  SymFunctionTableAccess64, SymGetModuleBase64, NULL);
+
+        symbol->SizeOfStruct = sizeof(Storage);
+        symbol->MaxNameLength = sizeof(name);
+
+        DWORD64 displacement;
+        SymGetSymFromAddr64(process, (ULONG64)stack.AddrPC.Offset, &displacement, symbol);
+        UnDecorateSymbolName(symbol->Name, (PSTR)name, sizeof(name), UNDNAME_COMPLETE);
+
+        log_error(caller, "%02u called from 0x%08X STACK=0x%08X FRAME=0x%08X  %s\n", frame,
+                  (ULONG64)stack.AddrPC.Offset, (ULONG64)stack.AddrStack.Offset,
+                  (ULONG64)stack.AddrFrame.Offset, symbol->Name);
+
+        if (result == FALSE) {
+            DWORD frameError = GetLastError();
+            break;
+        }
     }
 }

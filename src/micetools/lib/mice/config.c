@@ -12,6 +12,7 @@ config_t MiceConfig = {
 #define CFG_bool(s, n, default, comment) .n = default,
 #define CFG_int(s, n, default, comment) .n = default,
 #define CFG_hex(s, n, precision, default, comment) .n = 0x##default,
+#define CFG_ipv4(s, n, a, b, c, d, comment) .n = (a << 24) | (b << 16) | (c << 8) | d,
 #define ENDSECTION(s) \
     }                 \
     ,
@@ -20,11 +21,11 @@ config_t MiceConfig = {
 };
 
 void fprintf_prefix(FILE *file, const char *prefix, const char *text) {
-    char* copy = (char*)malloc(strlen(text) + 1);
+    char *copy = (char *)malloc(strlen(text) + 1);
     memcpy_s(copy, strlen(text) + 1, text, strlen(text) + 1);
 
-    char* next_token;
-    char* token = strtok_s(copy, "\n", &next_token);
+    char *next_token;
+    char *token = strtok_s(copy, "\n", &next_token);
     while (token != NULL) {
         fprintf(file, "%s%s\n", prefix, token);
         token = strtok_s(NULL, "\n", &next_token);
@@ -42,35 +43,35 @@ void make_default_config() {
     };
     int first_section = true;
 
-#define CFG_str(s, n, default, comment)                                \
+#define CFG_str(s, n, default, comment)                                   \
     if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment); \
-    fprintf(config_file, "; (string) default = %s\n", default);        \
-    fprintf(config_file, "%s = %s\n", #n, default);
+    fprintf(config_file, "%s = %s ;(string)\n", #n, default);
 
-#define CFG_bool(s, n, default, comment)                                         \
-    if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment);           \
-    fprintf(config_file, "; (bool) default = %s\n", default ? "true" : "false"); \
-    fprintf(config_file, "%s = %s\n", #n, default ? "true" : "false");
-
-#define CFG_int(s, n, default, comment)                                \
+#define CFG_bool(s, n, default, comment)                                  \
     if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment); \
-    fprintf(config_file, "; (int) default = %d\n", default);           \
-    fprintf(config_file, "%s = %d\n", #n, default);
+    fprintf(config_file, "%s = %s ;(bool)\n", #n, default ? "true" : "false");
 
-#define CFG_hex(s, n, precision, default, comment)                            \
-    if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment);        \
-    fprintf(config_file, "; (hex) default = %.*X\n", precision, 0x##default); \
-    fprintf(config_file, "%s = %.*X\n", #n, precision, 0x##default);
+#define CFG_int(s, n, default, comment)                                   \
+    if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment); \
+    fprintf(config_file, "%s = %d ;(int)\n", #n, default);
 
-#define SECTION(s, comment)                                            \
-    if (!first_section) fprintf(config_file, "\n");                    \
-    first_section = false;                                             \
+#define CFG_hex(s, n, precision, default, comment)                                              \
+    if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment);                       \
+    fprintf(config_file, "%s = %.*X ;(hex, %d byte%s)\n", #n, precision, 0x##default, precision, \
+            precision == 1 ? "" : "s");
+
+#define CFG_ipv4(s, n, a, b, c, d, comment)                               \
+    if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment); \
+    fprintf(config_file, "%s = %hhu.%hhu.%hhu.%hhu ;(ipv4)\n", #n, a, b, c, d);
+
+#define SECTION(s, comment)                                               \
+    if (!first_section) fprintf(config_file, "\n");                       \
+    first_section = false;                                                \
     if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment); \
     fprintf(config_file, "[%s]\n", #s);
 
-#define HEADER(comment)                      \
-    if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment); \
-    first_section = false;
+#define COMMENT(comment) \
+    if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment);
 
 #include "config.def"
 
@@ -98,6 +99,15 @@ int handler(void *user, const char *section, const char *name, const char *value
     else if (_stricmp(section, #s) == 0 && _stricmp(name, #n) == 0) {                \
         cfg->s.n = strtol(value, &end, 16);                                          \
         if (end == value || *end != '\0' || errno == ERANGE) cfg->s.n = 0x##default; \
+    }
+#define CFG_ipv4(s, n, a, b, c, d, comment)                                          \
+    else if (_stricmp(section, #s) == 0 && _stricmp(name, #n) == 0) {                \
+        cfg->s.n = strtol(value, &end, 16);                                          \
+        unsigned char ip_a, ip_b, ip_c, ip_d;                                        \
+        if (sscanf_s(value, "%hhu.%hhu.%hhu.%hhu", &ip_a, &ip_b, &ip_c, &ip_d) == 4) \
+            cfg->s.n = (ip_a << 24) | (ip_b << 16) | (ip_c << 8) | ip_d;             \
+        else                                                                         \
+            cfg->s.n = (a << 24) | (b << 16) | (c << 8) | d;                         \
     }
 
 #include "config.def"

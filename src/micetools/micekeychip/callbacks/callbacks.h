@@ -54,7 +54,7 @@ pcpa_callback mxkPcpAbSeed;
 #define BIL_MAINID BILLING##"mainid"
 #define BIL_PLAYCOUNT BILLING##"playcount"
 #define BIL_PLAYLIMIT BILLING##"playlimit"
-#define BIL_NEARFUL BILLING##"nearful"
+#define BIL_NEARFULL BILLING##"nearfull"
 #define BIL_SIGNATURE BILLING##"signaturepubkey"
 #define BIL_CACERT BILLING##"cacertification"
 pcpa_callback mxkPcpPbKeyId;

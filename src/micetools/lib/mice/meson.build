@@ -3,12 +3,12 @@ mice_lib = static_library(
     sources: [
         'exe.c',
         'patch.c',
-        'crc.c',
         'ringbuf.c',
         'config.c',
     ],
     link_with: [
         inih.get_variable('lib_inih'),
-        json_lib,
-    ]
+        util_lib,
+        amiCrc,
+    ],
 )

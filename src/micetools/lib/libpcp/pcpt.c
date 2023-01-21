@@ -304,9 +304,10 @@ e_pcpt_t pcptOpenServer(pcpt_t *stream, int open_mode, ushort port) {
         return stream->err = err;
     }
 
-    SOCKADDR_IN addr = { .sin_family = AF_INET,
-                               .sin_port = ntohs(port),
-                               .sin_addr.s_addr = ntohl(0) };
+    SOCKADDR_IN addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = ntohs(port);
+    addr.sin_addr.s_addr = ntohl(0);
     if (open_mode != OPEN_MODE_GLOBAL) {
         INT len = sizeof &addr.sin_addr.s_addr;
 
@@ -340,6 +341,129 @@ e_pcpt_t pcptOpenServer(pcpt_t *stream, int open_mode, ushort port) {
     return stream->err = e_pcpt_unknown;
 }
 
+e_pcpt_t pcptOpenClient(pcpt_t *stream, char *ipAddr, ushort port, timeout_t timeout) {
+    pcpt_t *pcpt;
+    uint uVar6;
+    amtime_t start;
+    amtime_t now;
+
+    pcpt = stream;
+    if ((stream == NULL) || (ipAddr == NULL)) {
+        PCP_LOG("error PCP stream isn\'t set\n");
+        return e_pcpt_pointer_unset;
+    }
+    if (stream->client_sock != 0xffffffff) {
+        return stream->err = e_pcpt_already_open;
+    }
+
+    stream->field_0x58 = 0;
+    stream->open = PCPT_CLOSED;
+    stream->client_open = 1;
+
+    ZeroMemory(&stream->client_addr, sizeof stream->client_addr);
+    SOCKADDR_IN *pAddr = &stream->client_addr;
+    pAddr->sin_port = ntohs(port);
+    pAddr->sin_family = AF_INET;
+    pAddr->sin_addr.s_addr = inet_addr(ipAddr);
+
+    SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
+    pcpt->client_sock = s;
+    if (s == SOCKET_INVAL) {
+        return pcpt->err = _errW2T(GetLastError());
+    }
+
+    uint so_linger = (uint)(!!stream->so_linger);
+    setsockopt(stream->client_sock, SOL_SOCKET, SO_LINGER, (void *)&so_linger, sizeof so_linger);
+
+    uint nodelay = (uint)(!stream->tcp_nodelay);
+    setsockopt(stream->client_sock, IPPROTO_TCP, TCP_NODELAY, (void *)&nodelay, sizeof nodelay);
+
+    amiTimerGet(&start);
+    do {
+        port = 0;
+        HANDLE client_event = WSACreateEvent();
+        pcpt->client_event = client_event;
+        if (client_event == 0) {
+            closesocket(pcpt->client_sock);
+            pcpt->err = -0x11;
+            pcpt->client_sock = 0xffffffff;
+            return pcpt->err;
+        }
+        WSAEventSelect(pcpt->client_sock, client_event, 0x30);
+
+        if (connect(pcpt->client_sock, &stream->client_addr, 0x10) != -1) {
+            WSAEventSelect(pcpt->client_sock, 0, 0);
+            WSACloseEvent(pcpt->client_event);
+            pcpt->client_event = 0;
+
+            u_long local_40 = 0;
+            ioctlsocket(pcpt->client_sock, FIONBIO, &local_40);
+
+            client_event = WSACreateEvent();
+            pcpt->client_event = client_event;
+            if (client_event == 0) {
+                closesocket(pcpt->client_sock);
+                pcpt->err = -0x11;
+                pcpt->client_sock = 0xffffffff;
+                return pcpt->err;
+            }
+            WSAEventSelect(pcpt->client_sock, client_event, 0x23);
+            pcpt->err = 0;
+            pcpt->client_open = 0;
+            pcpt->open = 2;
+            return 0;
+        }
+        if ((pcpt->err = _errW2T(GetLastError())) != e_pcpt_to) {
+            u_long local_40 = 0;
+            ioctlsocket(pcpt->client_sock, FIONBIO, &local_40);
+            return pcpt->err;
+        }
+        amiTimerGet(&now);
+        if (timeout == TIMEOUT_NONE) {
+        LAB_00a19435:
+            uVar6 = pcpt->config_0;
+        } else {
+            uVar6 = (now.microseconds - start.microseconds) / 1000 +
+                    (now.seconds - start.seconds) * 1000;
+            if (uVar6 < timeout) {
+                uVar6 = timeout - uVar6;
+            } else {
+                port = 1;
+                uVar6 = 0;
+            }
+            if (pcpt->config_0 <= uVar6 && uVar6 != pcpt->config_0) goto LAB_00a19435;
+        }
+        if ((pcpt->err = pcptCheckConnectAble(pcpt, uVar6)) != e_pcpt_to) {
+            pcpt->client_open = 0;
+            if (pcpt->err == e_pcpt_ok) {
+                pcpt->open = 2;
+                return pcpt->err;
+            }
+            return pcpt->err;
+        }
+        if (port != 0) {
+            pcpt->err = 1;
+            amiTimerGet(&start);
+            pcpt->field_0x40 = start.microseconds / 1000 + start.seconds * 1000;
+            return pcpt->err;
+        }
+        WSAEventSelect(pcpt->client_sock, 0, 0);
+        WSACloseEvent(pcpt->client_event);
+        pcpt->client_event = 0;
+        closesocket(pcpt->client_sock);
+
+        pcpt->client_sock = SOCKET_INVAL;
+        s = socket(AF_INET, SOCK_STREAM, 0);
+        pcpt->client_sock = s;
+        if (s == SOCKET_INVAL) {
+            return pcpt->err = _errW2T(GetLastError());
+        }
+        if (pcpt->err != e_pcpt_to) {
+            return pcpt->err;
+        }
+    } while (true);
+}
+
 e_pcpt_t pcptRecv(pcpt_t *sock, unsigned char *recv_buf, size_t *recv_buf_len,
                   timeout_t timeout_ms) {
     e_pcpt_t err;
@@ -347,13 +471,19 @@ e_pcpt_t pcptRecv(pcpt_t *sock, unsigned char *recv_buf, size_t *recv_buf_len,
     amtime_t start;
 
     if (sock == NULL || recv_buf == NULL || recv_buf_len == NULL) {
-        printf("%p %p %p\n", sock, recv_buf, recv_buf_len);
         PCP_LOG("error PCP stream isn\'t set\n");
         return e_pcpt_pointer_unset;
     }
 
-    if (sock->open == PCPT_CLOSED) return sock->err = e_pcpt_not_open;
-    if (sock->client_open != 0) return sock->err = e_pcpt_already_connected;
+    if (sock->open == PCPT_CLOSED) {
+        PCP_LOG("error PCP not open\n");
+        return sock->err = e_pcpt_not_open;
+    }
+    // TODO: URGENT: Something in the FSM causes this condition to error out!
+    // if (sock->client_open != 0) {
+    //     PCP_LOG("error PCP already connected\n");
+    //     return sock->err = e_pcpt_already_connected;
+    // }
 
     sock->recv_buf = recv_buf;
     sock->recv_buf_count = recv_buf_len;
@@ -414,8 +544,14 @@ e_pcpt_t pcptSend(pcpt_t *sock, unsigned char *send_buf, size_t *send_len, uint 
         return e_pcpt_pointer_unset;
     }
 
-    if (sock->open == PCPT_CLOSED) return sock->err = e_pcpt_not_open;
-    if (sock->client_open != 0) return sock->err = e_pcpt_already_connected;
+    if (sock->open == PCPT_CLOSED) {
+        PCP_LOG("error PCP not open\n");
+        return sock->err = e_pcpt_not_open;
+    }
+    if (sock->client_open != 0) {
+        PCP_LOG("error PCP already connected\n");
+        return sock->err = e_pcpt_already_connected;
+    }
 
     sock->send_buf_count = send_len;
     sock->send_buf = send_buf;

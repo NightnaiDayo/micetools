@@ -1,36 +1,29 @@
+#include "../lib/am/amOemstring.h"
 #include "../lib/dmi/dmi.h"
 #include "mx.h"
-
-// Much easier than pulling in winddk.h
-typedef LARGE_INTEGER PHYSICAL_ADDRESS, *PPHYSICAL_ADDRESS;
-typedef struct {
-    PHYSICAL_ADDRESS addr;
-    DWORD data_type;
-    DWORD bytes;
-} columba_request;
 
 #define DMI_HEADER_START 0x000f0000
 #define DMI_TABLES_START 0x000f1000
 
-BOOL columba_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer,
-                             DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
-                             LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
+BOOL WINAPI columba_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer,
+                                    DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
+                                    LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     switch (dwIoControlCode) {
         case IOCTL_COLUMBA_READ:
             log_misc("columba", "DeviceIoControl(<columba>, <read>, 0x%p, 0x%x, -, 0x%x, -, -)",
                      lpInBuffer, nInBufferSize, nOutBufferSize);
-            columba_request* request = (columba_request*)lpInBuffer;
-            log_info("columba", "Physical read: 0x%04x %ss at %08X", request->bytes,
-                     request->data_type == 1   ? "byte"
-                     : request->data_type == 2 ? "short"
-                     : request->data_type == 4 ? "long"
-                                               : "void",
-                     request->addr);
-            DWORD requested_size = request->data_type * request->bytes;
+            AM_COLUMBA_REQUEST* request = (AM_COLUMBA_REQUEST*)lpInBuffer;
+            log_info("columba", "Physical read: 0x%04x %ss at %08X", request->m_elementCount,
+                     request->m_elementSize == 1   ? "byte"
+                     : request->m_elementSize == 2 ? "short"
+                     : request->m_elementSize == 4 ? "long"
+                                                   : "void",
+                     request->m_physAddr.QuadPart);
+            DWORD requested_size = request->m_elementSize * request->m_elementCount;
 
             memset(lpOutBuffer, 0, nOutBufferSize);
 
-            if (request->addr.QuadPart == DMI_HEADER_START) {
+            if (request->m_physAddr.QuadPart == DMI_HEADER_START) {
                 DMI_HEADER dmi = {
                     .Signature = { '_', 'D', 'M', 'I', '_' },
                     .Checksum = 0,
@@ -44,12 +37,12 @@ BOOL columba_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffe
 
                 memcpy(lpOutBuffer, &dmi, sizeof(DMI_HEADER));
                 if (lpBytesReturned) *lpBytesReturned = requested_size;
-            } else if (request->addr.QuadPart == DMI_TABLES_START) {
+            } else if (request->m_physAddr.QuadPart == DMI_TABLES_START) {
                 memcpy(lpOutBuffer, dmi_table, dmi_size);
                 if (lpBytesReturned) *lpBytesReturned = 0x10000;
             } else {
                 log_error("columba", "Request to unmapped memory location: %08x",
-                            request->addr);
+                          request->m_physAddr);
                 return FALSE;
             }
 

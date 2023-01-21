@@ -1,4 +1,3 @@
-#include "../am/amTimer.h"
 #include "../mice/ioctl.h"
 #include "mxk.h"
 
@@ -68,7 +67,7 @@ BOOL mxkTransportSend(HANDLE mxparallel, unsigned char *data, DWORD nbytes) {
             if (status == 0) break;
             amiTimerGet(&now);
             if (DO_SLEEP_0) Sleep(0);
-        } while (_amTimeDeltaMircos(now, start) < 1000000);
+        } while (amiTimerDiffUsec(&start, &now) < 1000000);
 
         if (status != 0) {
             puts("SEND busy error");
@@ -78,7 +77,7 @@ BOOL mxkTransportSend(HANDLE mxparallel, unsigned char *data, DWORD nbytes) {
         while (mxkTransportWaitStrobeRelease(mxparallel)) {
             amiTimerGet(&now);
             if (DO_SLEEP_0) Sleep(0);
-            if (_amTimeDeltaMircos(now, start) > 999999) {
+            if (amiTimerDiffUsec(&start, &now) > 999999) {
                 puts("SEND busy error");
                 return FALSE;
             }
@@ -92,7 +91,7 @@ BOOL mxkTransportSend(HANDLE mxparallel, unsigned char *data, DWORD nbytes) {
         while (mxkTransportWaitStrobeReady(mxparallel)) {
             amiTimerGet(&now);
             if (DO_SLEEP_0) Sleep(0);
-            if (_amTimeDeltaMircos(now, start) > 999999'000) {
+            if (amiTimerDiffUsec(&start, &now) > 999999'000) {
                 puts("SEND end error");
                 return FALSE;
             }
@@ -119,7 +118,7 @@ HRESULT mxkTransportRecv(HANDLE mxparallel, unsigned char *data, DWORD nbytes) {
             if (status != 0) break;
             amiTimerGet(&now);
             if (DO_SLEEP_0 != 0) Sleep(0);
-        } while (_amTimeDeltaMircos(now, start) < 1000000'000);
+        } while (amiTimerDiffUsec(&start, &now) < 1000000'000);
 
         if (status == 0) {
             puts("RECV busy error 1");
@@ -130,7 +129,7 @@ HRESULT mxkTransportRecv(HANDLE mxparallel, unsigned char *data, DWORD nbytes) {
             amiTimerGet(&now);
             if (DO_SLEEP_0 != 0) Sleep(0);
 
-            if (_amTimeDeltaMircos(now, start) > 999999'000) {
+            if (amiTimerDiffUsec(&start, &now) > 999999'000) {
                 puts("RECV busy error 2");
                 return FALSE;
             }
@@ -144,7 +143,7 @@ HRESULT mxkTransportRecv(HANDLE mxparallel, unsigned char *data, DWORD nbytes) {
         while (mxkTransportWaitStrobeRelease(mxparallel)) {
             amiTimerGet(&now);
             if (DO_SLEEP_0) Sleep(0);
-            if (_amTimeDeltaMircos(now, start) > 999999) {
+            if (amiTimerDiffUsec(&start, &now) > 999999) {
                 puts("RECV end error");
                 return FALSE;
             }
@@ -154,7 +153,7 @@ HRESULT mxkTransportRecv(HANDLE mxparallel, unsigned char *data, DWORD nbytes) {
     return TRUE;
 }
 
-BOOL mxkSendPacket(HANDLE mxparallel, unsigned char *packet) {
+BOOL mxkSendPacket(HANDLE mxparallel, const unsigned char *packet) {
     unsigned char encrypted[16];
     ZeroMemory(encrypted, 16);
     mxkCryptEncryptData(encrypted, packet);

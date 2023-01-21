@@ -4,8 +4,6 @@
 #include "../lib/mice/mice.h"
 #include "locate.h"
 
-const char* VERSION = "0.0-pre";
-
 bool debug_wait = false;
 int boot_delay = 0;
 bool gametest = false;
@@ -57,7 +55,7 @@ void parse_cmdline(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
     load_mice_config();
 
-    fprintf(stderr, "Micetools version: %s\n", VERSION);
+    fprintf(stderr, "Micetools version: %s\n", MICE_VERSION);
 
     parse_cmdline(argc, argv);
 

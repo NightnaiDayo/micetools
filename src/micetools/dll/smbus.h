@@ -120,15 +120,17 @@ IOCTL_MXSUPERIO_READ:
 #define SMBUS_EEPROM 0xAE
 
 // Keychip
-#define N2_GET_EEPROM 0x40
-#define N2_GET_UNIQUE_NUMBER 0xA0
-#define N2_GET_STATUS 0xA8
-#define N2_STATUS_FLAG_BUSY 2
-#define N2_I2C_CHALLENGE_RESPONSE 0xB0
+#define DS_GET_EEPROM 0x40
+#define DS_GET_UNIQUE_NUMBER 0xA0
+#define DS_GET_STATUS 0xA8
+#define DS_STATUS_FLAG_BUSY 2
+#define DS_I2C_CHALLENGE_RESPONSE 0xB0
 
 #define EXIO_GET_BUSY 0x00
 
-#pragma pack(1)
+// Old
+// TODO: Check for uses, then delete
+#pragma pack(push, 1)
 typedef struct mxsmbus_request_packet_ {
     BYTE status;
     BYTE prt;
@@ -137,8 +139,6 @@ typedef struct mxsmbus_request_packet_ {
     BYTE dlen;
     BYTE data[32];
 } mxsmbus_request_packet;
-
-#pragma pack(1)
 typedef struct mxsmbus_i2c_packet_ {
     BYTE status;
     BYTE prt;
@@ -147,3 +147,53 @@ typedef struct mxsmbus_i2c_packet_ {
     BYTE dlen;
     BYTE data[32];
 } mxsmbus_i2c_packet;
+
+typedef struct _MXSMBUS_REQUEST_PACKET {
+    BYTE status;
+    BYTE command;
+    BYTE v_addr;
+    BYTE command_code;
+    BYTE nbytes;
+    BYTE data[32];
+} MXSMBUS_REQUEST_PACKET, *PMXSMBUS_REQUEST_PACKET;
+
+typedef struct _MXSMBUS_I2C_PACKET {
+    BYTE status;
+    BYTE command;
+    WORD v_addr;
+    WORD command_code;
+    BYTE nbytes;
+    BYTE data[32];
+} MXSMBUS_I2C_PACKET, *PMXSMBUS_I2C_PACKET;
+#pragma pack(pop)
+
+
+typedef enum {
+    ICH9_CMD_QUICK = 0b000,
+    ICH9_CMD_BYTE = 0b001,
+    ICH9_CMD_BYTE_DATA = 0b010,
+    ICH9_CMD_WORD_DATA = 0b011,
+    ICH9_CMD_PROCESS_CALL = 0b100,
+    ICH9_CMD_BLOCK = 0b101,
+    ICH9_CMD_I2C_READ = 0b110,
+    ICH9_CMD_BLOCK_PROCESS = 0b111,
+} ich9_cmd_t;
+
+typedef enum {
+    MXSMBUS_CMD_WRITE_QUICK = 0,
+    MXSMBUS_CMD_READ_QUICK = 1,
+    MXSMBUS_CMD_WRITE_BYTE = 2,
+    MXSMBUS_CMD_READ_BYTE = 3,
+    MXSMBUS_CMD_WRITE_BYTE_DATA = 4,
+    MXSMBUS_CMD_READ_BYTE_DATA = 5,
+    MXSMBUS_CMD_WRITE_WORD_DATA = 6,
+    MXSMBUS_CMD_READ_WORD_DATA = 7,
+    MXSMBUS_CMD_WRITE_BLOCK = 8,
+    MXSMBUS_CMD_READ_BLOCK = 9,
+    MXSMBUS_CMD_PROCESS_CALL = 10,
+    MXSMBUS_CMD_I2C = 11,
+} mxsmbus_cmd_t;
+
+typedef BOOL smbus_callback_t(ich9_cmd_t cmd, WORD code, BYTE nbytes, BYTE* data);
+
+void smbus_install(BYTE v_addr, smbus_callback_t* write, smbus_callback_t* read);

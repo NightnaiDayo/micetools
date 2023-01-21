@@ -10,6 +10,10 @@ static HWND(WINAPI* TrueCreateWindowExW)(DWORD dwExStyle, LPCWSTR lpClassName, L
                                          HWND hWndParent, HMENU hMenu, HINSTANCE hInstance,
                                          LPVOID lpParam);
 static BOOL(WINAPI* TrueSetSystemCursor)(HCURSOR hcur, DWORD id);
+static IDirect3D9*(WINAPI* TrueDirect3DCreate9)(UINT SDKVersion);
+static int(WINAPI* TrueGetSystemMetrics)(int nIndex);
+
+#define _GetSystemMetrics (TrueGetSystemMetrics ? TrueGetSystemMetrics : GetSystemMetrics)
 
 void draw_rect(IDirect3DDevice9* dev, int x, int y, int w, int h, unsigned char r, unsigned char g,
                unsigned char b);

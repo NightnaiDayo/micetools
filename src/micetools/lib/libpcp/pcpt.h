@@ -1,3 +1,5 @@
+#pragma once
+
 #include "pcp.h"
 
 typedef enum e_pcpt {
@@ -59,6 +61,7 @@ e_pcpt_t pcptCheckEvent(HANDLE event, timeout_t timeout_ms, SOCKET socket, uint 
 e_pcpt_t pcptIsBusy(pcpt_t* sock, timeout_t timeout_ms);
 e_pcpt_t pcptOpenDataSockServer(pcpt_t* sock, timeout_t timeout_ms);
 e_pcpt_t pcptOpenServer(pcpt_t* sock, int open_mode, ushort port);
+e_pcpt_t pcptOpenClient(pcpt_t *stream, char *ipAddr, ushort port, timeout_t timeout);
 e_pcpt_t pcptRecv(pcpt_t* sock, unsigned char* recv_buf, size_t* recv_buf_len, timeout_t timeout_ms);
 e_pcpt_t pcptSend(pcpt_t* sock, unsigned char* send_buf, size_t* send_len, uint param_4, timeout_t timeout_ms);
 e_pcpt_t pcptSendAllMsg(pcpt_t* sock, timeout_t timeout_ms);

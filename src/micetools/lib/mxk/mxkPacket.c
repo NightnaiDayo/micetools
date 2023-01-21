@@ -1,4 +1,3 @@
-#include "../am/amTimer.h"
 #include "mxk.h"
 
 void inline _mxkPacketInjectJunk(unsigned char* packet, size_t i) {

@@ -8,55 +8,44 @@ BOOL JVS_SENSE = false;
 BOOL coin_solenoid = false;
 BOOL test_btn = false;
 
-// #define SCAN_COIN 0x70
-#define SCAN_TEST VK_OEM_4  // [{
-// 2 Players, 16 buttons each
-int jvs_buttons[2][16] = {
-    {
-        'C',  // *1P3
-        'P',  // NC
-        'E',  // *1P1
-        'D',  // *1P2
-        'P',  // NC
-        'P',  // NC
-        '1',  // *1P Service
-        'P',  // NC
-        'P',  // --
-        'P',  // --
-        'P',  // --
-        'W',  // *1P8
-        'Q',  // *1P7
-        'A',  // *1P6
-        'Z',  // *1P5
-        'X',  // *1P4
-    },
-    {
-        VK_OEM_PERIOD,  // *2P3
-        'P',            // NC
-        'O',            // *2P1
-        'L',            // *2P2
-        'P',            // NC
-        'P',            // NC
-        '2',            // *2P Service
-        'P',            // NC
-        'P',            // --
-        'P',            // --
-        'P',            // --
-        'I',            // *2P8
-        'U',            // *2P7
-        'J',            // *2P6
-        'M',            // *2P5
-        VK_OEM_COMMA,   // *2P4
-    },
-};
+#define PLAYER_COUNT 2
+#define COIN_COUNTERS 2
+
+const char JVS_837_13551_ID[] = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551 ;Ver1.00;98/10";
+
+typedef struct _jvs_board {
+    char test_keybind;
+    char coin_keybinds[COIN_COUNTERS];
+
+    char keybinds[PLAYER_COUNT][16];
+    unsigned char flags[PLAYER_COUNT][16];
+
+    unsigned short coin_counts[COIN_COUNTERS];
+
+    unsigned char (*handler)(struct _jvs_board* board, unsigned char* inData, short inCount,
+                             unsigned char* outData, unsigned char* outCount);
+    const char* id;
+
+} jvs_board_t;
+#define JVS_FLAG_NONE 0
+#define JVS_FLAG_NC 1
+#define JVS_FLAG_INVERT 2
+
+jvs_board_t (*jvs_config)[];
+size_t jvs_num_boards;
+
+// unsigned short coin_data[COIN_COUNTERS];
+// #define JVS_BUTTON_COIN_1 '1'
+// #define JVS_BUTTON_COIN_2 '2'
 
 short jvs_unpad(unsigned char* paddedData, short length, unsigned char* unpaddedData) {
     short index = 0;
     bool escape = false;
     for (short i = 0; i < length; i++) {
-        if (escape)
+        if (escape) {
             unpaddedData[index++] = paddedData[i] + 1;
-        else if (paddedData[i] == JVS_MARK)
+            escape = false;
+        } else if (paddedData[i] == JVS_MARK)
             escape = true;
         else
             unpaddedData[index++] = paddedData[i];
@@ -80,80 +69,41 @@ short jvs_pad(unsigned char* unpaddedData, short length, unsigned char* paddedDa
     return index;
 }
 
-const char JVS_ID[] = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551 ;Ver1.00;98/10";
+unsigned char jvs_exchange(jvs_board_t* board, unsigned char* inData, short inCount,
+                           unsigned char* response, unsigned char* outCount) {
+    short jvsIndex = 0;
+    unsigned char respIndex = 0;
 
-void mxjvs_exchange(unsigned char* paddedIn, short inCount, unsigned char* outData, short maxOut,
-                    int* outCount) {
-    unsigned char* inData = malloc(inCount);
-    inCount = jvs_unpad(paddedIn, inCount, inData);
-    unsigned char* response = malloc(maxOut);
-
-    unsigned char status = JVS_STATUS_OK;
-
-    // JVS frame is 4 bytes in total
-    if (inCount < 4) {
-        log_error("mxjvs", "inCount impossibly small: %d", inCount);
-        status = JVS_STATUS_UNKNOWN;
-        goto jvs_exchange_error;
-    }
-    // This isn't a JVS packet
-    if (inData[0] != JVS_SYNC) {
-        log_error("mxjvs", "SYNC missing. Saw 0x%02x", inData[0]);
-        status = JVS_STATUS_UNKNOWN;
-        goto jvs_exchange_error;
-    }
-
-    // Validate the checksum before proceeding
-    unsigned char sum = 0;
-    for (int i = 1; i < inCount - 1; i++) sum += inData[i];
-    if (sum != inData[inCount - 1]) {
-        log_error("mxjvs", "Checksum failed. Computed 0x%02x, expected 0x%02x", sum,
-                  inData[inCount - 1]);
-        status = JVS_STATUS_SUM;
-        goto jvs_exchange_error;
-    }
-
-    unsigned char destination = inData[1];
-    unsigned char length = inData[2];
-    // length 0 is nonsensical because there's a checksum!
-    if (length == 0) {
-        status = JVS_STATUS_SUM;
-        goto jvs_exchange_error;
-    }
-    short jvsIndex = 3;  // D0
-
-    response[0] = JVS_SYNC;
-    response[1] = JVS_NODE_MASTER;
-    short respIndex = 4;  // D0
-#define jvs_read(x)                   \
-    if (jvsIndex - 2 >= length) {     \
-        status = JVS_STATUS_OVERFLOW; \
-        goto jvs_exchange_error;      \
-    } else {                          \
-        (x) = inData[jvsIndex++];     \
+#define jvs_read(x)                 \
+    if (jvsIndex >= inCount) {      \
+        return JVS_STATUS_OVERFLOW; \
+    } else {                        \
+        (x) = inData[jvsIndex++];   \
     }
 #define jvs_write(x) response[respIndex++] = (x);
 
-    while (jvsIndex - 2 < length) {
+    static bool flipflop = false;
+
+    while (jvsIndex < inCount) {
         unsigned char cmd;
         jvs_read(cmd);
-        // log_info("jvs", "jvs cmd: %02x", cmd);
+
+        // log_info("mxjvs", "CMD: %02x", cmd);
+
         switch (cmd) {
             case JVS_CMD_RESET:
                 unsigned char reset_assert;
                 jvs_read(reset_assert);
-                if (reset_assert != JVS_CMD_RESET_ASSERT) {
-                    status = JVS_STATUS_UKCOM;
-                    goto jvs_exchange_error;
-                }
+                if (reset_assert != JVS_CMD_RESET_ASSERT) return JVS_STATUS_UKCOM;
+
                 JVS_SENSE = true;
                 // Special case
                 *outCount = 0;
-                return;
+                return JVS_STATUS_OK;
             case JVS_CMD_CHANGE_COMMS:
                 // Special case
                 *outCount = 0;
-                return;
+                return JVS_STATUS_OK;
 
             case JVS_CMD_ASSIGN_ADDR:
                 jvs_write(JVS_REPORT_OK);
@@ -166,7 +116,7 @@ void mxjvs_exchange(unsigned char* paddedIn, short inCount, unsigned char* outDa
 
             case JVS_CMD_READ_ID:
                 jvs_write(JVS_REPORT_OK);
-                for (int i = 0; i < sizeof JVS_ID; i++) jvs_write(JVS_ID[i]);
+                for (size_t i = 0; i < strlen(board->id); i++) jvs_write(board->id[i]);
                 break;
             case JVS_CMD_GET_CMD_VERSION:
                 jvs_write(JVS_REPORT_OK);
@@ -185,11 +135,11 @@ void mxjvs_exchange(unsigned char* paddedIn, short inCount, unsigned char* outDa
                 jvs_write(JVS_REPORT_OK);
 
                 jvs_write(JVS_FEATURE_PLAYERS);
-                jvs_write(2);
+                jvs_write(PLAYER_COUNT);
                 jvs_write(13);
                 jvs_write(JVS_FEATURE_PAD);
                 jvs_write(JVS_FEATURE_COINS);
-                jvs_write(2);
+                jvs_write(COIN_COUNTERS);
                 jvs_write(JVS_FEATURE_PAD);
                 jvs_write(JVS_FEATURE_PAD);
                 jvs_write(JVS_FEATURE_ANALOG);
@@ -215,43 +165,30 @@ void mxjvs_exchange(unsigned char* paddedIn, short inCount, unsigned char* outDa
                 unsigned char switch_bytes;
                 jvs_read(players);
                 jvs_read(switch_bytes);
-                if (players > 2 || switch_bytes != 2) {
+                if (players > PLAYER_COUNT || switch_bytes != 2) {
                     jvs_write(JVS_REPORT_PARAM_INVALID);
                     break;
                 }
 
                 jvs_write(JVS_REPORT_OK);
                 unsigned char buttons = 0x00;
-                if (GetAsyncKeyState(SCAN_TEST) < 0) buttons |= 0x80;
+                if (GetAsyncKeyState(board->test_keybind) < 0) buttons |= 0x80;
                 jvs_write(buttons);
 
-                for (int i = 0; i < players; i++) {
+                for (int player = 0; player < players; player++) {
                     for (int j = 0; j < switch_bytes; j++) {
                         buttons = 0x00;
                         for (int bit = 0; bit < 8; bit++) {
-                            int scancode = jvs_buttons[i][j * 8 + bit];
+                            int scancode =
+                                board->keybinds[player][(switch_bytes - j - 1) * 8 + bit];
+                            unsigned char flags =
+                                board->flags[player][(switch_bytes - j - 1) * 8 + bit];
 
-                            // Buttons on maimai use beam interrupt sensors, so logical high =
-                            // unpressed.
-                            bool invert = ((j == 0 && (bit == 0 || bit == 2 || bit == 3)) ||
-                                           (j == 1 && bit >= 3));
-
-                            if (invert)
+                            if (flags & JVS_FLAG_NC) continue;
+                            if (flags & JVS_FLAG_INVERT)
                                 buttons |= (GetAsyncKeyState(scancode) >= 0) << bit;
                             else
                                 buttons |= (GetAsyncKeyState(scancode) < 0) << bit;
-
-                            // JAMMA does **NOT** do any of this lol
-                            // Service is pull-down for some reason
-                            // bool pulse = (j == 0) && (bit == 6);
-                            // // JAMMA uses the falling edge of a pull-up switch
-                            // if (pulse) {
-                            //     buttons |= (GetAsyncKeyState(scancode) >= 0) << bit;
-                            //     buttons |= (!(GetAsyncKeyState(scancode) & 1)) << bit;
-                            // } else {
-                            //     buttons |= (GetAsyncKeyState(scancode) < 0) << bit;
-                            //     buttons |= (GetAsyncKeyState(scancode) & 1) << bit;
-                            // }
                         }
                         jvs_write(buttons);
                     }
@@ -263,9 +200,15 @@ void mxjvs_exchange(unsigned char* paddedIn, short inCount, unsigned char* outDa
                 jvs_write(JVS_REPORT_OK);
                 unsigned char coin_count;
                 jvs_read(coin_count);
-                for (; coin_count; coin_count--) {
-                    jvs_write(0x00);  // coin MSB
-                    jvs_write(0x00);  // coin LSB
+
+                if (board->coin_keybinds[0] && GetAsyncKeyState(board->coin_keybinds[0]) & 1)
+                    board->coin_counts[0]++;
+                if (board->coin_keybinds[1] && GetAsyncKeyState(board->coin_keybinds[1]) & 1)
+                    board->coin_counts[1]++;
+
+                for (unsigned char slot = 0; slot < coin_count; slot++) {
+                    jvs_write(board->coin_counts[slot] >> 8);
+                    jvs_write(board->coin_counts[slot] & 0xff);
                 }
                 break;
 
@@ -300,44 +243,117 @@ void mxjvs_exchange(unsigned char* paddedIn, short inCount, unsigned char* outDa
                 }
                 break;
 
+            case JVS_CMD_COIN_DECREASE:
+                jvs_write(JVS_REPORT_OK);
+
+                unsigned char slot;
+                jvs_read(slot);
+                unsigned char cAmount[2];
+                jvs_read(cAmount[0]);
+                jvs_read(cAmount[1]);
+                unsigned short sAmount = cAmount[0] << 8 | cAmount[1];
+                board->coin_counts[slot] -= sAmount;
+                break;
+
             default:
                 log_error("mxjvs", "Unknown command: 0x%02x", cmd);
-
-                status = JVS_STATUS_UKCOM;
-                goto jvs_exchange_error;
+                return JVS_STATUS_UKCOM;
         }
     }
 #undef jvs_read
 #undef jvs_write
 
-    goto jvs_exchange_complete;
-jvs_exchange_error:
-    log_error("mxjvs", "JVS status: 0x%02x", status);
-    respIndex = 4;  // As if we've just written status, but nothing else
-
-jvs_exchange_complete:
-    response[2] = (respIndex - 2) & 0xFF;  // respIndex doesn't include SUM yet
-    response[3] = status;
-
-    // Compute and set the checksum
-    sum = 0;
-    for (int i = 1; i < respIndex; i++) sum += response[i];
-    response[respIndex++] = sum;
-
-    short paddedLength = jvs_pad(response, respIndex, outData, maxOut);
-    // We failed hard. It's not worth sending an overflow response
-    if (paddedLength == -1)
-        *outCount = 0;
-    else
-        *outCount = 0x00000000 | paddedLength;
-
-    free(response);
-    free(inData);
+    *outCount = respIndex;
+    return JVS_STATUS_OK;
 }
 
-BOOL mxjvs_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer,
-                           DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
-                           LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
+void jvs_send_status(unsigned char status, unsigned char* outData, LPDWORD outCount) {
+    short respIndex = 4;
+
+    outData[0] = JVS_SYNC;
+    outData[1] = JVS_NODE_MASTER;
+    outData[2] = 2;
+    if (status == JVS_MARK || status == JVS_SYNC) {
+        outData[3] = JVS_MARK;
+        outData[4] = status - 1;
+        outData[5] = JVS_NODE_MASTER + 2 + status;
+        *outCount = 6;
+    } else {
+        outData[3] = status;
+        outData[4] = JVS_NODE_MASTER + 2 + status;
+        *outCount = 5;
+    }
+}
+
+void mxjvs_handle(unsigned char* paddedIn, short inCount, unsigned char* outData, short maxOut,
+                  LPDWORD outCount) {
+    *outCount = 0;
+
+    unsigned char* inData = malloc(inCount);
+    inCount = jvs_unpad(paddedIn, inCount, inData);
+
+    // JVS frame is 4 bytes in total
+    if (inCount < 4) {
+        log_error("mxjvs", "inCount impossibly small: %d", inCount);
+        jvs_send_status(JVS_STATUS_UNKNOWN, outData, outCount);
+        free(inData);
+        return;
+    }
+    // This isn't a JVS packet
+    if (inData[0] != JVS_SYNC) {
+        log_error("mxjvs", "SYNC missing. Saw 0x%02x", inData[0]);
+        jvs_send_status(JVS_STATUS_UNKNOWN, outData, outCount);
+        free(inData);
+        return;
+    }
+
+    // Validate the checksum before proceeding
+    unsigned char sum = 0;
+    bool escape = false;
+    for (int i = 1; i < inCount - 1; i++) sum += inData[i];
+    if (sum != inData[inCount - 1]) {
+        log_error("mxjvs", "Checksum failed. Computed 0x%02x, expected 0x%02x", sum,
+                  inData[inCount - 1]);
+        jvs_send_status(JVS_STATUS_SUM, outData, outCount);
+        return;
+    }
+
+    unsigned char destination = inData[1];
+    if (destination == 0 || destination > jvs_num_boards) return;
+
+    unsigned char* response = malloc(maxOut);
+    jvs_board_t* board = &(*jvs_config)[jvs_num_boards - destination];
+    unsigned char packetSize;
+    unsigned char status =
+        board->handler(board, inData + 3, inData[2] - 1, response + 4, &packetSize);
+    free(inData);
+
+    if (status == JVS_STATUS_OK) {
+        if (packetSize == 0) return;
+
+        response[0] = JVS_SYNC;
+        response[1] = JVS_NODE_MASTER;
+        response[2] = packetSize + 2;
+        response[3] = status;
+
+        sum = 0;
+        for (int i = 1; i < packetSize + 4; i++) sum += response[i];
+        response[packetSize + 4] = sum;
+
+        short paddedLength = jvs_pad(response, packetSize + 5, outData, maxOut);
+        *outCount = (paddedLength == -1) ? 0 : paddedLength;
+
+        free(response);
+    } else {
+        log_error("mxjvs", "JVS board %d returned status %d", destination, status);
+        free(response);
+        jvs_send_status(status, outData, outCount);
+    }
+}
+
+BOOL WINAPI mxjvs_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer,
+                                  DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
+                                  LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     switch (dwIoControlCode) {
         case IOCTL_MXJVS_EXCHANGE:
             log_trace("mxjvs",
@@ -345,8 +361,8 @@ BOOL mxjvs_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer,
                       "0x%x, -, -)",
                       lpInBuffer, nInBufferSize, nOutBufferSize);
 
-            mxjvs_exchange(lpInBuffer, nInBufferSize & 0xffff, lpOutBuffer, nOutBufferSize & 0xFFFF,
-                           (int*)lpBytesReturned);
+            mxjvs_handle(lpInBuffer, nInBufferSize & 0xffff, lpOutBuffer, nOutBufferSize & 0xFFFF,
+                         lpBytesReturned);
 
             break;
         default:
@@ -375,11 +391,231 @@ BOOL mxjvs_SetCommState(void* com, LPDCB lpDCB) {
     return TRUE;
 }
 
+jvs_board_t maimai_jvs_config[1] = { {
+    .test_keybind = VK_OEM_4,  // [{
+        .coin_keybinds = {'1', '2'},
+    .keybinds = {
+        {
+            0,
+            0,
+            0,
+            'W',  // *1P8
+            'Q',  // *1P7
+            'A',  // *1P6
+            'Z',  // *1P5
+            'X',  // *1P4
+            'C',  // *1P3
+            0,
+            'E',  // *1P1
+            'D',  // *1P2
+            0,
+            0,
+            '1',  // *1P Service
+            0,
+
+        },
+        {
+            0,
+            0,
+            0,
+            'I',            // *2P8
+            'U',            // *2P7
+            'J',            // *2P6
+            'M',            // *2P5
+            VK_OEM_COMMA,   // *2P4
+            VK_OEM_PERIOD,  // *2P3
+            0,
+            'O',            // *2P1
+            'L',            // *2P2
+            0,
+            0,
+            '2',            // *2P Service
+            0,
+
+        },
+    },
+    .flags = {
+        {
+            JVS_FLAG_NC,
+            JVS_FLAG_NC,
+            JVS_FLAG_NC,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_NC,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_NC,
+            JVS_FLAG_NC,
+            JVS_FLAG_NONE,
+            JVS_FLAG_NC,
+        },
+        {
+
+            JVS_FLAG_NC,
+            JVS_FLAG_NC,
+            JVS_FLAG_NC,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_NC,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_INVERT,
+            JVS_FLAG_NC,
+            JVS_FLAG_NC,
+            JVS_FLAG_NONE,
+            JVS_FLAG_NC,
+        },
+    },
+    .coin_counts = {0, 0},
+    .handler = &jvs_exchange,
+    .id = JVS_837_13551_ID,
+} };
+
+jvs_board_t under_night_jvs_config[2] = {
+    {
+        .test_keybind = VK_OEM_4,  // [{
+        .coin_keybinds = {'1', '2'},
+        .keybinds = {
+            {
+                0, 0, 0, 0, 0, 0,
+                'A',       // D (EXCs)
+                'R',       // C (Heavy)
+                'E',       // B (Middle)
+                'W',       // A (Light)
+                VK_RIGHT,  // Right
+                VK_LEFT,   // Left
+                VK_DOWN,   // Down
+                VK_UP,     // Up
+                VK_BACK,   // Service
+                VK_RETURN, // Start
+            },
+            {
+            0
+            },
+        },
+        .flags = {
+            {
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+            },
+            {
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+            },
+        },
+        .coin_counts = {0, 0},
+        .handler = &jvs_exchange,
+        .id = JVS_837_13551_ID,
+    },
+    {
+        .test_keybind = VK_OEM_4,  // [{
+        .coin_keybinds = {0, 0},
+        .keybinds = {
+            {
+                0, 0, 0, 0, 0, 0,
+                'J',         // D (EXCs)
+                'P',         // C (Heavy)
+                'O',         // B (Middle)
+                'I',         // A (Light)
+                VK_NUMPAD6,  // Right
+                VK_NUMPAD4,  // Left
+                VK_NUMPAD2,  // Down
+                VK_NUMPAD8,  // Up
+                VK_BACK,     // Service
+                VK_RETURN,   // Start
+            },
+            {0},
+        },
+        .flags = {
+            {
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+            },
+            {
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+                JVS_FLAG_NC,
+            },
+        },
+        .coin_counts = {0, 0},
+        .handler = &jvs_exchange,
+        .id = JVS_837_13551_ID,
+    },
+};
+
+// jvs_board_t (*jvs_config)[] = &maimai_jvs_config;
+// size_t jvs_num_boards = sizeof maimai_jvs_config / sizeof maimai_jvs_config[0];
+jvs_board_t (*jvs_config)[] = &under_night_jvs_config;
+size_t jvs_num_boards = sizeof under_night_jvs_config / sizeof under_night_jvs_config[0];
+
 void setup_mxjvs() {
     file_hook_t* mxjvs = new_file_hook(L"\\\\.\\mxjvs");
     mxjvs->DeviceIoControl = &mxjvs_DeviceIoControl;
+    hook_file(mxjvs);
 
-    com_hook_t* jvscom = new_com_hook(0);
+    com_hook_t* jvscom = new_com_hook(4);
     wcscpy_s(jvscom->wName, sizeof jvscom->wName, L"\\\\.\\mxjvs");
     wcscpy_s(jvscom->wDosName, sizeof jvscom->wDosName, L"\\\\.\\mxjvs");
     jvscom->GetCommState = mxjvs_GetCommState;
@@ -389,6 +625,9 @@ void setup_mxjvs() {
     jvscom->PurgeComm = mxjvs_PurgeComm;
     jvscom->GetCommModemStatus = mxjvs_GetCommModemStatus;
 
-    hook_file(mxjvs);
-    hook_com(jvscom);
+    mxjvs->com_hook = jvscom;
+
+    // TODO: Looks like some things might use JVS on COM4. We should setup a comdevice for this!
+    // file_hook_t* jvscom_file = new_file_hook(jvscom->wName);
+    // hook_file(jvscom_file);
 }

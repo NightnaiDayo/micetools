@@ -23,3 +23,6 @@
 
 #include "../lib/mice/mice.h"
 #include "./util/_util.h"
+
+extern WCHAR exePath[MAX_PATH + 1];
+extern DWORD imageOffset;

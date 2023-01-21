@@ -1,21 +1,22 @@
 #ifndef SECTION
 #define SECTION(s, comment)
 #endif
-#ifndef HEADER
-#define HEADER(comment)
+#ifndef COMMENT
+#define COMMENT(comment)
 #endif
 #ifndef ENDSECTION
 #define ENDSECTION(s)
 #endif
 
-HEADER("The main config file for micetools")
+COMMENT("The main config file for micetools")
+COMMENT("")
 
 SECTION(mice, "General mice settings")
 CFG_int(mice, log_level, 4, "1 = Game\n2 = Error\n3 = Warning\n4 = Info\n5 = Misc\n6 = Trace")
 CFG_bool(mice, log_to_file, false, "Also log out to log_file")
 CFG_str(mice, log_file, "log.txt", "The file to log to if log_to_file is enabled")
 CFG_bool(mice, apply_patches, true, "Load and apply patches from patches_file at runtime")
-CFG_str(mice, patches_file, "patches.json", "The file to read patches from")
+CFG_str(mice, patches_file, "patches.index", "The file to read patches from")
 ENDSECTION(mice)
 
 SECTION(launcher, "These options are only used during initial bootstrapping")
@@ -26,6 +27,41 @@ CFG_str(launcher, mice_dll, "mice86.dll", "The path to mice's DLL")
 CFG_str(launcher, inject, "", "Extra DLLs to inject during boot")
 ENDSECTION(launcher)
 
+SECTION(sysconf, "System configuration settings")
+CFG_int(sysconf, region, 1, "Board region. 1 = Jpn, 2 = USA, 4 = Exp, 8 = Chn")
+CFG_bool(sysconf, rental, false, "")
+CFG_str(sysconf, serial, "AASE-01A65646203", "")
+ENDSECTION(sysconf)
+
+SECTION(window, "Game window positioning settings")
+CFG_bool(window, windowed, false, "Force games into windowed mode")
+CFG_bool(window, borderless, true, "Should windowed games run borderless")
+CFG_int(window, adaptor, 0, "Display adaptor to use")
+CFG_bool(window, centre, true, "Centre the window. X and Y are used otherwise")
+CFG_int(window, x, 0, "Window position X")
+CFG_int(window, y, 0, "Window position Y")
+CFG_int(window, w, 0, "Window width (0 to unset)")
+CFG_int(window, h, 0, "Window height (0 to unset)")
+ENDSECTION(window)
+
+SECTION(network, "Network configuration settings")
+CFG_ipv4(network, ip_address, 192, 168, 103, 101, "")
+CFG_ipv4(network, subnet_mask, 255, 255, 255, 0, "")
+CFG_ipv4(network, gateway, 192, 168, 103, 254, "")
+CFG_ipv4(network, primary_dns, 192, 168, 103, 254, "")
+CFG_ipv4(network, secondary_dns, 0, 0, 0, 0, "")
+COMMENT("Emulated DNS records. Routers must be pingable!")
+CFG_ipv4(network, naominet_jp, 10, 0, 0, 2, "")
+CFG_ipv4(network, ib_naominet_jp, 10, 0, 0, 2, "")
+CFG_ipv4(network, aime_naominet_jp, 10, 0, 0, 2, "")
+CFG_ipv4(network, tenporouter_loc, 127, 0, 0, 1, "")
+CFG_ipv4(network, bbrouter_loc, 127, 0, 0, 1, "")
+CFG_ipv4(network, mobirouter_loc, 127, 0, 0, 1, "")
+CFG_ipv4(network, dslrouter_loc, 127, 0, 0, 1, "")
+COMMENT("Second half of system mac address. The vendor prefix D8:BB:C1: will be prepended")
+CFG_hex(network, mac, 6, 0A2F1D, "")
+ENDSECTION(network)
+
 SECTION(devices, "Specify COM ports for devices to attach, comma seperated")
 CFG_str(devices, aime_bd, "2", "AIME reader board")
 CFG_str(devices, touch_bd, "3", "maimai touch screen")
@@ -33,14 +69,14 @@ CFG_str(devices, led_bd, "5,6,7,8", "maimai led boards")
 ENDSECTION(devices)
 
 SECTION(drivers, "Enable or disable drivers. Disabling any is not recommended.")
-CFG_bool(drivers, columba, true, "Columba memory driver")
-CFG_bool(drivers, mxsram, true, "SRAM driver")
-CFG_bool(drivers, mxsuperio, true, "SuperIO driver")
-CFG_bool(drivers, mxjvs, true, "JVS driver")
-CFG_bool(drivers, mxhwreset, true, "System reboot driver")
-CFG_bool(drivers, mxsmbus, true, "SMBus driver")
-CFG_bool(drivers, mxparallel, true, "Parallel port driver")
-CFG_bool(drivers, platform, true, "amPlatform driver")
+CFG_bool(drivers, columba, true, "")
+CFG_bool(drivers, mxsram, true, "")
+CFG_bool(drivers, mxsuperio, true, "")
+CFG_bool(drivers, mxjvs, true, "")
+CFG_bool(drivers, mxhwreset, true, "")
+CFG_bool(drivers, mxsmbus, true, "")
+CFG_bool(drivers, mxparallel, true, "")
+CFG_bool(drivers, platform, true, "")
 ENDSECTION(drivers)
 
 SECTION(hooks, "Enable or disable hooks. Disabling any is not recommended.")
@@ -60,6 +96,7 @@ ENDSECTION(hooks)
 #undef CFG_int
 #undef CFG_bool
 #undef CFG_hex
+#undef CFG_ipv4
 #undef SECTION
+#undef COMMENT
 #undef ENDSECTION
-#undef HEADER

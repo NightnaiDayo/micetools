@@ -1,0 +1,47 @@
+#ifndef SECTION
+#define SECTION(s, comment)
+#endif
+#ifndef COMMENT
+#define COMMENT(comment)
+#endif
+#ifndef ENDSECTION
+#define ENDSECTION(s)
+#endif
+
+SECTION(dir, "Base directories")
+CFG_str(dir, execute, "c:\\System\\Execute\\", "The system bootstrap directory")
+CFG_str(dir, system, "s:\\", "The system binary directory")
+CFG_str(dir, game, "x:\\", "The game working directory")
+ENDSECTION(dir)
+
+SECTION(binary, "Binary names (command line arguments can be included)")
+COMMENT("The following values are relative to [dir.system]")
+CFG_str(binary, mxkeychip, "mxkeychip.exe", "")
+CFG_str(binary, mxnetwork, "mxnetwork.exe -p 40104", "")
+CFG_str(binary, mxstorage, "mxstorage.exe", "")
+CFG_str(binary, mxjvs, "mxjvs.exe", "")
+CFG_str(binary, mxinstaller, "mxinstaller.exe -cmdport 40102 -binport 40103", "")
+CFG_str(binary, mxgcatcher, "mxgcatcher.exe", "")
+CFG_str(binary, mxgfetcher, "mxgfetcher.exe", "")
+CFG_str(binary, mxgdeliver, "mxgdeliver.exe", "")
+COMMENT("--------------------------------------------------")
+COMMENT("The following values are relative to [dir.execute]")
+CFG_str(binary, segaboot, "mxsegaboot.exe", "")
+CFG_str(binary, segaboot_d, "mxsegaboot.exe -d", "")
+CFG_str(binary, segaboot_r, "mxsegaboot.exe -r", "")
+CFG_str(binary, segaboot_tr, "mxsegaboot.exe -t -r", "")
+ENDSECTION(binary)
+
+SECTION(env, "Environment configuration")
+CFG_str(env, username, "appuser", "")
+CFG_str(env, password, "segahard", "")
+ENDSECTION(env)
+
+#undef CFG_str
+#undef CFG_int
+#undef CFG_bool
+#undef CFG_hex
+#undef CFG_ipv4
+#undef SECTION
+#undef COMMENT
+#undef ENDSECTION

@@ -1,0 +1,17 @@
+void amCreditClear(void);
+void amCreditExit(void);
+void amCreditGetEvent(void);
+void amCreditGetMaxCredit(void);
+void amCreditGetStatus(void);
+void amCreditInit(void);
+void amCreditIsEnough(void);
+void amCreditIsModifiedBookkeeping(void);
+void amCreditIsModifiedData(void);
+void amCreditIsValidConfig(void);
+void amCreditIsValidCustomBonusAdder(void);
+void amCreditLoadBookkeeping(void);
+void amCreditLoadConfig(void);
+void amCreditLoadData(void);
+void amCreditSetCustomBonusAdder(void);
+void amCreditSetDistribution(void);
+void amCreditUpdateJVS(void);

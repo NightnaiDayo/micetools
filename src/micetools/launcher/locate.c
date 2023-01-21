@@ -5,6 +5,11 @@
 const char* KNOWN_GAMES[] = {
     // Preferentially use a decrypted dump if present
     "maimai_dump_.exe",
+
+    // Generic
+    "RingGame.exe",
+
+    // We currently have no hope of running undumped maimai but whatever
     "maimai.exe",
 };
 

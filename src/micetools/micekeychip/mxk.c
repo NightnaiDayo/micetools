@@ -7,13 +7,16 @@ pcpa_cb_table_t CALLBACK_FUNCTION_BUFFER[40];
 byte BINARY_DATA[4096];
 size_t BINARY_DATA_LEN;
 
-void mxkBinaryCallback(pcpa_t* stream, void* data) { pcpaSetSendBinaryBuffer(stream, BINARY_DATA, BINARY_DATA_LEN); }
+void mxkBinaryCallback(pcpa_t* stream, void* data) {
+    pcpaSetSendBinaryBuffer(stream, BINARY_DATA, BINARY_DATA_LEN);
+}
 
 int mxkInit() {
     // Enable colour
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD dwMode = 0;
-    if (GetConsoleMode(hConsole, &dwMode)) SetConsoleMode(hConsole, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    if (GetConsoleMode(hConsole, &dwMode))
+        SetConsoleMode(hConsole, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 
     WSADATA wsaData;
     int err = WSAStartup(2, &wsaData);
@@ -41,8 +44,9 @@ e_pcpa_t mxkPcpStreamInit() {
         return err;
     }
 
-    err = pcpaSetCallbackFuncBuffer(&PCP, CALLBACK_FUNCTION_BUFFER,
-                                    (sizeof CALLBACK_FUNCTION_BUFFER) / (sizeof CALLBACK_FUNCTION_BUFFER[0]));
+    err = pcpaSetCallbackFuncBuffer(
+        &PCP, CALLBACK_FUNCTION_BUFFER,
+        (sizeof CALLBACK_FUNCTION_BUFFER) / (sizeof CALLBACK_FUNCTION_BUFFER[0]));
     if (err != e_pcpa_ok) {
         printf("pcpaSetCallBackFuncBuffer Error. Code:%d\n", err);
         return err;
@@ -73,7 +77,7 @@ e_pcpa_t mxkPcpStreamInit() {
     pcpaSetCallbackFunc(&PCP, BIL_MAINID, mxkPcpPbMainId, NULL);
     pcpaSetCallbackFunc(&PCP, BIL_PLAYCOUNT, mxkPcpPbPlayCount, NULL);
     pcpaSetCallbackFunc(&PCP, BIL_PLAYLIMIT, mxkPcpPbPlayLimit, NULL);
-    pcpaSetCallbackFunc(&PCP, BIL_NEARFUL, mxkPcpPbNearfull, NULL);
+    pcpaSetCallbackFunc(&PCP, BIL_NEARFULL, mxkPcpPbNearfull, NULL);
     pcpaSetCallbackFunc(&PCP, BIL_SIGNATURE, mxkPcpPbSignaturePubKey, NULL);
     pcpaSetCallbackFunc(&PCP, BIL_CACERT, mxkPcpPbCaCertification, NULL);
     // Tracedata
@@ -105,9 +109,10 @@ e_pcpa_t mxkPcpStreamInit() {
         puts("PCP binary port invalid");
         exit(-1);
     }
-    int open_mode = Config.pcp_bind_global ? OPEN_MODE_GLOBAL : OPEN_MODE_1;
+    int open_mode = Config.pcp_bind_global ? OPEN_MODE_GLOBAL : OPEN_MODE_LOCAL;
 
-    err = pcpaOpenServerWithBinary(&PCP, open_mode, text_port & 0xffff, binary_port & 0xffff, 300000);
+    err =
+        pcpaOpenServerWithBinary(&PCP, open_mode, text_port & 0xffff, binary_port & 0xffff, 300000);
     if (err != e_pcpa_ok && err != e_pcpa_to) {
         printf("pcpaOpenServerWithBinary Error. Code %d\n", err);
         return e_pcpa_not_open;

@@ -3,13 +3,18 @@
 int WINAPI Fake_connect(SOCKET s, const SOCKADDR* name, int namelen) {
     ULONG addr = _byteswap_ulong(((SOCKADDR_IN*)name)->sin_addr.S_un.S_addr);
     USHORT port = _byteswap_ushort(((SOCKADDR_IN*)name)->sin_port);
-    log_info("connect", "%hhu.%hhu.%hhu.%hhu:%hu", (addr >> 24) & 0xff, (addr >> 16) & 0xff,
-             (addr >> 8) & 0xff, addr & 0xff, port);
+    // Poorly exclude pcps. TODO: better
+    if (port < 40100 || port > 40120) {
+        log_info("connect", "%hhu.%hhu.%hhu.%hhu:%hu", (addr >> 24) & 0xff, (addr >> 16) & 0xff,
+                 (addr >> 8) & 0xff, addr & 0xff, port);
+    }
     return True_connect(s, name, namelen);
 }
 
-static uint8_t spoof_mac[6] = { 0xD8, 0xBB, 0xC1, 0x0A, 0x2F, 0x1D };
 #define IF_INDEX 1
+#define MAC_PREFIX_0 0xD8
+#define MAC_PREFIX_1 0xBB
+#define MAC_PREFIX_2 0xC1
 DWORD WINAPI FakeGetIfTable(PMIB_IFTABLE pIfTable, PULONG pdwSize, BOOL bOrder) {
     log_info("network", "Injecting fake IfTable");
 
@@ -35,8 +40,13 @@ DWORD WINAPI FakeGetIfTable(PMIB_IFTABLE pIfTable, PULONG pdwSize, BOOL bOrder) 
     row->dwType = IF_TYPE_ETHERNET_CSMACD;
     row->dwMtu = 4200;
     row->dwSpeed = 1000000000;
-    row->dwPhysAddrLen = sizeof(spoof_mac);
-    memcpy(row->bPhysAddr, spoof_mac, sizeof(spoof_mac));
+    row->dwPhysAddrLen = 6;
+    row->bPhysAddr[0] = MAC_PREFIX_0;
+    row->bPhysAddr[1] = MAC_PREFIX_1;
+    row->bPhysAddr[2] = MAC_PREFIX_2;
+    row->bPhysAddr[3] = (MiceConfig.network.mac >> 16) & 0xff;
+    row->bPhysAddr[4] = (MiceConfig.network.mac >> 8) & 0xff;
+    row->bPhysAddr[5] = MiceConfig.network.mac & 0xff;
     row->dwAdminStatus = 1;
     row->dwOperStatus = IF_OPER_STATUS_OPERATIONAL;
 
@@ -55,20 +65,21 @@ DWORD WINAPI FakeGetIfTable(PMIB_IFTABLE pIfTable, PULONG pdwSize, BOOL bOrder) 
 
 typedef struct {
     char* name;
-    unsigned char address[4];
+    unsigned int* address;
 } dns;
+
 dns INTERCEPT_DNS[] = {
     // Startup
-    { "naominet.jp", { 10, 79, 140, 238 } },
+    { "naominet.jp", &(MiceConfig.network.naominet_jp) },
     // Billing
-    { "ib.naominet.jp", { 10, 79, 140, 238 } },
+    { "ib.naominet.jp", &(MiceConfig.network.ib_naominet_jp) },
     // Aime
-    { "aime.naominet.jp", { 10, 79, 140, 238 } },
+    { "aime.naominet.jp", &(MiceConfig.network.aime_naominet_jp) },
     // Routers (ping targets)
-    { "tenporouter.loc", { 10, 79, 140, 238 } },
-    { "bbrouter.loc", { 10, 79, 140, 238 } },  // Must match tenporouter
-    { "mobirouter.loc", { 10, 79, 140, 238 } },
-    { "dslrouter.loc", { 10, 79, 140, 238 } },
+    { "tenporouter.loc", &(MiceConfig.network.tenporouter_loc) },
+    { "bbrouter.loc", &(MiceConfig.network.bbrouter_loc) },  // Must match tenporouter
+    { "mobirouter.loc", &(MiceConfig.network.mobirouter_loc) },
+    { "dslrouter.loc", &(MiceConfig.network.dslrouter_loc) },
 };
 
 DNS_RECORDA dummy_record;
@@ -78,19 +89,15 @@ DNS_STATUS WINAPI FakeDnsQuery_A(PCSTR pszName, WORD wType, DWORD Options, PVOID
     if (ppQueryResults) {
         for (size_t i = 0; i < sizeof INTERCEPT_DNS / sizeof INTERCEPT_DNS[0]; i++) {
             if (strcmp(pszName, INTERCEPT_DNS[i].name) == 0) {
-#define spoof (INTERCEPT_DNS[i].address)
-                log_info("dns", "Replacing %s with %hhu.%hhu.%hhu.%hhu", pszName, spoof[0],
-                         spoof[1], spoof[2], spoof[3]);
+                log_info("dns", "Replacing %s with %08x", pszName, *INTERCEPT_DNS[i].address);
 
                 // We only support replacing at most one address, but that's all we'll ever need to!
                 (*ppQueryResults) = &dummy_record;
                 (*ppQueryResults)->pNext = NULL;
                 (*ppQueryResults)->wType = DNS_TYPE_A;
-                (*ppQueryResults)->Data.A.IpAddress =
-                    (spoof[0]) | (spoof[1] << 8) | (spoof[2] << 16) | (spoof[3] << 24);
+                (*ppQueryResults)->Data.A.IpAddress = _byteswap_ulong(*INTERCEPT_DNS[i].address);
 
                 return ERROR_SUCCESS;
-#undef spoof
             }
         }
     }
@@ -104,19 +111,11 @@ INT WSAAPI FakeWSAStringToAddressA(LPSTR AddressString, INT AddressFamily,
     log_misc("dns", "(WSA)DNS lookup for %s", AddressString);
     for (size_t i = 0; i < sizeof INTERCEPT_DNS / sizeof INTERCEPT_DNS[0]; i++) {
         if (strcmp(AddressString, INTERCEPT_DNS[i].name) == 0) {
-#define spoof (INTERCEPT_DNS[i].address)
-            log_info("dns", "(WSA)Replacing %s with %hhu.%hhu.%hhu.%hhu", AddressString, spoof[0],
-                     spoof[1], spoof[2], spoof[3]);
+            log_info("dns", "(WSA)Replacing %s with %08x", AddressString, INTERCEPT_DNS[i].address);
 
             lpAddress->sa_family = AF_INET;
-            // ... :)
-            lpAddress->sa_data[2] = spoof[0];
-            lpAddress->sa_data[3] = spoof[1];
-            lpAddress->sa_data[4] = spoof[2];
-            lpAddress->sa_data[5] = spoof[3];
-
+            memcpy(&lpAddress->sa_data, INTERCEPT_DNS[i].address, 4);
             return ERROR_SUCCESS;
-#undef spoof
         }
     }
     log_warning("dns", "(WSA)DNS passthrough for %s", AddressString);

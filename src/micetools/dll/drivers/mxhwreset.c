@@ -1,6 +1,6 @@
 #include "mx.h"
 
-BOOL mxhwreset_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize,
+BOOL WINAPI mxhwreset_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize,
                                LPVOID lpOutBuffer, DWORD nOutBufferSize, LPDWORD lpBytesReturned,
                                LPOVERLAPPED lpOverlapped) {
     switch (dwIoControlCode) {

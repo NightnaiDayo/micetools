@@ -30,4 +30,6 @@ int vlog_warning(const char* caller, const char* format, va_list args);
 int vlog_error(const char* caller, const char* format, va_list args);
 int vlog_game(const char* caller, const char* format, va_list args);
 
+void log_stack(const char* caller);
+
 void setup_logging();

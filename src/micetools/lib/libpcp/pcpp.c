@@ -2,16 +2,17 @@
 
 int FUN_00459d00(amtime_t* t1, amtime_t* t2) {
     if (t1 == NULL || t2 == NULL) return -1;
-    return ((t2->seconds - t1->seconds) * 1000000 - t1->microseconds) + t2->microseconds;  // Swapped
+    return ((t2->seconds - t1->seconds) * 1000000 - t1->microseconds) +
+           t2->microseconds;  // Swapped
 }
 
 // TODO: Invert these conditions to be clearer
-int pcpp_isValidChar(char chr) {
-    if (!isalnum(chr) && chr != '.' && chr != '_' && chr != '-' && chr != ':' && chr != '@' && chr != '%' &&
-        chr != '/' && chr != '\\' && chr != '#' && chr != '{' && chr != '}') {
-        return 0;
+int pcppIsValidDataChar(char chr) {
+    if (isalnum(chr) || chr == '.' || chr == '_' || chr == '-' || chr == ':' || chr == '@' ||
+        chr == '%' || chr == '/' || chr == '\\' || chr == '#' || chr == '{' || chr == '}') {
+        return 1;
     }
-    return 1;
+    return 0;
 }
 
 e_pcpp_t _pcppGetErrorFromPcpt(int err) {
@@ -62,13 +63,13 @@ bool pcppCheckPrompt(pcpp_t* stream) {
     bool found = false;
 
     for (uint cursor = 0; cursor < max; cursor++) {
-        unsigned char* pos = stream->read_bytes_buf + cursor;
+        char* pos = stream->read_bytes_buf + cursor;
         if (stream->read_bytes_buf[cursor] == '>') {
             if (cursor < stream->read_bytes_num) {
                 do {
                     *pos = pos[1];
                     pos++;
-                } while (pos + (-204 - (int)stream) < (unsigned char*)stream->read_bytes_num);
+                } while (pos + (-204 - (int)stream) < (char*)stream->read_bytes_num);
             }
 
             stream->read_bytes_num--;
@@ -80,18 +81,18 @@ bool pcppCheckPrompt(pcpp_t* stream) {
     return found;
 }
 
-e_pcpp_t pcppCheckRecvMsg(unsigned char* recv_data, size_t buf_len, int param_3) {
+e_pcpp_t pcppCheckRecvMsg(char* recv_data, size_t buf_len, int param_3) {
     bool bVar1 = true;
-    int local_8 = 0;
 
     if (recv_data == NULL) {
         PCP_LOG("pointer error\n");
         return e_pcpp_param_invalid;
     }
 
+    int check_offset = 0;
     while (1) {
-        local_8 = buf_len - local_8;
-        uint recv_err = pcppRecvCheck(recv_data, &local_8);
+        check_offset = buf_len - check_offset;
+        uint recv_err = pcppRecvCheck(recv_data, &check_offset);
 
         if (recv_err == 1) return e_pcpp_param_invalid;
         if (recv_err == 8) {
@@ -101,8 +102,8 @@ e_pcpp_t pcppCheckRecvMsg(unsigned char* recv_data, size_t buf_len, int param_3)
             if (recv_err == 7 && !bVar1) return e_pcpp_param_invalid;
         }
 
-        recv_data += local_8;
-        local_8++;
+        recv_data += check_offset;
+        check_offset++;
         bVar1 = false;
 
         if (recv_err == 0 || recv_err == 6 || recv_err == 7 || recv_err == 8) {
@@ -111,59 +112,59 @@ e_pcpp_t pcppCheckRecvMsg(unsigned char* recv_data, size_t buf_len, int param_3)
     }
 }
 
-uint pcppCheckStr(unsigned char* recv_data, uint* found_at, int* find_failed) {
+pcpp_char_type_t pcppCheckStr(char* recv_data, uint* found_at, int* is_qmark) {
     bool end = false;
-    bool bVar2 = false;
+    bool saw_data = false;
     uint idx = 0;
 
-    if (recv_data == NULL || find_failed == NULL || found_at == NULL) {
+    if (recv_data == NULL || is_qmark == NULL || found_at == NULL) {
         PCP_LOG("pointer error\n");
-        return 0;
+        return pcpp_char_error;
     }
 
-    *find_failed = 0;
-    if (*found_at == 0) return 0;
+    *is_qmark = 0;
+    if (*found_at == 0) {
+        PCP_LOG("stream exhausted\n");
+        return pcpp_char_error;
+    }
 
     do {
         char chr = recv_data[idx];
         if (PCP_WHITESPACE(chr)) {
-            if (bVar2) end = true;
-        } else {
-            if (!pcpp_isValidChar(chr)) {
-                if (recv_data[idx] != PCP_CHAR_UNKNOWN) {
-                    *found_at = idx + 1;
-                    switch (recv_data[idx]) {
-                        case PCP_CHAR_SEP:
-                            return 5;
-                        case PCP_CHAR_CR:
-                            if (recv_data[idx + 1] != '\n') return 3;
-                            *found_at = idx + 2;
-                            return 4;
-                        case PCP_CHAR_LF:
-                            return 2;
-                        case PCP_CHAR_EQU:
-                            return 1;
-                        default:
-                            return 0;
-                    }
-                }
-                if (bVar2 || end) {
-                    *found_at = idx + 1;
-                    return 0;
-                }
+            if (saw_data) end = true;
+        } else if (pcppIsValidDataChar(chr)) {
+            if (end || *is_qmark != 0) {
+                *found_at = idx + 1;
+                return pcpp_char_error;
+            }
+            saw_data = true;
+        } else if (chr == PCP_CHAR_QMARK) {
+            if (saw_data || end) {
+                *found_at = idx + 1;
+                return pcpp_char_error;
+            }
 
-                *find_failed = 1;
-            } else {
-                if (end || *find_failed != 0) {
-                    *found_at = idx + 1;
-                    return 0;
-                }
-                bVar2 = true;
+            *is_qmark = 1;
+        } else {
+            *found_at = idx + 1;
+            switch (chr) {
+                case PCP_CHAR_SEP:
+                    return pcpp_char_sep;
+                case PCP_CHAR_CR:
+                    if (recv_data[idx + 1] != '\n') return pcpp_char_crlf;
+                    *found_at = idx + 2;
+                    return pcpp_char_cr;
+                case PCP_CHAR_LF:
+                    return pcpp_char_lf;
+                case PCP_CHAR_EQU:
+                    return pcpp_char_equ;
+                default:
+                    return pcpp_char_error;
             }
         }
 
         idx++;
-        if (*found_at <= idx) return 0;
+        if (*found_at <= idx) return pcpp_char_error;
     } while (true);
 }
 
@@ -178,14 +179,13 @@ void pcppClose(pcpp_t* stream) {
 
     stream->field_0xb8 = 0;
     stream->last_active = 0;
-    stream->state = 0;
+    stream->state = pcpp_state_none;
     stream->err = e_pcpp_unknown;
     stream->recv_data_buffer = NULL;
     memset(stream->read_bytes_buf, 0, sizeof stream->read_bytes_buf);
     stream->read_bytes_size = sizeof stream->read_bytes_buf;
     stream->read_bytes_num = 0;
     stream->resp_buffer = NULL;
-    stream->resp_buffer_len = 0;
     ZERO(stream->send_buf);
     stream->send_buf_len = PCP_SEND_BUF_MAX;
     stream->field_0x1e8 = 0;
@@ -210,15 +210,15 @@ void pcppCloseBinary(pcpp_t* stream) {
     stream->read_bytes_num = 0;
     memset(stream->read_bytes_buf, 0, sizeof stream->read_bytes_buf);
     stream->resp_buffer = NULL;
-    stream->resp_buffer_len = 0;
 
     amtime_t time;
     amiTimerGet(&time);
     stream->last_active = _amTimeMs(time);
-    stream->state = 0;
+    stream->state = pcpp_state_none;
 }
 
-e_pcpp_t pcppGetBlockingTime(uint param_1, timeout_t timeout, pcpp_t* stream, int param_4, uint* blocking_time) {
+e_pcpp_t pcppGetBlockingTime(uint param_1, timeout_t timeout, pcpp_t* stream, int param_4,
+                             uint* blocking_time) {
     byte bVar1;
     uint uVar2;
     uint uVar3;
@@ -230,7 +230,8 @@ e_pcpp_t pcppGetBlockingTime(uint param_1, timeout_t timeout, pcpp_t* stream, in
     }
 
     amiTimerGet(&local_8);
-    uVar2 = (local_8.seconds * 1000 - stream->last_active) + local_8.microseconds / 1000;  // swapped
+    uVar2 =
+        (local_8.seconds * 1000 - stream->last_active) + local_8.microseconds / 1000;  // swapped
     if (param_1 <= uVar2) {
         *blocking_time = 0;
         return 1;
@@ -318,7 +319,7 @@ e_pcpp_t pcppInitStream(pcpp_t* stream) {
 
     stream->field_0xb8 = 0;
     stream->last_active = 0;
-    stream->state = 0;
+    stream->state = pcpp_state_none;
     stream->err = e_pcpp_unknown;
     stream->recv_data_buffer = NULL;
     ZERO(stream->read_bytes_buf);
@@ -326,7 +327,6 @@ e_pcpp_t pcppInitStream(pcpp_t* stream) {
     stream->read_bytes_size = sizeof stream->read_bytes_buf;
     stream->read_bytes_num = 0;
     stream->resp_buffer = NULL;
-    stream->resp_buffer_len = 0;
     ZERO(stream->send_buf);
     stream->field_0x1e8 = 0;
     stream->send_binary_buf = NULL;
@@ -345,6 +345,71 @@ e_pcpp_t pcppInitStream(pcpp_t* stream) {
     return e_pcpp_ok;
 }
 
+e_pcpp_t pcppOpenClient(pcpp_t* stream, char* ipAddr, ushort port, uint param_4,
+                        timeout_t timeout) {
+    e_pcpp_t iVar1;
+    uint uVar3;
+    amtime_t start;
+    amtime_t now;
+
+    if (stream == NULL) {
+        PCP_LOG("error PCPP stream isn\'t set\n");
+        return e_pcpp_param_invalid;
+    }
+    if (ipAddr == NULL) {
+        PCP_LOG("error IpAddr isn\'t set\n");
+        return e_pcpp_param_invalid;
+    }
+
+    stream->state = pcpp_state_open;
+    stream->field_0xb8 = param_4;
+    stream->open = 0;
+    amiTimerGet(&start);
+    iVar1 = start.microseconds / 1000 + start.seconds * 1000;
+    stream->last_active = iVar1;
+    e_pcpp_t err = pcppGetBlockingTime(stream->field_0x210, timeout, stream, iVar1, &timeout);
+    e_pcpp_t err2 = _pcppGetErrorFromPcpt(pcptOpenClient(&stream->sock, ipAddr, port, timeout));
+    stream->err = err2;
+    if (err2 == e_pcpp_to) {
+        if (err == e_pcpp_ok) {
+            return e_pcpp_to;
+        }
+        stream->err = e_pcpp_no_server;
+        PCP_LOG("error Time out error\n");
+    }
+    if (stream->err == 0) {
+        amiTimerGet(&now);
+        stream->last_active = now.microseconds / 1000 + now.seconds * 1000;
+        if (timeout != TIMEOUT_NONE) {
+            uVar3 = (now.microseconds - start.microseconds) / 1000 +
+                    (now.seconds - start.seconds) * 1000;
+            if (uVar3 < timeout) {
+                timeout -= uVar3;
+            } else {
+                timeout = 0;
+            }
+        }
+        stream->open = 1;
+        stream->state = pcpp_state_wait_prompt;
+        err = pcppRecvPrompt(stream, stream->field_0xb8, timeout);
+        stream->err = err;
+        if ((err == e_pcpp_to) || (stream->state = pcpp_state_none, err == e_pcpp_ok))
+            goto LAB_00a16a90;
+        pcptCloseDataSock(&stream->sock);
+        pcppResetRead(stream);
+        err = stream->err;
+        PCP_LOG("error pcppRecvPrompt error = %d\n", err);
+    } else {
+        pcptCloseDataSock(&stream->sock);
+        pcppResetRead(stream);
+        stream->state = pcpp_state_none;
+        err = stream->err;
+        PCP_LOG("error pcptOpenClient error = %d\n", err);
+    }
+LAB_00a16a90:
+    return stream->err;
+}
+
 e_pcpp_t pcppOpenBinaryServer(pcpp_t* stream, int open_mode, ushort port) {
     if (stream == NULL) {
         PCP_LOG("error PCPP stream isn\'t set\n");
@@ -354,10 +419,10 @@ e_pcpp_t pcppOpenBinaryServer(pcpp_t* stream, int open_mode, ushort port) {
     amtime_t time;
     amiTimerGet(&time);
     stream->last_active = _amTimeMs(time);
-    stream->state = 0;
+    stream->state = pcpp_state_none;
     if (open_mode != 0 && open_mode != 1) {
         PCP_LOG("error Open Mode isn\'t set\n");
-        stream->state = 0;
+        stream->state = pcpp_state_none;
         return stream->err = e_pcpp_param_invalid;
     }
 
@@ -373,6 +438,44 @@ e_pcpp_t pcppOpenBinaryServer(pcpp_t* stream, int open_mode, ushort port) {
     return e_pcpp_ok;
 }
 
+e_pcpp_t pcppOpenBinaryClient(pcpp_t* stream, char* ipAddr, ushort port, timeout_t timeout) {
+    if (stream == NULL) {
+        PCP_LOG("error PCPP stream isn\'t set\n");
+        return e_pcpp_param_invalid;
+    }
+    if (ipAddr == NULL) {
+        PCP_LOG("error IpAddr isn\'t set\n");
+        return e_pcpp_param_invalid;
+    }
+    stream->state = pcpp_state_open_binary;
+
+    amtime_t time;
+    amiTimerGet(&time);
+    stream->last_active = _amTimeMs(time);
+
+    bool bVar1 = false;
+    if (timeout == TIMEOUT_NONE ||
+        (stream->field_0x210 <= timeout && timeout != stream->field_0x210)) {
+        bVar1 = true;
+    }
+
+    e_pcpp_t pcpp_err =
+        _pcppGetErrorFromPcpt(pcptOpenClient(&stream->data_sock, ipAddr, port, timeout));
+    stream->err = pcpp_err;
+    if (pcpp_err == e_pcpp_to && bVar1) {
+        stream->err = e_pcpp_no_server;
+        pcptCloseDataSock(&stream->sock);
+        pcppResetRead(stream);
+    }
+
+    if (stream->err != e_pcpp_to) stream->state = pcpp_state_none;
+    if (stream->err == e_pcpp_ok) {
+        amiTimerGet(&time);
+        stream->last_active = _amTimeMs(time);
+    }
+    return stream->err;
+}
+
 e_pcpp_t pcppOpenServer(pcpp_t* stream, int open_mode, u_short port, undefined4 param_4) {
     if (stream == NULL) {
         PCP_LOG("error PCPP stream isn\'t set\n");
@@ -383,7 +486,7 @@ e_pcpp_t pcppOpenServer(pcpp_t* stream, int open_mode, u_short port, undefined4 
         PCP_LOG("error Open Mode isn\'t set\n");
 
         stream->err = e_pcpp_param_invalid;
-        stream->state = 0;
+        stream->state = pcpp_state_none;
         return e_pcpp_param_invalid;
     }
 
@@ -428,43 +531,59 @@ pcp_send_data_t* pcppSetSendPacket(pcp_send_data_t* send_data, char* keyword, ch
     return NULL;
 }
 
-uint pcppRecvCheck(unsigned char* buf, int* found_at) {
-    uint uVar1;
-    uint uVar3;
-    int find_failed;
-    uint found_at_;
-    int local_4;
-
-    uVar3 = 0;
-    find_failed = 0;
-    if (buf == NULL || found_at == NULL) {
+uint pcppRecvCheck(char* buf, int* offset) {
+    if (buf == NULL || offset == NULL) {
         PCP_LOG("pointer error\n");
         return 1;
     }
 
-    local_4 = *found_at;
-    *found_at = 0;
-    for (int uVar2 = 0; uVar2 < 2; uVar2++) {
-        found_at_ = local_4 - uVar3;
-        uVar1 = pcppCheckStr(&buf[uVar3], &found_at_, &find_failed);
-        *found_at = *found_at + found_at_;
+    uint total_length = *offset;
+    *offset = 0;
 
-        switch (uVar1) {
-            case 0:
+    uint local_offset = 0;
+
+    /**
+     * The following are the patterns this function validates against:
+     *
+     * * ? [equ ] -> 1            NG      eg ?=
+     * * . [sep ] -> 3            ->      eg keychip.version&
+     * * ? [sep ] -> 5            ->      eq ?&
+     * * . [crlf] -> 6            OK      eg keychip.version\r\n
+     * * ? [crlf] -> 8            OK      eg ?\r\n
+     * * . [equ ] -> continue     \/      eg keychip.version=
+     *
+     * * . [equ ] . [crlf] -> 0   OK      eg keychip.version=1\r\n
+     * * . [equ ] * [equ ] -> 1   NG      eg keychip.version=1=
+     * * . [equ ] . [sep ] -> 2   ->      eg keychip.version=1&
+     * * . [equ ] ? [sep ] -> 4   ->      eg keychip.version=?&
+     * * . [equ ] ? [crlf] -> 7   OK      eg keychip.version=?\r\n
+     */
+
+    for (int is_value = 0; is_value < 2; is_value++) {
+        uint nbytes = total_length - local_offset;
+        int is_qmark = 0;
+        pcpp_char_type_t char_type = pcppCheckStr(&buf[local_offset], &nbytes, &is_qmark);
+        *offset += nbytes;
+
+        switch (char_type) {
+            case pcpp_char_error:
                 return 1;
-            case 1:
-                if (uVar2) return 1;
-                uVar3 = found_at_;
-                if (find_failed) return 1;
+
+            case pcpp_char_equ:
+                if (is_value) return 1;
+                local_offset = nbytes;
+                if (is_qmark) return 1;
                 break;
-            case 2:
-            case 3:
-            case 4:
-                if (uVar2) return find_failed ? 7 : 0;
-                return find_failed ? 8 : 6;
-            case 5:
-                if (uVar2) return find_failed ? 4 : 2;
-                return find_failed ? 5 : 3;
+
+            case pcpp_char_lf:
+            case pcpp_char_crlf:
+            case pcpp_char_cr:
+                if (is_value) return is_qmark ? 7 : 0;
+                return is_qmark ? 8 : 6;
+
+            case pcpp_char_sep:
+                if (is_value) return is_qmark ? 4 : 2;
+                return is_qmark ? 5 : 3;
         }
     }
     return 1;
@@ -483,7 +602,8 @@ e_pcpp_t pcppSendResponseTable(pcpp_t* stream, pcp_send_data_t* data, timeout_t 
     return pcppSendResponse(stream, data, data->length + 2, timeout_ms);
 }
 
-e_pcpp_t pcppSendResponse(pcpp_t* stream, pcp_send_data_t* resp_buffer, size_t buf_len, timeout_t timeout_ms)
+e_pcpp_t pcppSendResponse(pcpp_t* stream, pcp_send_data_t* resp_buffer, size_t buf_len,
+                          timeout_t timeout_ms)
 
 {
     e_pcpp_t err;
@@ -499,27 +619,29 @@ e_pcpp_t pcppSendResponse(pcpp_t* stream, pcp_send_data_t* resp_buffer, size_t b
     }
 
     if (buf_len > PCP_BUF_MAX - 1) {
+        PCP_LOG("error Response buffer over\n");
         return stream->err = e_pcpp_param_invalid;
     }
 
     amiTimerGet(&time);
-    stream->err = err = pcppCheckRecvMsg(resp_buffer->data, buf_len, 0);
+    stream->err = err = pcppCheckRecvMsg((char*)resp_buffer->data, buf_len, 0);
 
     if (err != e_pcpp_ok) {
-        stream->state = 0;
+        stream->state = pcpp_state_none;
         pcppResetRead(stream);
         PCP_LOG("error Send message format error\n");
+        printf("'%s'\n", resp_buffer->data);
         return stream->err;
     }
 
+    resp_buffer->length = buf_len;
     stream->resp_buffer = resp_buffer;
-    stream->resp_buffer_len = buf_len;
-    stream->state = 6;
-    err = pcpp_something(&time, timeout_ms, stream, &stream->sock, resp_buffer->data, &stream->resp_buffer_len,
-                         stream->field_0x204, stream->field_0x210, -6);
+    stream->state = pcpp_state_send_response;
+    err = pcpp_something(&time, timeout_ms, stream, &stream->sock, resp_buffer->data,
+                         &resp_buffer->length, stream->field_0x204, stream->field_0x210, -6);
     stream->err = err;
     if (err != e_pcpp_to) {
-        stream->state = 0;
+        stream->state = pcpp_state_none;
         if (err != e_pcpp_ok) {
             pcptCloseDataSock(&stream->sock);
             pcppResetRead(stream);
@@ -535,7 +657,6 @@ void pcppResetRead(pcpp_t* stream) {
     stream->read_bytes_num = 0;
     ZERO_BUF(stream->read_bytes_buf);
     stream->resp_buffer = NULL;
-    stream->resp_buffer_len = 0;
 }
 
 e_pcpp_t pcppRecvRequest(pcpp_t* stream, pcp_parse_data_t* recv_data, timeout_t timeout) {
@@ -562,17 +683,17 @@ e_pcpp_t pcppRecvRequest(pcpp_t* stream, pcp_parse_data_t* recv_data, timeout_t 
     }
     stream->recv_data_buffer = recv_data;
     amiTimerGet(&start);
-    stream->state = 2;
+    stream->state = pcpp_state_send_prompt;
     err = pcppSendPrompt(stream, uVar1, timeout_ms);
     stream->err = err;
     if (err != e_pcpp_to) {
-        stream->state = 0;
+        stream->state = pcpp_state_none;
     }
     if (err == e_pcpp_ok) {
         stream->open = 0;
         amiTimerGet(&now);
         stream->last_active = _amTimeMs(now);
-        stream->state = 5;
+        stream->state = pcpp_state_recv_request;
         if (timeout_ms != TIMEOUT_NONE) {
             uint elapsed = _amTimeDelta(now, start);
             if (elapsed < timeout_ms) {
@@ -591,7 +712,7 @@ e_pcpp_t pcppRecvRequest(pcpp_t* stream, pcp_parse_data_t* recv_data, timeout_t 
                 return e_pcpp_to;
             }
         } else {
-            stream->state = 0;
+            stream->state = pcpp_state_none;
             if (err == e_pcpp_ok) {
                 amiTimerGet(&now2);
                 stream->last_active = _amTimeMs(now2);
@@ -602,8 +723,8 @@ e_pcpp_t pcppRecvRequest(pcpp_t* stream, pcp_parse_data_t* recv_data, timeout_t 
     return err;
 }
 
-e_pcpp_t pcppRecvRequestMain(pcpp_t* stream, bool* bReRecv, undefined4 param_3) {
-    unsigned char* recv_data;
+e_pcpp_t pcppRecvRequestMain(pcpp_t* stream, bool* bReRecv, undefined4 timeout) {
+    char* recv_data;
 
     if (stream == NULL) {
         PCP_LOG("error PCPP stream isn\'t set\n");
@@ -612,7 +733,7 @@ e_pcpp_t pcppRecvRequestMain(pcpp_t* stream, bool* bReRecv, undefined4 param_3) 
 
     stream->field_0x214 = 0;
 
-    e_pcpp_t err = pcppRecvAllMsg(param_3, stream, bReRecv);
+    e_pcpp_t err = pcppRecvAllMsg(stream, timeout, bReRecv);
     if (err != e_pcpp_ok) return err;
 
     recv_data = stream->read_bytes_buf;
@@ -624,7 +745,8 @@ e_pcpp_t pcppRecvRequestMain(pcpp_t* stream, bool* bReRecv, undefined4 param_3) 
     uint local_4 = 0;
     pcppChangeRequest(stream, &local_4);
 
-    if (local_4 < stream->read_bytes_num) memcpy(recv_data + local_4, recv_data, stream->read_bytes_num);
+    if (local_4 < stream->read_bytes_num)
+        memcpy(recv_data + local_4, recv_data, stream->read_bytes_num);
 
     stream->read_bytes_num -= local_4;
     stream->read_bytes_size += local_4;
@@ -656,7 +778,8 @@ LAB_00456133:
     *send_len = 1;
     if ((stream->sock).open == PCPT_LISTENING) stream->open = 1;
 
-    e_pcpp_t err = _errT2P(pcptSend(&stream->sock, stream->send_buf, send_len, stream->field_0x204, timeout_ms));
+    e_pcpp_t err = _errT2P(pcptSend(&stream->sock, (unsigned char*)stream->send_buf, send_len,
+                                    stream->field_0x204, timeout_ms));
 
     if (has_timeout && err == e_pcpp_to) {
         err = stream->open ? -12 : -6;
@@ -669,7 +792,7 @@ LAB_00456133:
     return err;
 }
 
-e_pcpp_t pcppRecvAllMsg(uint param_1, pcpp_t* stream, bool* bReRecv) {
+e_pcpp_t pcppRecvAllMsg(pcpp_t* stream, uint param_1, bool* bReRecv) {
     uint* recv_buf_len;
     int iVar1;
     e_pcpt_t err;
@@ -704,19 +827,18 @@ e_pcpp_t pcppRecvAllMsg(uint param_1, pcpp_t* stream, bool* bReRecv) {
     iVar1 = pcppGetBlockingTime(uVar3, param_1, stream, _amTimeMs(local_10), &local_14);
     recv_buf_len = &stream->read_bytes_size;
     *recv_buf_len = PCP_BUF_MAX - stream->read_bytes_num;
-    err = pcptRecv(&stream->sock, (stream->read_bytes_buf + stream->read_bytes_num), recv_buf_len, local_14);
-    eVar2 = _errT2P(err);
+    eVar2 = _errT2P(pcptRecv(&stream->sock,
+                             (unsigned char*)(stream->read_bytes_buf + stream->read_bytes_num),
+                             recv_buf_len, local_14));
     if (eVar2 == e_pcpp_to) {
-        if (iVar1 == 0) {
-            return e_pcpp_to;
-        }
+        if (iVar1 == 0) return e_pcpp_to;
+
         eVar2 = e_pcpp_timeout_closed - (uint)(stream->field_0x214 != 0);
         pcptCloseDataSock(&stream->sock);
         *recv_buf_len = PCP_BUF_MAX;
         stream->read_bytes_num = 0;
         ZERO_BUF(stream->read_bytes_buf);
         stream->resp_buffer = NULL;
-        stream->resp_buffer_len = 0;
     }
     if (eVar2 != e_pcpp_ok) {
         return eVar2;
@@ -741,9 +863,6 @@ e_pcpp_t pcppRecvAllMsg(uint param_1, pcpp_t* stream, bool* bReRecv) {
 }
 
 pcp_parse_data_t* pcppChangeRequest(pcpp_t* stream, uint* lenout) {
-    byte bVar5 = 0;
-    byte bVar6 = 0;
-
     if (stream == NULL || lenout == NULL) {
         PCP_LOG("pointer error\n");
         return NULL;
@@ -772,13 +891,13 @@ pcp_parse_data_t* pcppChangeRequest(pcpp_t* stream, uint* lenout) {
     }
 
     bool comment = false;
-
+    byte string_idx = 0;
     size_t i;
     for (i = 0; i < stream->read_bytes_num; i++) {
         char chr = stream->read_bytes_buf[i];
 
         if (chr == PCP_CHAR_CR || chr == PCP_CHAR_LF) {
-            stream->recv_data_buffer->strings[++bVar6] = PCP_CHAR_EOF;
+            stream->recv_data_buffer->strings[string_idx] = PCP_CHAR_EOF;
             if (i + 1 < stream->read_bytes_num && stream->read_bytes_buf[i] == PCP_CHAR_CR &&
                 stream->read_bytes_buf[i + 1] == PCP_CHAR_LF)
                 i++;
@@ -793,36 +912,35 @@ pcp_parse_data_t* pcppChangeRequest(pcpp_t* stream, uint* lenout) {
         }
 
         switch (chr) {
-            case PCP_CHAR_UNKNOWN:
-                stream->recv_data_buffer->strings[bVar6++] = PCP_CHAR_UNKNOWN;
+            case PCP_CHAR_QMARK:
+                stream->recv_data_buffer->strings[string_idx++] = PCP_CHAR_QMARK;
                 break;
             case PCP_CHAR_SEP:
                 if (stream->recv_data_buffer->cmd_count > PCP_CMDS_MAX) {
                     PCP_LOG("Buffer size error\n");
                     return NULL;
                 }
-                stream->recv_data_buffer->strings[++bVar6] = PCP_CHAR_EOF;
-                stream->recv_data_buffer->keywords[stream->recv_data_buffer->cmd_count] = bVar6++;
+                stream->recv_data_buffer->strings[string_idx] = PCP_CHAR_EOF;
+                stream->recv_data_buffer->keywords[stream->recv_data_buffer->cmd_count] =
+                    ++string_idx;
                 stream->recv_data_buffer->cmd_count++;
-                bVar5 = bVar6;
                 break;
             case PCP_CHAR_EQU:
                 if (stream->recv_data_buffer->cmd_count > PCP_CMDS_MAX) {
                     PCP_LOG("Buffer size error\n");
                     return NULL;
                 }
-                stream->recv_data_buffer->strings[++bVar6] = PCP_CHAR_EOF;
-                stream->recv_data_buffer->keywords[stream->recv_data_buffer->cmd_count + PCP_CMDS_MAX - 1] = bVar6++;
-                bVar5 = bVar6;
+                stream->recv_data_buffer->strings[string_idx] = PCP_CHAR_EOF;
+                stream->recv_data_buffer
+                    ->keywords[stream->recv_data_buffer->cmd_count + PCP_CMDS_MAX - 1] =
+                    ++string_idx;
                 break;
             case PCP_CHAR_HASH:
                 comment = true;
                 break;
             default:
-                bVar6 = bVar5;
-                if (pcpp_isValidChar(chr)) {
-                    stream->recv_data_buffer->strings[bVar5++] = stream->read_bytes_buf[i];
-                }
+                if (pcppIsValidDataChar(chr))
+                    stream->recv_data_buffer->strings[string_idx++] = stream->read_bytes_buf[i];
         }
     }
     *lenout = i + 1;
@@ -851,7 +969,9 @@ int pcppRecvPrompt(pcpp_t* stream, undefined4 param_2, int param_3) {
 
         iVar1 = pcppGetBlockingTime(param_2, param_3, stream, _amTimeMs(start), &local_c);
         recv_buf_len = &stream->read_bytes_size;
-        err = _errT2P(pcptRecv(&stream->sock, stream->read_bytes_buf + stream->read_bytes_num, recv_buf_len, local_c));
+        err = _errT2P(pcptRecv(&stream->sock,
+                               (unsigned char*)(stream->read_bytes_buf + stream->read_bytes_num),
+                               recv_buf_len, local_c));
         if (err == e_pcpp_to) break;
         if (err != e_pcpp_ok) {
             return err;
@@ -888,8 +1008,10 @@ e_pcpp_t pcppSendRequestMain(pcpp_t* stream, undefined4 param_2, timeout_t timeo
     amiTimerGet(&now);
 
     e_pcpp_t eVar1 =
-        pcpp_something(&now, timeout_ms, stream, (pcpt_t*)stream, stream->resp_buffer->data, &stream->resp_buffer_len,
-                       stream->field_0x204, param_2, stream->open ? e_pcpp_timeout_open : e_pcpp_timeout_closed);
+        pcpp_something(&now, timeout_ms, stream, &stream->sock, stream->resp_buffer->data,
+                       &stream->resp_buffer->length, stream->field_0x204, param_2,
+                       stream->open ? e_pcpp_timeout_open : e_pcpp_timeout_closed);
+
     if (eVar1 != e_pcpp_to && eVar1 != e_pcpp_ok) {
         pcptCloseDataSock(&stream->sock);
         pcppResetRead(stream);
@@ -903,7 +1025,7 @@ e_pcpp_t pcppSendRequestMain(pcpp_t* stream, undefined4 param_2, timeout_t timeo
 
 e_pcpp_t pcppRecvBinary(pcpp_t* stream, unsigned char* recv_buf, size_t buf_len, uint param_4) {
     size_t* psVar1;
-    unsigned char** send_buf;
+    char** send_buf;
     int iVar2;
     e_pcpt_t eVar3;
     e_pcpp_t eVar4;
@@ -930,7 +1052,7 @@ e_pcpp_t pcppRecvBinary(pcpp_t* stream, unsigned char* recv_buf, size_t buf_len,
     *psVar1 = buf_len;
     stream->recv_binary_buf_len = buf_len;
     stream->field_0x1fc = 0;
-    stream->state = 11;
+    stream->state = pcpp_state_recv_binary;
     memset(recv_buf, 0, buf_len);
     do {
         bVar6 = (stream->data_sock).open != PCPT_LISTENING;
@@ -944,17 +1066,17 @@ e_pcpp_t pcppRecvBinary(pcpp_t* stream, unsigned char* recv_buf, size_t buf_len,
         }
         iVar2 = pcppGetBlockingTime(uVar5, param_4, stream, _amTimeMs(now), &recvb_local);
         stream->field_0x214 = 1;
-        eVar3 = pcptRecv(&stream->data_sock, stream->recv_binary_buf + stream->field_0x1fc, psVar1, recvb_local);
+        eVar3 = pcptRecv(&stream->data_sock, stream->recv_binary_buf + stream->field_0x1fc, psVar1,
+                         recvb_local);
         eVar4 = _errT2P(eVar3);
         stream->err = eVar4;
         if ((eVar4 == e_pcpp_to) && (iVar2 != 0)) {
-            stream->err = bVar6 ? -13 : -11;
+            stream->err = bVar6 ? -13 : e_pcpp_no_server;
             pcptCloseDataSock(&stream->sock);
             stream->read_bytes_size = PCP_BUF_MAX;
             stream->read_bytes_num = 0;
             memset(stream->read_bytes_buf, 0, PCP_BUF_MAX);
             stream->resp_buffer = NULL;
-            stream->resp_buffer_len = 0;
         }
         eVar4 = stream->err;
         if (eVar4 == e_pcpp_to) {
@@ -964,7 +1086,7 @@ e_pcpp_t pcppRecvBinary(pcpp_t* stream, unsigned char* recv_buf, size_t buf_len,
             }
         } else {
             if (eVar4 != e_pcpp_ok) {
-                stream->state = 0;
+                stream->state = pcpp_state_none;
                 goto LAB_00455e91;
             }
         }
@@ -973,14 +1095,17 @@ e_pcpp_t pcppRecvBinary(pcpp_t* stream, unsigned char* recv_buf, size_t buf_len,
         stream->field_0x214 = 0;
         amiTimerGet(&local_10);
         stream->last_active = _amTimeMs(local_10);
-        if (stream->recv_binary_buf_len < stream->field_0x1fc || stream->recv_binary_buf_len == stream->field_0x1fc) {
-            send_buf = (unsigned char**)&stream->send_buf;
+        if (stream->recv_binary_buf_len < stream->field_0x1fc ||
+            stream->recv_binary_buf_len == stream->field_0x1fc) {
+            send_buf = (char**)&stream->send_buf;
             psVar1 = &stream->send_buf_len;
-            stream->state = 12;
+            stream->state = pcpp_state_send_binary_ack;
             *send_buf[0] = PCP_CHAR_BINACK;
             *psVar1 = 1;
-            iVar2 = pcppGetBlockingTime(stream->field_0x20c, param_4, stream, _amTimeMs(now), &recvb_local);
-            eVar3 = pcptSend(&stream->sock, *send_buf, psVar1, stream->field_0x208, recvb_local);
+            iVar2 = pcppGetBlockingTime(stream->field_0x20c, param_4, stream, _amTimeMs(now),
+                                        &recvb_local);
+            eVar3 = pcptSend(&stream->sock, (unsigned char*)*send_buf, psVar1, stream->field_0x208,
+                             recvb_local);
             eVar4 = _errT2P(eVar3);
             stream->err = eVar4;
             if ((eVar4 == e_pcpp_to) && (iVar2 != 0)) {
@@ -990,23 +1115,25 @@ e_pcpp_t pcppRecvBinary(pcpp_t* stream, unsigned char* recv_buf, size_t buf_len,
             }
             eVar4 = stream->err;
             if (eVar4 != e_pcpp_to) {
-                stream->state = 0;
+                stream->state = pcpp_state_none;
             }
             if (eVar4 == e_pcpp_ok) {
                 amiTimerGet(&local_10);
                 stream->last_active = _amTimeMs(local_10);
-                stream->state = 13;
-                iVar2 = pcppGetBlockingTime(stream->field_0x208, param_4, stream, _amTimeMs(now), &recvb_local);
+                stream->state = pcpp_state_send_binary_ack_wait;
+                iVar2 = pcppGetBlockingTime(stream->field_0x208, param_4, stream, _amTimeMs(now),
+                                            &recvb_local);
                 *psVar1 = PCP_SEND_BUF_MAX;
                 ZERO(stream->send_buf);
-                eVar3 = pcptRecv(&stream->data_sock, *send_buf, psVar1, recvb_local);
+                eVar3 =
+                    pcptRecv(&stream->data_sock, (unsigned char*)*send_buf, psVar1, recvb_local);
                 eVar4 = _errT2P(eVar3);
                 stream->err = eVar4;
                 if ((iVar2 != 0) && (eVar4 == e_pcpp_to)) {
                     stream->err = -13;
                 }
                 if (stream->err != e_pcpp_to) {
-                    stream->state = 0;
+                    stream->state = pcpp_state_none;
                 }
                 if (stream->err == e_pcpp_closed) {
                     stream->err = e_pcpp_ok;
@@ -1018,7 +1145,8 @@ e_pcpp_t pcppRecvBinary(pcpp_t* stream, unsigned char* recv_buf, size_t buf_len,
     } while (true);
 }
 
-e_pcpp_t pcppSendBinary(pcpp_t* stream, unsigned char* send_binary_buffer, size_t param_3, uint param_4)
+e_pcpp_t pcppSendBinary(pcpp_t* stream, unsigned char* send_binary_buffer, size_t param_3,
+                        uint param_4)
 
 {
     size_t* psVar1;
@@ -1043,17 +1171,19 @@ e_pcpp_t pcppSendBinary(pcpp_t* stream, unsigned char* send_binary_buffer, size_
     amiTimerGet(&local_8);
     pVar2 = (stream->data_sock).open;
     psVar1 = &stream->field_0x1f0;
-    stream->state = 9;
+    stream->state = pcpp_state_send_binary;
     *psVar1 = param_3;
     stream->send_binary_buf = send_binary_buffer;
     if (pVar2 == PCPT_LISTENING) {
         amiTimerGet(&local_10);
         stream->last_active = _amTimeMs(local_10);
-        eVar3 = pcpp_something(&local_8, param_4, stream, &stream->data_sock, stream->send_binary_buf, psVar1,
-                               stream->field_0x208, stream->field_0x210, -11);
+        eVar3 =
+            pcpp_something(&local_8, param_4, stream, &stream->data_sock, stream->send_binary_buf,
+                           psVar1, stream->field_0x208, stream->field_0x210, -11);
         stream->err = eVar3;
     } else {
-        eVar5 = pcptSend(&stream->data_sock, send_binary_buffer, psVar1, stream->field_0x208, param_4);
+        eVar5 =
+            pcptSend(&stream->data_sock, send_binary_buffer, psVar1, stream->field_0x208, param_4);
         eVar3 = _errT2P(eVar5);
         iVar4 = (stream->data_sock).field_0x54;
         stream->err = eVar3;
@@ -1064,18 +1194,19 @@ e_pcpp_t pcppSendBinary(pcpp_t* stream, unsigned char* send_binary_buffer, size_
     }
     eVar3 = stream->err;
     if (eVar3 != e_pcpp_to) {
-        stream->state = 0;
+        stream->state = pcpp_state_none;
     }
     if (eVar3 == e_pcpp_ok) {
         amiTimerGet(&local_10);
         stream->last_active = _amTimeMs(local_10);
-        stream->state = 10;
+        stream->state = pcpp_state_send_binary_wait;
         psVar1 = &stream->send_buf_len;
         *psVar1 = 8;
         ZERO(stream->send_buf);
         stream->field_0x1e8 = 0;
-        iVar4 = pcppGetBlockingTime(stream->field_0x20c, param_4, stream, _amTimeMs(local_8), &local_14);
-        eVar5 = pcptRecv(&stream->sock, stream->send_buf, psVar1, local_14);
+        iVar4 = pcppGetBlockingTime(stream->field_0x20c, param_4, stream, _amTimeMs(local_8),
+                                    &local_14);
+        eVar5 = pcptRecv(&stream->sock, (unsigned char*)stream->send_buf, psVar1, local_14);
         eVar3 = _errT2P(eVar5);
         stream->err = eVar3;
         if ((iVar4 != 0) && (eVar3 == e_pcpp_to)) {
@@ -1085,13 +1216,13 @@ e_pcpp_t pcppSendBinary(pcpp_t* stream, unsigned char* send_binary_buffer, size_
         }
         eVar3 = stream->err;
         if (eVar3 != e_pcpp_to) {
-            stream->state = 0;
+            stream->state = pcpp_state_none;
         }
         if (eVar3 == e_pcpp_ok) {
             stream->field_0x1e8 = stream->field_0x1e8 + *psVar1;
             uVar6 = 0;
             *psVar1 = 8 - stream->field_0x1e8;
-            stream->state = 0;
+            stream->state = pcpp_state_none;
             stream->err = -9;
             if (stream->field_0x1e8 != 0) {
                 while (*(char*)((int)&stream->send_buf + uVar6) != PCP_CHAR_BINACK) {
@@ -1110,15 +1241,15 @@ e_pcpp_t pcppSendBinary(pcpp_t* stream, unsigned char* send_binary_buffer, size_
 
 e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
     size_t* psVar1;
-    unsigned char** send_buf;
+    char** send_buf;
     undefined4 uVar2;
     int iVar3;
     e_pcpt_t eVar4;
     int iVar5;
     uint uVar6;
     e_pcpp_t eVar7;
-    unsigned char* pcVar8;
-    unsigned char* pcVar9;
+    char* pcVar8;
+    char* pcVar9;
     uint uVar10;
     uint uVar11;
     bool bVar12;
@@ -1140,12 +1271,13 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
         return e_pcpp_param_invalid;
     }
     amiTimerGet(&local_18);
+
     switch (stream->state) {
-        case 0:
+        case pcpp_state_none:
             stream->err = e_pcpp_no_client;
             break;
-        case 1:
-        case 8:
+        case pcpp_state_open:
+        case pcpp_state_open_binary:
             if (stream->state == 1) {
                 if (stream->open == 0) {
                     uVar2 = stream->field_0x210;
@@ -1171,14 +1303,15 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                     stream->last_active = _amTimeMs(local_10);
                     if (stream->state != 8) {
                         if (stream->open != 0) {
-                            stream->read_bytes_num = stream->read_bytes_num + stream->read_bytes_size;
+                            stream->read_bytes_num =
+                                stream->read_bytes_num + stream->read_bytes_size;
                             stream->read_bytes_size = PCP_BUF_MAX - stream->read_bytes_num;
                             iVar3 = pcppCheckPrompt(stream);
                             if (iVar3 != 0) goto LAB_00457676;
                             stream->err = ~e_pcpp_no_client;
                             goto LAB_00457660;
                         }
-                        stream->state = 3;
+                        stream->state = pcpp_state_wait_prompt;
                         if (uVar11 != TIMEOUT_NONE) {
                             amiTimerGet(&local_8);
                             uVar6 = (local_8.microseconds - local_18.microseconds) / 1000 +
@@ -1194,7 +1327,7 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                         stream->err = eVar7;
                         if (eVar7 != e_pcpp_to) {
                             amiTimerGet(&local_10);
-                            stream->state = 0;
+                            stream->state = pcpp_state_none;
                             stream->last_active = _amTimeMs(local_10);
                             return stream->err;
                         }
@@ -1207,12 +1340,12 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
             if (stream->state == 1) {
                 stream->err = 0xfffffff5 - (uint)(stream->open != 0);
             } else {
-                stream->err = -11;
+                stream->err = e_pcpp_no_server;
             }
             goto LAB_00457392;
-        case 2:
-        case 4:
-        case 6:
+        case pcpp_state_send_prompt:
+        case pcpp_state_send_request:
+        case pcpp_state_send_response:
             uVar6 = uVar11;
             if ((stream->sock).field_0x54 != 0) {
                 bVar12 = (stream->sock).open != PCPT_LISTENING;
@@ -1222,7 +1355,8 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                     uVar2 = stream->field_0x210;
                 }
                 bVar12 = !bVar12;
-                local_20 = pcppGetBlockingTime(uVar2, uVar11, stream, _amTimeMs(local_18), &timeout);
+                local_20 =
+                    pcppGetBlockingTime(uVar2, uVar11, stream, _amTimeMs(local_18), &timeout);
                 uVar6 = timeout;
             }
             eVar4 = pcptIsBusy(&stream->sock, uVar6);
@@ -1235,8 +1369,9 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                     if (stream->state != 2) goto LAB_004577b4;
                     stream->open = 0;
                     amiTimerGet(&local_8);
-                    stream->state = 5;
-                    iVar3 = pcppGetBlockingTime(stream->field_0xb8, uVar11, stream, _amTimeMs(local_18), &timeout);
+                    stream->state = pcpp_state_recv_request;
+                    iVar3 = pcppGetBlockingTime(stream->field_0xb8, uVar11, stream,
+                                                _amTimeMs(local_18), &timeout);
                     eVar7 = pcppRecvRequestMain(stream, &local_24, timeout);
                     stream->err = eVar7;
                     if ((eVar7 == e_pcpp_to) && (iVar3 != 0)) {
@@ -1249,7 +1384,7 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                             stream->state = 14;
                         }
                     } else {
-                        stream->state = 0;
+                        stream->state = pcpp_state_none;
                     }
                     if (stream->err == e_pcpp_ok) goto LAB_004574b8;
                     break;
@@ -1257,11 +1392,11 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 goto LAB_004577af;
             }
             if (local_20 == 0) break;
-            stream->err = (-(uint)bVar12 & 0xfffffffb) - 6;
+            stream->err = bVar12 ? e_pcpp_no_server : e_pcpp_timeout_closed;
             goto LAB_00457392;
-        case 3:
-        case 5:
-        case 7:
+        case pcpp_state_wait_prompt:
+        case pcpp_state_recv_request:
+        case pcpp_state_recv_response:
             if (stream->field_0x214 == 0) {
                 uVar2 = stream->field_0xb8;
             } else {
@@ -1269,25 +1404,25 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
             }
             iVar3 = pcppGetBlockingTime(uVar2, uVar11, stream, _amTimeMs(local_18), &timeout);
             uVar6 = timeout;
-            eVar4 = pcptIsBusy(&stream->sock, timeout);
-            eVar7 = _errT2P(eVar4);
+            eVar7 = _errT2P(pcptIsBusy(&stream->sock, timeout));
             stream->err = eVar7;
             if (eVar7 != e_pcpp_to) {
                 if (eVar7 != e_pcpp_ok) {
                 LAB_00457660:
-                    stream->state = 0;
+                    stream->state = pcpp_state_none;
                     return stream->err;
                 }
                 stream->read_bytes_num = stream->read_bytes_num + stream->read_bytes_size;
                 stream->field_0x214 = 0;
                 stream->read_bytes_size = PCP_BUF_MAX - stream->read_bytes_num;
-                if (stream->state == 3) {
+                if (stream->state == pcpp_state_wait_prompt) {
                     uVar6 = uVar11;
                     if (uVar11 != TIMEOUT_NONE) {
                         amiTimerGet(&local_8);
-                        uVar6 = -(uint)((uint)((local_8.microseconds - local_18.microseconds) / 1000 +
-                                               (local_8.seconds - local_18.seconds) * 1000) < uVar11) &
-                                uVar11;
+                        uVar6 =
+                            -(uint)((uint)((local_8.microseconds - local_18.microseconds) / 1000 +
+                                           (local_8.seconds - local_18.seconds) * 1000) < uVar11) &
+                            uVar11;
                     }
                     eVar7 = pcppRecvPrompt(stream, stream->field_0xb8, uVar6);
                     stream->err = eVar7;
@@ -1296,15 +1431,18 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                         if (stream->open == 0) {
                             if (uVar11 != TIMEOUT_NONE) {
                                 amiTimerGet(&local_8);
-                                uVar11 = -(uint)((uint)((local_8.microseconds - local_18.microseconds) / 1000 +
-                                                        (local_8.seconds - local_18.seconds) * 1000) < uVar11) &
-                                         uVar11;
+                                uVar11 =
+                                    -(uint)((uint)((local_8.microseconds - local_18.microseconds) /
+                                                       1000 +
+                                                   (local_8.seconds - local_18.seconds) * 1000) <
+                                            uVar11) &
+                                    uVar11;
                             }
-                            stream->state = 4;
+                            stream->state = pcpp_state_send_request;
                             eVar7 = pcppSendRequestMain(stream, stream->field_0xb8, uVar11);
                             stream->err = eVar7;
                             if ((eVar7 != e_pcpp_to) && (eVar7 != e_pcpp_ok)) {
-                                stream->state = 0;
+                                stream->state = pcpp_state_none;
                                 return eVar7;
                             }
                         }
@@ -1324,7 +1462,7 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                         }
                         uVar6 = uVar11 - uVar10;
                     }
-                    eVar7 = pcppRecvAllMsg(uVar6, stream, &local_24);
+                    eVar7 = pcppRecvAllMsg(stream, uVar6, &local_24);
                     stream->err = eVar7;
                     if (eVar7 != e_pcpp_ok) {
                         if (eVar7 == e_pcpp_to) {
@@ -1350,7 +1488,8 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                     if (iVar3 == 0) goto LAB_0045848d;
                 }
                 pcVar8 = stream->read_bytes_buf;
-                eVar7 = pcppCheckRecvMsg(pcVar8, stream->read_bytes_num, (uint)(stream->state == 5));
+                eVar7 =
+                    pcppCheckRecvMsg(pcVar8, stream->read_bytes_num, (uint)(stream->state == 5));
                 stream->err = eVar7;
                 if (eVar7 == e_pcpp_ok) {
                     pcppChangeRequest(stream, &timeout);
@@ -1366,19 +1505,19 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 LAB_00458226:
                     stream->read_bytes_num = stream->read_bytes_num - timeout;
                     stream->read_bytes_size = stream->read_bytes_size + timeout;
-                    stream->state = 0;
+                    stream->state = pcpp_state_none;
                     amiTimerGet(&local_18);
                     stream->last_active = _amTimeMs(local_18);
                     return stream->err;
                 }
-                stream->state = 0;
+                stream->state = pcpp_state_none;
                 pcppResetRead(stream);
                 PCP_LOG("error Response format error\n");
                 return stream->err;
             }
             if (iVar3 == 0) break;
             if (stream->field_0x214 == 0) {
-                stream->err = (-(uint)(stream->open != 0) & 0xfffffffa) - 6;
+                stream->err = (stream->open != 0) ? e_pcpp_timeout_open : e_pcpp_timeout_closed;
             } else {
                 stream->err = -7;
             }
@@ -1386,9 +1525,9 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
             pcptCloseDataSock(&stream->sock);
             pcppResetRead(stream);
         LAB_0045739d:
-            stream->state = 0;
+            stream->state = pcpp_state_none;
             return stream->err;
-        case 9:
+        case pcpp_state_send_binary:
             bVar12 = (stream->data_sock).open != PCPT_LISTENING;
             if (bVar12) {
                 uVar2 = stream->field_0x208;
@@ -1411,18 +1550,19 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 stream->last_active = _amTimeMs(local_10);
             }
             if (stream->err != e_pcpp_to) {
-                stream->state = 0;
+                stream->state = pcpp_state_none;
             }
             if (stream->err == e_pcpp_ok) {
                 amiTimerGet(&local_10);
                 stream->last_active = _amTimeMs(local_10);
-                stream->state = 10;
+                stream->state = pcpp_state_send_binary_wait;
                 psVar1 = &stream->send_buf_len;
                 *psVar1 = PCP_SEND_BUF_MAX;
                 ZERO(stream->send_buf);
                 stream->field_0x1e8 = 0;
-                iVar3 = pcppGetBlockingTime(stream->field_0x20c, uVar11, stream, _amTimeMs(local_18), &timeout);
-                eVar4 = pcptRecv(&stream->sock, stream->send_buf, psVar1, timeout);
+                iVar3 = pcppGetBlockingTime(stream->field_0x20c, uVar11, stream,
+                                            _amTimeMs(local_18), &timeout);
+                eVar4 = pcptRecv(&stream->sock, (unsigned char*)stream->send_buf, psVar1, timeout);
                 eVar7 = _errT2P(eVar4);
                 stream->err = eVar7;
                 if ((iVar3 != 0) && (eVar7 == e_pcpp_to)) {
@@ -1431,13 +1571,13 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                     pcppResetRead(stream);
                 }
                 if (stream->err != e_pcpp_to) {
-                    stream->state = 0;
+                    stream->state = pcpp_state_none;
                 }
                 if (stream->err == e_pcpp_ok) {
                     stream->field_0x1e8 = stream->field_0x1e8 + *psVar1;
                     uVar11 = 0;
                     *psVar1 = PCP_SEND_BUF_MAX - stream->field_0x1e8;
-                    stream->state = 0;
+                    stream->state = pcpp_state_none;
                     stream->err = -9;
                     if (stream->field_0x1e8 != 0) {
                         do {
@@ -1454,8 +1594,9 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 }
             }
             break;
-        case 10:
-            iVar3 = pcppGetBlockingTime(stream->field_0x20c, uVar11, stream, _amTimeMs(local_18), &timeout);
+        case pcpp_state_send_binary_wait:
+            iVar3 = pcppGetBlockingTime(stream->field_0x20c, uVar11, stream, _amTimeMs(local_18),
+                                        &timeout);
             eVar4 = pcptIsBusy(&stream->sock, timeout);
             eVar7 = _errT2P(eVar4);
             stream->err = eVar7;
@@ -1465,7 +1606,7 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 pcppResetRead(stream);
             }
             if (stream->err != e_pcpp_to) {
-                stream->state = 0;
+                stream->state = pcpp_state_none;
             }
             if (stream->err == e_pcpp_ok) {
                 amiTimerGet(&local_10);
@@ -1488,7 +1629,7 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 }
             }
             break;
-        case 11:
+        case pcpp_state_recv_binary:
             if (stream->field_0x214 != 0) {
                 bVar12 = (stream->data_sock).open != PCPT_LISTENING;
                 if (bVar12) {
@@ -1514,7 +1655,7 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 } else {
                     if (eVar7 != e_pcpp_ok) {
                         stream->field_0x214 = 0;
-                        stream->state = 0;
+                        stream->state = pcpp_state_none;
                         goto LAB_00457b2e;
                     }
                 }
@@ -1528,10 +1669,12 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 stream->recv_binary_buf_len != stream->field_0x1fc) {
                 psVar1 = &stream->field_0x1f8;
                 do {
-                    iVar3 = pcppGetBlockingTime(stream->field_0x208, uVar11, stream, _amTimeMs(local_18), &timeout);
+                    iVar3 = pcppGetBlockingTime(stream->field_0x208, uVar11, stream,
+                                                _amTimeMs(local_18), &timeout);
                     stream->field_0x214 = 1;
                     eVar4 =
-                        pcptRecv(&stream->data_sock, stream->recv_binary_buf + stream->field_0x1fc, psVar1, timeout);
+                        pcptRecv(&stream->data_sock, stream->recv_binary_buf + stream->field_0x1fc,
+                                 psVar1, timeout);
                     eVar7 = _errT2P(eVar4);
                     stream->err = eVar7;
                     if ((eVar7 == e_pcpp_to) && (iVar3 != 0)) {
@@ -1545,7 +1688,7 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                         if (eVar7 != e_pcpp_ok) goto switchD_004572ff_caseD_10;
                     } else {
                         if (eVar7 != e_pcpp_ok) {
-                            stream->state = 0;
+                            stream->state = pcpp_state_none;
                             goto LAB_00457c47;
                         }
                     }
@@ -1557,13 +1700,15 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 } while (stream->field_0x1fc <= stream->recv_binary_buf_len &&
                          stream->recv_binary_buf_len != stream->field_0x1fc);
             }
-            send_buf = (unsigned char**)&stream->send_buf;
+            send_buf = (char**)&stream->send_buf;
             psVar1 = &stream->send_buf_len;
-            stream->state = 12;
+            stream->state = pcpp_state_send_binary_ack;
             *send_buf[0] = PCP_CHAR_BINACK;
             *psVar1 = 1;
-            local_20 = pcppGetBlockingTime(stream->field_0x20c, uVar11, stream, _amTimeMs(local_18), &timeout);
-            eVar4 = pcptSend(&stream->sock, *send_buf, psVar1, stream->field_0x204, timeout);
+            local_20 = pcppGetBlockingTime(stream->field_0x20c, uVar11, stream, _amTimeMs(local_18),
+                                           &timeout);
+            eVar4 = pcptSend(&stream->sock, (unsigned char*)*send_buf, psVar1, stream->field_0x204,
+                             timeout);
             eVar7 = _errT2P(eVar4);
             stream->err = eVar7;
             if ((eVar7 == e_pcpp_to) && (local_20 != 0)) {
@@ -1572,23 +1717,24 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 pcppResetRead(stream);
             }
             if (stream->err != e_pcpp_to) {
-                stream->state = 0;
+                stream->state = pcpp_state_none;
             }
             if (stream->err == e_pcpp_ok) {
                 amiTimerGet(&local_10);
                 stream->last_active = _amTimeMs(local_10);
-                stream->state = 13;
-                iVar3 = pcppGetBlockingTime(stream->field_0x208, uVar11, stream, _amTimeMs(local_18), &timeout);
+                stream->state = pcpp_state_send_binary_ack_wait;
+                iVar3 = pcppGetBlockingTime(stream->field_0x208, uVar11, stream,
+                                            _amTimeMs(local_18), &timeout);
                 *psVar1 = PCP_SEND_BUF_MAX;
                 ZERO(stream->send_buf);
-                eVar4 = pcptRecv(&stream->data_sock, *send_buf, psVar1, timeout);
+                eVar4 = pcptRecv(&stream->data_sock, (unsigned char*)*send_buf, psVar1, timeout);
                 eVar7 = _errT2P(eVar4);
                 stream->err = eVar7;
                 if ((iVar3 != 0) && (eVar7 == e_pcpp_to)) {
                     stream->err = -13;
                 }
                 if (stream->err != e_pcpp_to) {
-                    stream->state = 0;
+                    stream->state = pcpp_state_none;
                 }
                 if (stream->err == e_pcpp_closed) {
                     stream->err = e_pcpp_ok;
@@ -1599,8 +1745,9 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 }
             }
             break;
-        case 12:
-            iVar3 = pcppGetBlockingTime(stream->field_0x20c, uVar11, stream, _amTimeMs(local_18), &timeout);
+        case pcpp_state_send_binary_ack:
+            iVar3 = pcppGetBlockingTime(stream->field_0x20c, uVar11, stream, _amTimeMs(local_18),
+                                        &timeout);
             eVar4 = pcptIsBusy(&stream->sock, timeout);
             eVar7 = _errT2P(eVar4);
             stream->err = eVar7;
@@ -1610,16 +1757,18 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 pcppResetRead(stream);
             }
             if (stream->err != e_pcpp_to) {
-                stream->state = 0;
+                stream->state = pcpp_state_none;
             }
             if (stream->err != e_pcpp_ok) break;
-            stream->state = 13;
+            stream->state = pcpp_state_send_binary_ack_wait;
             amiTimerGet(&local_10);
             stream->last_active = _amTimeMs(local_10);
-            iVar3 = pcppGetBlockingTime(stream->field_0x208, uVar11, stream, _amTimeMs(local_18), &timeout);
+            iVar3 = pcppGetBlockingTime(stream->field_0x208, uVar11, stream, _amTimeMs(local_18),
+                                        &timeout);
             stream->send_buf_len = PCP_SEND_BUF_MAX;
             ZERO(stream->send_buf);
-            eVar4 = pcptRecv(&stream->data_sock, stream->send_buf, &stream->send_buf_len, timeout);
+            eVar4 = pcptRecv(&stream->data_sock, (unsigned char*)stream->send_buf,
+                             &stream->send_buf_len, timeout);
             eVar7 = _errT2P(eVar4);
             stream->err = eVar7;
             if ((iVar3 != 0) && (eVar7 == e_pcpp_to)) {
@@ -1627,13 +1776,14 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 pcptCloseDataSock(&stream->sock);
                 pcppResetRead(stream);
             }
-            if (stream->err != e_pcpp_to) stream->state = 0;
+            if (stream->err != e_pcpp_to) stream->state = pcpp_state_none;
 
             if (stream->err != e_pcpp_closed) break;
             stream->err = e_pcpp_ok;
             goto LAB_004574b8;
-        case 13:
-            iVar3 = pcppGetBlockingTime(stream->field_0x208, uVar11, stream, _amTimeMs(local_18), &timeout);
+        case pcpp_state_send_binary_ack_wait:
+            iVar3 = pcppGetBlockingTime(stream->field_0x208, uVar11, stream, _amTimeMs(local_18),
+                                        &timeout);
             eVar4 = pcptIsBusy(&stream->data_sock, timeout);
             eVar7 = _errT2P(eVar4);
             stream->err = eVar7;
@@ -1651,10 +1801,10 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
         LAB_004577af:
             pcppResetRead(stream);
         LAB_004577b4:
-            stream->state = 0;
+            stream->state = pcpp_state_none;
             return stream->err;
         case 14:
-        case 15:
+        case pcpp_state_wait_response:
             amiTimerGet(&local_8);
             uVar6 = _amTimeDelta(local_8, local_18);
             stream->field_0x214 = 1;
@@ -1665,14 +1815,15 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                     uVar11 = 0;
                 }
             }
-            eVar7 = pcppRecvAllMsg(uVar11, stream, &local_24);
+            eVar7 = pcppRecvAllMsg(stream, uVar11, &local_24);
             stream->err = eVar7;
             if (eVar7 == e_pcpp_ok) {
                 pcVar8 = stream->read_bytes_buf;
-                eVar7 = pcppCheckRecvMsg(pcVar8, stream->read_bytes_num, (uint)(stream->state == 14));
+                eVar7 =
+                    pcppCheckRecvMsg(pcVar8, stream->read_bytes_num, (uint)(stream->state == 14));
                 stream->err = eVar7;
                 if (eVar7 != e_pcpp_ok) {
-                    stream->state = 0;
+                    stream->state = pcpp_state_none;
                     pcppResetRead(stream);
                     PCP_LOG("error Response format error\n");
                     return stream->err;
@@ -1698,12 +1849,14 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
             }
             goto LAB_0045739d;
     }
+
 switchD_004572ff_caseD_10:
     return stream->err;
 }
 
-int pcpp_something(amtime_t* time, timeout_t timeout, pcpp_t* stream, pcpt_t* sock, unsigned char* send_buf,
-                   size_t* send_len, undefined4 param_7, undefined4 param_8, int fallback_err) {
+int pcpp_something(amtime_t* time, timeout_t timeout, pcpp_t* stream, pcpt_t* sock,
+                   unsigned char* send_buf, size_t* send_len, undefined4 param_7,
+                   undefined4 param_8, int fallback_err) {
     uint iVar1;
     uint blocking_time;
     amtime_t now;
@@ -1742,17 +1895,165 @@ pcp_send_data_t* pcppAddSendPacket(pcp_send_data_t* send_data, char* keyword, ch
     size_t kwLen = strlen(keyword);
     if (value == NULL) {
         if (existing_length + kwLen + 3 < PCP_BUF_MAX) {
-            sprintf_s((char*)&send_data->data[existing_length], PCP_BUF_MAX - existing_length, "&%s\r\n", keyword);
+            sprintf_s((char*)&send_data->data[existing_length], PCP_BUF_MAX - existing_length,
+                      "&%s\r\n", keyword);
             send_data->length += kwLen + 1;
             return send_data;
         }
     } else {
         size_t valLen = strlen(value);
         if (existing_length + kwLen + valLen + 4 < PCP_BUF_MAX) {
-            sprintf_s((char*)&send_data->data[existing_length], PCP_BUF_MAX - existing_length, "&%s=%s\r\n", keyword, value);
+            sprintf_s((char*)&send_data->data[existing_length], PCP_BUF_MAX - existing_length,
+                      "&%s=%s\r\n", keyword, value);
             send_data->length += valLen + kwLen + 2;
             return send_data;
         }
     }
     return NULL;
+}
+
+e_pcpp_t pcppSendRequestTable(pcpp_t* stream, pcp_send_data_t* request_buffer, timeout_t timeout) {
+    if (stream == NULL) {
+        PCP_LOG("error PCPP stream isn\'t set\n");
+        return e_pcpp_param_invalid;
+    }
+
+    if (request_buffer == NULL) {
+        PCP_LOG("error Request buffer isn\'t set\n");
+        return e_pcpp_param_invalid;
+    }
+
+    return pcppSendRequest(stream, request_buffer, request_buffer->length + 2, timeout);
+}
+
+e_pcpp_t pcppSendRequest(pcpp_t* stream, pcp_send_data_t* request_buffer, uint nbytes,
+                         timeout_t timeout) {
+    amtime_t local_18;
+    amtime_t local_10;
+    amtime_t local_8;
+
+    if (stream == NULL) {
+        PCP_LOG("error PCPP stream isn\'t set\n");
+        return e_pcpp_param_invalid;
+    }
+    if (request_buffer == NULL) {
+        PCP_LOG("error Request buffer isn\'t set\n");
+        return e_pcpp_param_invalid;
+    }
+
+    if (0x100 < nbytes) {
+        PCP_LOG("error Request buffer over\n");
+        return (stream->err = e_pcpp_param_invalid);
+    }
+
+    amiTimerGet(&local_10);
+    e_pcpp_t pcpp_err = pcppCheckRecvMsg((char*)&request_buffer->data, nbytes, 1);
+    stream->err = pcpp_err;
+    if (pcpp_err != e_pcpp_ok) {
+        stream->state = pcpp_state_none;
+        pcppResetRead(stream);
+        PCP_LOG("error Message format error\n");
+        return stream->err;
+    }
+
+    request_buffer->length = nbytes;
+    stream->resp_buffer = request_buffer;
+
+    *(uint*)stream->send_buf = nbytes;
+    if (stream->open == 0) {
+        stream->state = pcpp_state_wait_prompt;
+        pcpp_err = pcppRecvPrompt(stream, stream->field_0xb8, timeout);
+        stream->err = pcpp_err;
+        if (pcpp_err != e_pcpp_to) {
+            stream->state = pcpp_state_none;
+        }
+        if (pcpp_err != e_pcpp_ok) {
+            return pcpp_err;
+        }
+    }
+
+    amiTimerGet(&local_18);
+    stream->state = pcpp_state_send_request;
+
+    pcpp_err = pcppSendRequestMain(stream, stream->field_0xb8, timeout);
+    stream->err = pcpp_err;
+    if (pcpp_err != e_pcpp_to) {
+        stream->state = pcpp_state_none;
+        amiTimerGet(&local_8);
+        stream->last_active = local_8.microseconds / 1000 + local_8.seconds * 1000;
+        stream->open = 0;
+    }
+    return stream->err;
+}
+
+e_pcpp_t pcppRecvResponse(pcpp_t* stream, pcp_parse_data_t* buffer, timeout_t timeout) {
+    int iVar1;
+    amtime_t local_8;
+
+    if (stream == NULL) {
+        PCP_LOG("error PCPP stream isn\'t set\n");
+        return -5;
+    }
+
+    if (buffer == NULL) {
+        PCP_LOG("error Response buffer isn\'t set\n");
+        return -5;
+    }
+
+    stream->recv_data_buffer = buffer;
+    stream->state = pcpp_state_recv_response;
+    stream->field_0x214 = 0;
+    bool bReRecv;
+    iVar1 = pcppRecvAllMsg(stream, timeout, &bReRecv);
+    stream->err = iVar1;
+    if (iVar1 != e_pcpp_ok) {
+        if (iVar1 != e_pcpp_to) {
+            stream->state = pcpp_state_none;
+            return iVar1;
+        }
+        if (stream != NULL) stream->state = pcpp_state_wait_response;
+        return e_pcpp_to;
+    }
+
+    char* pcVar5 = stream->read_bytes_buf;
+    iVar1 = pcppCheckRecvMsg(pcVar5, stream->read_bytes_num, 0);
+    stream->err = iVar1;
+    if (iVar1 == 0) {
+        uint lenout;
+        pcppChangeRequest(stream, &lenout);
+        uint ppVar2 = lenout;
+        char* pcVar3 = pcVar5;
+        if (lenout < stream->read_bytes_num) {
+            do {
+                *pcVar3 = pcVar5[ppVar2];
+                ppVar2++;
+                pcVar3++;
+            } while (ppVar2 < stream->read_bytes_num);
+        }
+        stream->read_bytes_num = stream->read_bytes_num - (int)lenout;
+        stream->read_bytes_size = (stream->read_bytes_size - 0x46) + lenout;
+        stream->state = pcpp_state_none;
+        stream->err = 0;
+        amiTimerGet(&local_8);
+        stream->last_active = local_8.microseconds / 1000 + local_8.seconds * 1000;
+    } else {
+        stream->state = pcpp_state_none;
+        pcppResetRead(stream);
+        PCP_LOG("error Response format error\n");
+        return stream->err;
+    }
+
+    return stream->err;
+}
+
+SOCKADDR* pcppGetSockAddr(pcpp_t* stream, bool is_data) {
+    if (stream == NULL) {
+        PCP_LOG("error PCPP stream isn\'t set\n");
+        return NULL;
+    }
+
+    if (is_data) {
+        return &(stream->data_sock).client_addr;
+    }
+    return &(stream->sock).client_addr;
 }

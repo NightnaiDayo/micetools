@@ -45,7 +45,7 @@ uint32_t BILLING_PLAYCOUNT = 69420;
         overlappedComplete(len);                     \
     } while (0)
 
-BOOL mxparallel_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer,
+BOOL WINAPI mxparallel_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer,
                                 DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
                                 LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     log_trace("mxparallel", "DeviceIoControl(<mxparallel>, 0x%08x, 0x%p, 0x%x, -, 0x%x, -, -)",
@@ -155,7 +155,7 @@ void init_nv_storage() {
     billing_info.nearfull = 512;
     mxkSignValue(billing_info.nearfull, billing_info.nearfull_sig);
     mxkSignValue(billing_info.playlimit, billing_info.playlimit_sig);
-    billing_info.crc = crc32(sizeof billing_info - 4, (unsigned char*)&billing_info + 4, 0);
+    billing_info.crc = amCrc32RGet(sizeof billing_info - 4, (unsigned char*)&billing_info + 4, 0);
 
     memcpy(&flash[0x7a000], &billing_info, sizeof billing_info);
     memcpy(&flash[0x7b000], &billing_info, sizeof billing_info);
@@ -263,7 +263,7 @@ void mxparallel_process_packet(BYTE* request) {
                 log_warning("mxparallel", "GetAppBootInfo[%d] unexpected!", request[1]);
             }
 
-            APPBOOT.crc = crc32(sizeof APPBOOT - 4, (unsigned char*)&APPBOOT + 4, 0);
+            APPBOOT.crc = amCrc32RGet(sizeof APPBOOT - 4, (unsigned char*)&APPBOOT + 4, 0);
             for (int i = 0; i < sizeof APPBOOT; i += 16) {
                 micexkSendPacket((unsigned char*)(&APPBOOT) + i);
             }

@@ -10,12 +10,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../am/amtimer.h"
+#include "../ami/ami.h"
 
 #define PCP_CHAR_PROMPT '>'
 #define PCP_CHAR_BINACK '$'
 #define PCP_CHAR_HASH '#'
-#define PCP_CHAR_UNKNOWN '?'
+#define PCP_CHAR_QMARK '?'
 #define PCP_CHAR_SEP '&'
 #define PCP_CHAR_EQU '='
 #define PCP_CHAR_CR '\r'
@@ -50,7 +50,7 @@ typedef struct pcp_send_data {
 
 // Errors
 #define OPEN_MODE_GLOBAL 0
-#define OPEN_MODE_1 1
+#define OPEN_MODE_LOCAL 1
 // #define OPEN_MODE_2 2
 
 typedef enum binary_mode {

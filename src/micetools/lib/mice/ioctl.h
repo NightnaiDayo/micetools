@@ -1,3 +1,4 @@
+#include <Windows.h>
 #include <winioctl.h>
 
 #define FILE_DEVICE_SEGA 0x9c40
@@ -23,7 +24,6 @@
 // amDipswGetDriverVersion
 // /\ uses either SUPERIO or SMBUS. Which is unknown atm. Uses 0x802
 
-// Same as IOCTL_MXSRAM_PING
 // amHmProbeSuperIoDevice
 #define IOCTL_MXSUPERIO_PING \
     (DWORD) CTL_CODE(FILE_DEVICE_SEGA, 0x800, METHOD_BUFFERED, FILE_READ_ACCESS)

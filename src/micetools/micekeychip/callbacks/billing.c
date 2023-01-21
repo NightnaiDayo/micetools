@@ -25,7 +25,7 @@ void mxkPcpPbNearfull(pcpa_t* stream, void* data) {
     char nf[9];
     snprintf(nf, sizeof nf, "%08X", Config.billing_nearfull);
 
-    pcpaSetSendPacket(stream, BIL_NEARFUL, nf);
+    pcpaSetSendPacket(stream, BIL_NEARFULL, nf);
 }
 
 #define PUBKEY_BUF_MAX 1024

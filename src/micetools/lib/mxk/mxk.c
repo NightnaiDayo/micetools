@@ -1,7 +1,5 @@
 #include "mxk.h"
 
-#include "../am/amTimer.h"
-
 BOOL mxkExchengeAesKey(HANDLE mxparallel) {
     FILETIME filetime;
     amtime_t now;
@@ -52,7 +50,7 @@ BOOL mxkVersion(HANDLE mxparallel, unsigned short* version) {
     *version = ((unsigned short*)packet)[0];
     return TRUE;
 }
-#include <stdio.h>
+
 BOOL mxkSetMainId(HANDLE mxparallel, const unsigned char* main_id) {
     unsigned char packet[16];
 

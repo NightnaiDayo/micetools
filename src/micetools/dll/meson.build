@@ -8,6 +8,7 @@ shared_library(
     name_prefix: '',
     vs_module_defs: 'mice.def',
     sources: [
+        'util/misc.c',
         'util/log.c',
         'util/hook.c',
 
@@ -23,7 +24,7 @@ shared_library(
     link_with: [
         dmi_lib,
         mice_lib,
-        amlib,
+        amiTimer,
         mxklib,
     ],
     include_directories: [

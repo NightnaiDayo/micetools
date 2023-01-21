@@ -8,6 +8,7 @@ typedef struct config {
 #define CFG_bool(s, n, default, comment) bool n;
 #define CFG_int(s, n, default, comment) int n;
 #define CFG_hex(s, n, precision, default, comment) int n;
+#define CFG_ipv4(s, n, a, b, c, d, comment) unsigned int n;
 #define ENDSECTION(s) } s;
 #include "config.def"
     bool _keep_linter_happy;

@@ -1,0 +1,10 @@
+void amBackupInit(void);
+void amBackupExit(void);
+void amBackupRead(void);
+void amBackupRecordCheckValid(void);
+void amBackupRecordReadDup(void);
+void amBackupRecordWriteDup(void);
+void amBackupRecordValidate(void);
+void amBackupRecordWrite(void);
+void amBackupRecordWriteDup(void);
+void amBackupWrite(void);

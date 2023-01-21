@@ -1,6 +1,7 @@
 #include "hook.h"
 
 #include <memory.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
 #include "log.h"

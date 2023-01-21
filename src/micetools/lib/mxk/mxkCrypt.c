@@ -105,7 +105,29 @@ void mxkSwapKeys() {
     memcpy(KEY_S, temp, 16);
 }
 
-void mxkCryptEncryptData(unsigned char* ct, unsigned char* pt) {
+void mxkCryptEncryptAes128CBC(const unsigned char* key, const unsigned char* iv, unsigned char* ct, const unsigned char* pt, size_t nbytes) {
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    EVP_CipherInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv, 1);
+
+    int outl;
+    EVP_EncryptUpdate(ctx, ct, &outl, pt, nbytes);
+    unsigned char dump[16];
+    EVP_EncryptFinal_ex(ctx, dump, &outl);
+    EVP_CIPHER_CTX_free(ctx);
+}
+
+void mxkCryptDecryptAes128CBC(const unsigned char* key, const unsigned char* iv, const unsigned char* ct, unsigned char* pt, size_t nbytes) {
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    EVP_CipherInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv, 0);
+
+    int outl;
+    EVP_DecryptUpdate(ctx, pt, &outl, ct, nbytes);
+    unsigned char dump[16];
+    EVP_EncryptFinal_ex(ctx, dump, &outl);
+    EVP_CIPHER_CTX_free(ctx);
+}
+
+void mxkCryptEncryptData(unsigned char* ct, const unsigned char* pt) {
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     EVP_CipherInit_ex(ctx, EVP_aes_128_ecb(), NULL, KEY_S, NULL, 1);
 
@@ -116,14 +138,14 @@ void mxkCryptEncryptData(unsigned char* ct, unsigned char* pt) {
     EVP_CIPHER_CTX_free(ctx);
 }
 
-void mxkCryptDecryptData(unsigned char* ct, unsigned char* pt) {
+void mxkCryptDecryptData(const unsigned char* ct, unsigned char* pt) {
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     EVP_CipherInit_ex(ctx, EVP_aes_128_ecb(), NULL, KEY_R, NULL, 0);
 
     int outl;
     EVP_DecryptUpdate(ctx, pt, &outl, ct, 16);
     unsigned char dump[16];
-    EVP_DecryptFinal_ex(ctx, dump, &outl);
+    EVP_EncryptFinal_ex(ctx, dump, &outl);
     EVP_CIPHER_CTX_free(ctx);
 }
 
@@ -142,12 +164,13 @@ void mxkSign(void* buffer, size_t nbytes, unsigned char* signature) {
     EVP_MD_CTX_destroy(ctx);
 }
 
-#pragma pack(1)
+#pragma pack(push, 1)
 typedef struct {
     unsigned int value;
     unsigned char key_low[4];
     unsigned char key_high[7];
 } sign_payload_t;
+#pragma pack(pop)
 
 void mxkSignValue(unsigned int value, unsigned char* signature) {
     sign_payload_t hash_data;

@@ -1,0 +1,15 @@
+void amNetworkBusy(void);
+void amNetworkInit(void);
+void amNetworkModifyPropertySub(void);
+void amNetworkOpen(void);
+void amNetworkOpenEx(void);
+void amNetworkRecvResponse(void);
+void amNetworkRequestDhcpStatusEth(void);
+void amNetworkRequestMacAddressEth(void);
+void amNetworkRequestModifyPropertyEth(void);
+void amNetworkRequestPropertyEth(void);
+void amNetworkRequestPropertySub(void);
+void amNetworkResponseCheck(void);
+void amNetworkSendAndRecvEx(void);
+void amNetworkSendRequest(void);
+void amNetworkSetCommandModifyProperty(void);

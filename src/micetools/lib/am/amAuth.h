@@ -1,0 +1,11 @@
+void amAuthInit(void);
+void amAuthExit(void);
+void amAuthGetSerialId(void);
+void amAuthGetCurrentStatus(void);
+void amAuthAccount(void);
+void amAuthCancelAccount(void);
+void amAuthGetCurrentTime(void);
+void amAuthGetPlaceInfo(void);
+void amAuthGetCloseTime(void);
+void amAuthDiffTime(void);
+void amAuthGetTitleServerAddress(void);

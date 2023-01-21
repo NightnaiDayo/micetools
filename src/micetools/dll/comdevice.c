@@ -1,25 +1,29 @@
 #include "comdevice.h"
 
-BOOL DevGetCommState(void* data, LPDCB lpDCB) { return TRUE; }
-BOOL DevSetCommState(void* data, LPDCB lpDCB) { return TRUE; }
-BOOL DevGetCommTimeouts(void* data, LPCOMMTIMEOUTS lpCommTimeouts) { return TRUE; }
-BOOL DevSetCommTimeouts(void* data, LPCOMMTIMEOUTS lpCommTimeouts) { return TRUE; }
-BOOL DevSetupComm(void* data, DWORD dwInQueue, DWORD dwOutQueue) { return TRUE; }
-BOOL DevPurgeComm(void* data, DWORD dwFlags) {
-    if (dwFlags & PURGE_RXCLEAR) ringbuf_purge(&((com_device_t*)data)->out);
+com_device_t* GetComDevice(HANDLE hFile) {
+    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    return pHData->hook->com_hook->com_device;
+}
 
+BOOL DevGetCommState(HANDLE hFile, LPDCB lpDCB) { return TRUE; }
+BOOL DevSetCommState(HANDLE hFile, LPDCB lpDCB) { return TRUE; }
+BOOL DevGetCommTimeouts(HANDLE hFile, LPCOMMTIMEOUTS lpCommTimeouts) { return TRUE; }
+BOOL DevSetCommTimeouts(HANDLE hFile, LPCOMMTIMEOUTS lpCommTimeouts) { return TRUE; }
+BOOL DevSetupComm(HANDLE hFile, DWORD dwInQueue, DWORD dwOutQueue) { return TRUE; }
+BOOL DevPurgeComm(HANDLE hFile, DWORD dwFlags) {
+    if (dwFlags & PURGE_RXCLEAR) ringbuf_purge(&(GetComDevice(hFile)->out));
     return TRUE;
 }
-BOOL DevGetCommModemStatus(void* data, LPDWORD lpModelStat) {
+BOOL DevGetCommModemStatus(HANDLE hFile, LPDWORD lpModelStat) {
     // TODO: JVS SENSE
     return TRUE;
 }
-BOOL DevWaitCommEvent(void* data, LPDWORD lpEvtMask, LPOVERLAPPED lpOverlapped) {
-    WaitForSingleObject(((com_device_t*)data)->event, INFINITE);
+BOOL DevWaitCommEvent(HANDLE hFile, LPDWORD lpEvtMask, LPOVERLAPPED lpOverlapped) {
+    WaitForSingleObject(GetComDevice(hFile)->event, INFINITE);
     if (lpOverlapped != NULL) SetEvent(lpOverlapped->hEvent);
     return TRUE;
 }
-BOOL DevClearCommError(void* data, LPDWORD lpErrors, LPCOMSTAT lpStat) {
+BOOL DevClearCommError(HANDLE hFile, LPDWORD lpErrors, LPCOMSTAT lpStat) {
     if (lpErrors != NULL) *lpErrors = 0;
     if (lpStat != NULL) {
         lpStat->fCtsHold = FALSE;
@@ -30,30 +34,30 @@ BOOL DevClearCommError(void* data, LPDWORD lpErrors, LPCOMSTAT lpStat) {
         lpStat->fEof = FALSE;
         lpStat->fTxim = FALSE;
         lpStat->fReserved = 0;
-        lpStat->cbInQue = ringbuf_available(&((com_device_t*)data)->out);
-        lpStat->cbOutQue = ringbuf_available(&((com_device_t*)data)->in);
+        lpStat->cbInQue = ringbuf_available(&(GetComDevice(hFile)->out));
+        lpStat->cbOutQue = ringbuf_available(&(GetComDevice(hFile)->in));
     }
     return TRUE;
 }
 
-BOOL DevWriteFile(void* file, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
+BOOL DevWriteFile(file_context_t* ctx, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
                   LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped) {
     if (nNumberOfBytesToWrite > 0xffff) return FALSE;
     // Ignore overflow
-    ringbuf_write(&((com_device_t*)file)->in, lpBuffer, nNumberOfBytesToWrite & 0xffff);
+    ringbuf_write(&(GetComDevice(ctx->m_Handle)->in), lpBuffer, nNumberOfBytesToWrite & 0xffff);
     if (lpNumberOfBytesWritten) *lpNumberOfBytesWritten = nNumberOfBytesToWrite;
     return TRUE;
 }
-BOOL DevReadFile(void* file, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
+BOOL DevReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
                  LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped) {
     if (nNumberOfBytesToRead > 0xffff) return FALSE;
-
+    com_device_t* comdev = GetComDevice(ctx->m_Handle);
     // Make sure we have at least one byte to return
-    // while (!ringbuf_available(&((com_device_t*)file)->out)) {
-    //     WaitForSingleObject(((com_device_t*)file)->event, INFINITE);
+    // while (!ringbuf_available(&(comdev->out))) {
+    //     WaitForSingleObject(comdev->event, INFINITE);
     // }
 
-    short read = ringbuf_read(&((com_device_t*)file)->out, lpBuffer, nNumberOfBytesToRead & 0xffff);
+    short read = ringbuf_read(&(comdev->out), lpBuffer, nNumberOfBytesToRead & 0xffff);
     if (lpNumberOfBytesRead) *lpNumberOfBytesRead = read;
 
     if (read != 0) {
@@ -158,14 +162,15 @@ void com_device_thread(com_device_t* com, FnComDeviceThread* thread) {
 }
 
 com_device_t* new_com_device(BYTE port) {
-    com_device_t* hook = (com_device_t*)malloc(sizeof *hook);
+    com_device_t* com_device = (com_device_t*)malloc(sizeof *com_device);
     com_hook_t* com = new_com_hook(port);
     file_hook_t* file = new_file_hook(com->wName);
+    file->com_hook = com;
+    com->com_device = com_device;
+
     file->altFilename = com->wDosName;
-    com->data = hook;
-    file->data = hook;
-    hook->com = com;
-    hook->file = file;
+    com_device->com = com;
+    com_device->file = file;
 
     com->GetCommState = DevGetCommState;
     com->SetCommState = DevSetCommState;
@@ -180,12 +185,11 @@ com_device_t* new_com_device(BYTE port) {
     file->ReadFile = DevReadFile;
     file->WriteFile = DevWriteFile;
 
-    ringbuf_purge(&hook->in);
-    ringbuf_purge(&hook->out);
-    hook->event = CreateEventW(NULL, TRUE, FALSE, hook->com->wName);
+    ringbuf_purge(&com_device->in);
+    ringbuf_purge(&com_device->out);
+    com_device->event = CreateEventW(NULL, TRUE, FALSE, com_device->com->wName);
 
     hook_file(file);
-    hook_com(com);
 
-    return hook;
+    return com_device;
 }

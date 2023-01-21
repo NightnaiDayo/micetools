@@ -1,4 +1,24 @@
 #include <ctype.h>
+#include <stdlib.h>
+
+int hex_to_byte(char *hex, unsigned char *val) {
+    if (hex == NULL) return -1;
+
+    char hex_low = hex[0];
+    if ('@' < hex_low) hex_low += -7;
+
+    char hex_high = hex[1];
+    if (hex_high < 'A') {
+        *val = (hex_low << 4) | hex_high - '0';
+        return 0;
+    }
+    if (hex_high < 'a') {
+        *val = (hex_low << 4) | hex_high - '7';
+        return 0;
+    }
+    *val = (hex_low << 4) | hex_high - 'W';
+    return 0;
+}
 
 unsigned char hex_value(char c) {
     if (isdigit((unsigned char)c)) return c - '0';
@@ -55,5 +75,28 @@ int hex_to_bin(char *hex, unsigned char *bin, int hex_len) {
 
         bin[work_len] = msn << 4 | lsn;
     }
+    return 1;
+}
+void bin_to_hex(char *hex, unsigned char *bin, int nbytes) {
+    int hex_len = nbytes * 2;
+    while (nbytes--) {
+        if (bin[0] & 0x0f > 0x09)
+            hex[--hex_len] = (bin[0] & 0x0f) + 'a';
+        else
+            hex[--hex_len] = (bin[0] & 0x0f) + '0';
+
+        if (bin[0] & 0xf0 > 0x90)
+            hex[--hex_len] = ((bin[0] & 0xf0) >> 4) + 'a';
+        else
+            hex[--hex_len] = ((bin[0] & 0xf0) >> 4) + '0';
+
+        bin++;
+    }
+}
+
+int hex_to_int(unsigned int *value, char *hex) {
+    unsigned int temp;
+    if (!hex_to_bin(hex, &temp, 8)) return 0;
+    *value = _byteswap_ulong(temp);
     return 1;
 }

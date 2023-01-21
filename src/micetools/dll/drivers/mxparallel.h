@@ -3,7 +3,7 @@
 #include "../../lib/mxk/mxk.h"
 #include "mx.h"
 
-#pragma pack(1)
+#pragma pack(push, 1)
 typedef struct {
     uint32_t crc;
     uint32_t playlimit;
@@ -11,11 +11,11 @@ typedef struct {
     uint32_t nearfull;
     uint8_t nearfull_sig[128];
 } billing_t;
-#pragma pack(1)
 typedef struct {
     uint32_t length;
     uint8_t data[0x400 - 4];
 } nvram_data_block_t;
+#pragma pack(pop)
 
 
 void micexkTransportSend(unsigned char* send_data, int nbytes);

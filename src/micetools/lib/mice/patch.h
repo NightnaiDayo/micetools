@@ -2,39 +2,30 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "../json/json.h"
 #include "../util/hex.h"
 
-typedef struct {
-    size_t offset;
+bool load_patches_file(const char* filename);
+bool load_patches(char* indexPath, char* exeName);
+
+typedef struct _patch {
+    void* address;
     size_t count;
+    unsigned char* match;
+    unsigned char* replace;
     char* name;
-    unsigned char* from;
-    unsigned char* to;
+
+    struct _patch* next;
 } patch_t;
 
-typedef struct {
-    char* name;
-    char* description;
-    char* binary_name;
-    bool apply;
-    size_t nopatches;
-    patch_t patches[];
-} patchset_t;
+extern patch_t* patch_list;
 
-typedef struct {
-    size_t nopatchsets;
-    patchset_t** patchsets;
-} patches_t;
-
-// Internal JSON helpers
-bool fetch(json_value* object, char* name, json_value** value);
-bool fetch_string(json_value* object, char* name, char** value);
-bool fetch_int(json_value* object, char* name, size_t* value);
-bool fetch_bool(json_value* object, char* name, bool* value);
-bool parse_patches(patches_t* patches, json_value** set_json, int set_count, char* error,
-                   const char* test_binary_name);
-
-// Main two exports
-void free_patches(patches_t* patches);
-bool load_patches(patches_t* patches, char* path, char* error, const char* test_binary_name);
+typedef enum {
+    parse_patches_state_start = 0,
+    parse_patches_state_addr,
+    parse_patches_state_colon,
+    parse_patches_state_match,
+    parse_patches_state_gt,
+    parse_patches_state_replace,
+    parse_patches_state_pound,
+    parse_patches_state_name,
+} parse_patches_state;

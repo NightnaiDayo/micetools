@@ -256,7 +256,7 @@ void hwmon_write(superio_packet* packet) {
     }
 }
 
-BOOL mxsuperio_DeviceIoControl(void* file, DWORD dwIoControlCode, LPVOID lpInBuffer,
+BOOL WINAPI mxsuperio_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer,
                                DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
                                LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     superio_packet* lpc_packet = (superio_packet*)lpInBuffer;
