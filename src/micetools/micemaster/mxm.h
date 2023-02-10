@@ -5,6 +5,7 @@
 #include "config.h"
 #include "lib/am/amDongle.h"
 #include "lib/libpcp/libpcp.h"
+#include "mxmEventLog.h"
 
 typedef enum {
     mxMasterStartType_0 = 0,
@@ -25,9 +26,8 @@ typedef struct MX_MASTER_ {
     ushort m_dataPort;
     int m_openMode;
 
-    // TODO: What are these?
-    unsigned int m_field4_0x10;
-    unsigned int m_field5_0x14;
+    bool m_processStateChange;
+    bool m_changeIsSpawn;
     bool m_backupMetadataChanged;
 
     unsigned int m_current;
@@ -36,9 +36,9 @@ typedef struct MX_MASTER_ {
     bool m_fault;
 
     bool m_loggingAvailable;
-    bool m_backupCount;
-    bool m_clearCount;
-    bool m_interval;
+    unsigned int m_backupCount;
+    unsigned int m_clearCount;
+    unsigned int m_interval;
     char m_nextPath[128];
     char m_gameId[8];
     char m_platformId[8];
@@ -51,13 +51,8 @@ typedef struct MX_MASTER_ {
     int m_countGameTest;
     unsigned char m_binaryMessage[512];
     size_t m_binaryMessageLen;
-
-    // TODO: What is this?
-    unsigned int m_field23_0x3f4;
-
-    int m_serverState;  // TODO: Remove once unneeded
-
-    unsigned int m_kcReady;
+    bool m_serverOpen;
+    bool m_kcReady;
     bool m_pcpaHasInit;
     appLauncher_t* m_appLauncher;
     pcpa_cb_table_t m_pcpCallbacks[11];
@@ -67,8 +62,5 @@ typedef struct MX_MASTER_ {
 
 void mxmBeforeBinaryCallback(pcpa_t* stream, MX_MASTER* mxMaster);
 void mxmAfterBinaryCallback(pcpa_t* stream, MX_MASTER* mxMaster);
-
-// void mxmBinaryCallback(pcpa_t* stream, MX_MASTER* mxMaster);
-int mxmInit(MX_MASTER* mxMaster);
-e_pcpa_t mxmPcpStreamInit(MX_MASTER* mxMaster);
-e_pcpa_t mxmPcpServer(MX_MASTER* mxMaster);
+void mxmCopySystemFile(char* filename);
+int mxmBackupEventlog(int destination);

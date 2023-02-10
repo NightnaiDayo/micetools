@@ -9,6 +9,13 @@ hooks_files = files(
     'setupapi.c',
     'time.c',
     'registry.c',
-    'drive.c',
     'system.c',
+
+    'drive/drive.c',
+    'drive/disks.c',
+    'drive/hooks.c',
+    'drive/physicalDrive.c',
+
+    'drivers/framework.c',
+    'drivers/mxhwreset.c',
 )

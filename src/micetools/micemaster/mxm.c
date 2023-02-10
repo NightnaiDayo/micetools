@@ -1,42 +1,105 @@
 #include "mxm.h"
 
+#include <shlwapi.h>
+
 #define TICK_MS 16
 
-void mxmBeforeBinaryCallback(pcpa_t* stream, MX_MASTER* mxMaster) {
+void mxmBeforeBinaryCallback(pcpa_t *stream, MX_MASTER *mxMaster) {
     pcpaSetSendBinaryBuffer(stream, mxMaster->m_binaryMessage, mxMaster->m_binaryMessageLen);
 }
-void mxmAfterBinaryCallback(pcpa_t* stream, MX_MASTER* mxMaster) {
+void mxmAfterBinaryCallback(pcpa_t *stream, MX_MASTER *mxMaster) {
     mxMaster->m_binaryMessage[0] = '\0';
     mxMaster->m_binaryMessageLen = 0;
 }
 
-int mxmInit(MX_MASTER* mxMaster) {
+void mxmCopySystemFile(char *filename) {
+    char dest[256];
+    char src[256];
 
+    sprintf_s(src, sizeof src, "%s%s", Config.dir.system, filename);
+    sprintf_s(dest, sizeof dest, "%s%s", Config.dir.execute, filename);
+
+    if (!PathFileExistsA(src)) {
+        amiDebugLog("Error copy %s not exist", src);
+        return;
+    }
+    if (!PathFileExistsA(dest)) CopyFileA(src, dest, 0);
 }
 
-e_pcpa_t mxmPcpStreamInit(MX_MASTER* mxMaster) { return 0; }
+int mxmBackupEventlog(int destination) {
+    if (!MxmEventLog.m_logDriveFound) return 0;
 
-e_pcpa_t mxmPcpServer(MX_MASTER* mxMaster) {
-    int err;
-    if (mxMaster->m_serverState == 1) {
-        err = mxmPcpStreamInit(mxMaster);
-        if (err == 0) {
-            mxMaster->m_serverState = 2;
-            return err;
-        }
+    char *logs[3] = {
+        "Application",
+        "Security",
+        "System",
+    };
+    HANDLE hEventLog = OpenEventLogA(NULL, logs[destination]);
+    if (hEventLog == INVALID_HANDLE_VALUE || hEventLog == NULL) {
+        amiDebugLog("Error OpenEventLog(%d). Code %d", destination, GetLastError());
+        return -2;
+    }
+
+    DWORD numberOfRecords = 0;
+    if (!GetNumberOfEventLogRecords(hEventLog, &numberOfRecords)) {
+        printf("%d\n", hEventLog);
+        amiDebugLog("Error GetNumberOf-EventLogRecords(%d). Code %d", destination, GetLastError());
+        CloseEventLog(hEventLog);
+        return -3;
+    }
+
+    bool clearLog = false;
+    if (MxmEventLog.m_clearCount < numberOfRecords) {
+        clearLog = true;
     } else {
-        if (mxMaster->m_serverState != 2) {
-            return (mxMaster->m_serverState == 0) ? e_pcpa_cannot_open : e_pcpa_not_open;
-        }
-        err = pcpaServer(&mxMaster->m_pcp, TICK_MS);
-        if (err == e_pcpa_to || err == e_pcpa_closed) err = e_pcpa_ok;
-
-        if (err) {
-            amiDebugLog("Error pcpaServer. Code %d", err);
-            pcpaClose(&mxMaster->m_pcp);
-            mxMaster->m_serverState = 1;
+        amtime_t now;
+        amiTimerGet(&now);
+        unsigned int deltaT =
+            amiTimerDiffSec(&(MxmEventLog.m_desinations[destination].m_last), &now);
+        if (deltaT < MxmEventLog.m_interval) {
+            printf("Waiting: %d/%d\n", deltaT, MxmEventLog.m_interval);
+            CloseEventLog(hEventLog);
+            return 0;
         }
     }
 
-    return err;
+    if (MxmEventLog.m_backupCount <=
+        (numberOfRecords - MxmEventLog.m_desinations[destination].m_numRecords)) {
+        char *lpFileName = MxmEventLog.m_desinations[destination].m_filename;
+
+        HANDLE hFile = CreateFileA(lpFileName, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
+                                   FILE_SUPPORTS_REPARSE_POINTS, NULL);
+        if (hFile != INVALID_HANDLE_VALUE) {
+            CloseHandle(hFile);
+            if (!DeleteFileA(lpFileName)) {
+                amiDebugLog("Error DeleteFileA() : %d", GetLastError());
+                CloseEventLog(hEventLog);
+                return -4;
+            }
+        }
+
+        if (!clearLog) {
+            if (!BackupEventLogA(hEventLog, lpFileName)) {
+                amiDebugLog("Error BackupEventLogA() : %d", GetLastError());
+                CloseEventLog(hEventLog);
+                return -3;
+            }
+            MxmEventLog.m_desinations[destination].m_numRecords = numberOfRecords;
+        } else {
+            if (!ClearEventLogA(hEventLog, lpFileName)) {
+                amiDebugLog("Error ClearEventLog() : %d", GetLastError());
+                CloseEventLog(hEventLog);
+                return -3;
+            }
+            MxmEventLog.m_desinations[destination].m_numRecords = 0;
+            char name[8];
+            strncpy_s(name, sizeof name, lpFileName, 3);
+            mxmEventLogSetDestination(name, destination);
+        }
+
+        amiTimerGet(&(MxmEventLog.m_desinations[destination].m_last));
+    }
+
+    CloseEventLog(hEventLog);
+    return 0;
 }

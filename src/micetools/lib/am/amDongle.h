@@ -122,7 +122,7 @@ typedef enum {
     // 29
     AM_DONGLE_REQUEST_GET_FORMAT_TYPE = 30,
 
-    AM_DONGLE_WTF_80 = 0x80 | 0,
+    AM_DONGLE_APPBOOT_SEED = 0x80 | 0,
     AM_DONGLE_WTF_81 = 0x80 | 1,
     AM_DONGLE_REQUEST_BILLING_GET_TRACEDATA = 0x80 | 2,
     AM_DONGLE_REQUEST_BILLING_GET_SIGNATURE_PK = 0x80 | 3,
@@ -179,6 +179,8 @@ AM_DONGLE_STATUS amDongleBillingAddPlayCount(void *playCount, AM_DONGLE_BLOCKING
 AM_DONGLE_STATUS amDongleBillingGetNearfull(unsigned int *nearfull, AM_DONGLE_BLOCKING blocking);
 AM_DONGLE_STATUS amDongleEncrypt(unsigned char *pt, unsigned char *ct, AM_DONGLE_BLOCKING blocking);
 AM_DONGLE_STATUS amDongleDecrypt(unsigned char *ct, unsigned char *pt, AM_DONGLE_BLOCKING blocking);
+AM_DONGLE_STATUS amDongleSetIv(AM_DONGLE_BLOCKING blocking);
+AM_DONGLE_STATUS amDongleGetSeed(unsigned char* seed, AM_DONGLE_BLOCKING blocking);
 
 void amDongleBillingGetCaCertification(void);
 void amDongleBillingGetMainId(void);
@@ -203,9 +205,7 @@ void amDongleGetDsMac(void);
 void amDongleGetDvdFlag(void);
 void amDongleGetFormatType(void);
 void amDongleGetResult(void);
-void amDongleGetSeed(void);
 void amDongleGetSsdResponse(void);
 void amDongleRequestSsdHostProof(void);
 void amDongleSetAuthCondition(void);
-void amDongleSetIv(void);
 void amDongleUpdate(void);

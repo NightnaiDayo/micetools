@@ -38,6 +38,8 @@ _MICE_FILES BOOL(WINAPI* TruePathFileExistsA)(LPCSTR pszPath);
 _MICE_FILES BOOL(WINAPI* TruePathFileExistsW)(LPCWSTR pszPath);
 _MICE_FILES BOOL(WINAPI* TrueDeleteFileA)(LPCSTR lpFileName);
 _MICE_FILES BOOL(WINAPI* TrueDeleteFileW)(LPCWSTR lpFileName);
+_MICE_FILES DWORD(WINAPI* TrueGetFileAttributesA)(LPCSTR lpFileName);
+_MICE_FILES DWORD(WINAPI* TrueGetFileAttributesW)(LPCWSTR lpFileName);
 
 typedef struct {
     HANDLE m_Handle;
@@ -70,6 +72,8 @@ static int(WINAPIV* True_stat64i32)(const char* path, _stat64i32_t* buffer);
 #define _CreateFileW (TrueCreateFileW ? TrueCreateFileW : CreateFileW)
 #define _CreateFileA (TrueCreateFileA ? TrueCreateFileA : CreateFileA)
 #define _SetFilePointer (TrueSetFilePointer ? TrueSetFilePointer : SetFilePointer)
+#define _SetFilePointerEx (TrueSetFilePointerEx ? TrueSetFilePointerEx : SetFilePointerEx)
+#define _PathFileExistsA (TruePathFileExistsA ? TruePathFileExistsA : PathFileExistsA)
 
 typedef struct drive_redirect {
     const CHAR* drive;
@@ -108,3 +112,4 @@ extern file_hook_t* file_hook_list;
 file_hook_t* new_file_hook(LPCWSTR filename);
 void hook_file(file_hook_t* hook);
 void hook_io();
+void hook_file_with_buffer(LPCWSTR filename, LPBYTE buffer, DWORD nBytes, DWORD access);

@@ -99,7 +99,6 @@ void amPlatformGetGpuPstate(void);
 void amPlatformGetGraphicInfo(void);
 void amPlatformGetMemorySize(void);
 void amPlatformGetOsVersion(void);
-void amPlatformGetOsVersion(void);
 void amPlatformGetPartitionInfo(void);
 void amPlatformGetPlatformIdEx(void);
 void amPlatformGetPortName(void);

@@ -3,15 +3,21 @@
 #include "drivers/mx.h"
 #include "hooks/_hooks.h"
 
-WCHAR exePath[MAX_PATH + 1];
+WCHAR exeName[MAX_PATH + 1];
 DWORD imageOffset;
 
 #define WIN32_EXE_BASE 0x00400000
 
-DWORD GetImageBase(LPCWSTR sModulePath) {
+DWORD GetImageBase(void) {
+    WCHAR sModulePath[MAX_PATH];
+    GetModuleFileNameW(NULL, sModulePath, MAX_PATH);
+
     HANDLE hObject =
         _CreateFileW(sModulePath, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-    if (hObject == INVALID_HANDLE_VALUE) return 0;
+    if (hObject == INVALID_HANDLE_VALUE) {
+        log_error(BOOT_LOGGER, "Failed to open %ls %03x", sModulePath, GetLastError());
+        return 0;
+    }
 
     IMAGE_DOS_HEADER dosHeader = { 0 };
     DWORD nRead;
@@ -45,17 +51,17 @@ DWORD GetImageBase(LPCWSTR sModulePath) {
 void apply_patches(HMODULE hModule) {
     void* baseAddress = (void*)hModule;
 
-    DWORD imageBase = GetImageBase(exePath);
+    DWORD imageBase = GetImageBase();
     if (imageBase == 0) {
         log_error(BOOT_LOGGER, "Failed to locate image base. Patches will not be applied.");
         return;
     }
     imageOffset = (DWORD)hModule - imageBase;
 
-    char exePathC[MAX_PATH + 1];
-    WideCharToMultiByte(CP_ACP, 0, exePath, -1, exePathC, sizeof exePathC, NULL, NULL);
+    char exeNameC[MAX_PATH + 1];
+    WideCharToMultiByte(CP_ACP, 0, exeName, -1, exeNameC, sizeof exeNameC, NULL, NULL);
 
-    if (!load_patches(MiceConfig.mice.patches_file, exePathC)) {
+    if (!load_patches(MiceConfig.mice.patches_file, exeNameC)) {
         log_error(BOOT_LOGGER, "Failed to load patches file %s", MiceConfig.mice.patches_file);
         return;
     }
@@ -89,7 +95,7 @@ void prebind_hooks() {
     hook_all();
     install_devices();
     // TODO: Figure out why we're needing to call this manually (medium priority)
-    if (wcscmp(exePath, L"ALLNetProc.exe") == 0) {
+    if (wcscmp(exeName, L"ALLNetProc.exe") == 0) {
         log_warning(BOOT_LOGGER, "Making explicit call to OPENSSL_add_all_algorithms_noconf");
 
         // OPENSSL_add_all_algorithms_noconf
@@ -99,13 +105,13 @@ void prebind_hooks() {
 
 void init_injection(HMODULE hModule) {
     // Make sure our CRC32 tables are ready for anything that might want to use them
-    amCrc32RCreateTable();
+    amiCrc32RInit();
 
     load_mice_config();
 
     // We're in a new context now, so need to reconfigure
     setup_logging();
-    log_info(BOOT_LOGGER, "Handover complete. Now executing within %ls", exePath);
+    log_info(BOOT_LOGGER, "Handover complete. Now executing within %ls", exeName);
 
     if (MiceConfig.mice.apply_patches) apply_patches(hModule);
 
@@ -145,20 +151,20 @@ void tea_hook_test(char* fmt, ...) {
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
     if (ul_reason_for_call != DLL_PROCESS_ATTACH) return TRUE;
 
-    GetModuleFileNameW(NULL, exePath, MAX_PATH);
-    wcscpy_s(exePath, MAX_PATH + 1, PathFindFileNameW(exePath));
+    GetModuleFileNameW(NULL, exeName, MAX_PATH);
+    wcscpy_s(exeName, MAX_PATH + 1, PathFindFileNameW(exeName));
 
     HMODULE exeModule = GetModuleHandleA(NULL);
     init_injection(exeModule);
 
-    if (wcscmp(exePath, L"InitialD8_GLW_RE_SBZZ_dumped_.exe") == 0) {
-        CreateHook((void*)(0x00407850), &tea_hook_test, 5);
+    if (wcscmp(exeName, L"InitialD8_GLW_RE_SBZZ_dumped_.exe") == 0) {
+        CreateHook32((void*)(0x00407850), &tea_hook_test);
         // *((DWORD*)(0x00407850)) = (DWORD)(&logcb);
     }
 
-    if (wcscmp(exePath, L"RingGame.exe") == 0) {
+    if (wcscmp(exeName, L"RingGame.exe") == 0) {
         log_warning(BOOT_LOGGER, "Bodge hook goo!");
-        CreateHook((void*)(0x005f2580), &tea_hook_test, 5);
+        CreateHook32((void*)(0x005f2580), &tea_hook_test);
     }
 
     return TRUE;

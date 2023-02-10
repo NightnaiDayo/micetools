@@ -1,24 +1,25 @@
 #include "mxparallel.h"
 
+#include "../../sysconf.h"
+
 BYTE parallel_flags = 0x00;
 BYTE parallel_ctrl = 0x00;
 BYTE parallel_status = 0x00;
 BYTE parallel_data = 0x00;
 
-BYTE KEYCHIP_ID[16] = { 'A', '7', '2', 'E', '-', '0', '2', 'D',
-                        '1', '1', '2', '6', '1', '1', '1', '6' };
-BYTE MAIN_ID[16] = { 'A', 'A', 'S', 'E', '-', '0', '1', 'A', '6', '5', '6', '4' };
+BYTE KEYCHIP_ID[16] = KEY_ID;
+BYTE _MAIN_ID[16] = MAIN_ID;
 
 appboot_t APPBOOT = {
     .format = 1,
-    .game_id = { 'S', 'D', 'E', 'Y' },
+    .game_id = GAME_ID,
     .region = 8 | 4 | 2 | 1,
     .model_type = 2,
     // Bitfield
     // 1 = use flash for appboot
     .system_flag = 0x24,
     ._ = 0,
-    .platform_id = { 'A', 'A', 'S' },
+    .platform_id = HW_ID,
     .dvd_flag = 1,
     .network_addr = (192 << 0) | (168 << 8) | (103 << 16) | (0 << 24),
     .__ = 0,
@@ -155,7 +156,7 @@ void init_nv_storage() {
     billing_info.nearfull = 512;
     mxkSignValue(billing_info.nearfull, billing_info.nearfull_sig);
     mxkSignValue(billing_info.playlimit, billing_info.playlimit_sig);
-    billing_info.crc = amCrc32RGet(sizeof billing_info - 4, (unsigned char*)&billing_info + 4, 0);
+    billing_info.crc = amiCrc32RCalc(sizeof billing_info - 4, (unsigned char*)&billing_info + 4, 0);
 
     memcpy(&flash[0x7a000], &billing_info, sizeof billing_info);
     memcpy(&flash[0x7b000], &billing_info, sizeof billing_info);
@@ -263,7 +264,7 @@ void mxparallel_process_packet(BYTE* request) {
                 log_warning("mxparallel", "GetAppBootInfo[%d] unexpected!", request[1]);
             }
 
-            APPBOOT.crc = amCrc32RGet(sizeof APPBOOT - 4, (unsigned char*)&APPBOOT + 4, 0);
+            APPBOOT.crc = amiCrc32RCalc(sizeof APPBOOT - 4, (unsigned char*)&APPBOOT + 4, 0);
             for (int i = 0; i < sizeof APPBOOT; i += 16) {
                 micexkSendPacket((unsigned char*)(&APPBOOT) + i);
             }
@@ -381,14 +382,14 @@ void mxparallel_process_packet(BYTE* request) {
         case SetMainId:
             log_info("mxparallel", "SetMainId");
 
-            // micexkRecvPacket(MAIN_ID);
+            // micexkRecvPacket(_MAIN_ID);
             micexkRecvPacket(request);
             response[0] = 0xff;
             micexkSendPacket(response);
             break;
         case GetMainId:
             log_info("mxparallel", "GetMainId");
-            micexkSendPacket(MAIN_ID);
+            micexkSendPacket(_MAIN_ID);
             break;
         case SetKeyId:
             log_info("mxparallel", "SetKeyId");

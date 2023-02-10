@@ -15,9 +15,7 @@ BOOL amSerialIdIsValid(char *id_string) {
             if (chr != '-') return FALSE;
         } else if (i < 8 || i > 15) {
             if (!isdigit(chr) && !isupper(chr)) return FALSE;
-
             if (chr == 'I') return FALSE;
-
             if (chr == 'O') return FALSE;
         } else {
             if (!isdigit(chr)) return FALSE;

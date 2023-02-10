@@ -72,7 +72,7 @@ bool inject_dll(HANDLE process, LPCSTR inject) {
 }
 
 HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL debug_wait, DWORD delay,
-                        LPCSTR extra_injections) {
+                        LPCSTR extra_injections, DWORD flags) {
     STARTUPINFOA startupInfo;
     PROCESS_INFORMATION processInformation = { 0 };
 
@@ -98,7 +98,8 @@ HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL debug_wa
     }
 
     // Start the binary
-    if (!CreateProcessA(path, cmdline, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL,
+    flags |= CREATE_SUSPENDED;
+    if (!CreateProcessA(path, cmdline, NULL, NULL, FALSE, flags, NULL, NULL,
                         &startupInfo, &processInformation)) {
         fprintf(stderr, "Fatal: CreateProcessA failed: %03x\n", GetLastError());
         goto abort;

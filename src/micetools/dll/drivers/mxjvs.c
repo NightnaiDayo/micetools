@@ -10,8 +10,10 @@ BOOL test_btn = false;
 
 #define PLAYER_COUNT 2
 #define COIN_COUNTERS 2
+#define SWITCH_BYTES 2
 
-const char JVS_837_13551_ID[] = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551 ;Ver1.00;98/10";
+// const char JVS_837_14572_ID[] = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-14572 ;Ver1.00;98/10";
+const char JVS_837_14572_ID[] = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551 ;Ver1.00;98/10";
 
 typedef struct _jvs_board {
     char test_keybind;
@@ -26,6 +28,8 @@ typedef struct _jvs_board {
                              unsigned char* outData, unsigned char* outCount);
     const char* id;
 
+    unsigned char last_sysbuttons;
+    unsigned short last_buttons[PLAYER_COUNT];
 } jvs_board_t;
 #define JVS_FLAG_NONE 0
 #define JVS_FLAG_NC 1
@@ -33,10 +37,6 @@ typedef struct _jvs_board {
 
 jvs_board_t (*jvs_config)[];
 size_t jvs_num_boards;
-
-// unsigned short coin_data[COIN_COUNTERS];
-// #define JVS_BUTTON_COIN_1 '1'
-// #define JVS_BUTTON_COIN_2 '2'
 
 short jvs_unpad(unsigned char* paddedData, short length, unsigned char* unpaddedData) {
     short index = 0;
@@ -67,6 +67,27 @@ short jvs_pad(unsigned char* unpaddedData, short length, unsigned char* paddedDa
         }
     }
     return index;
+}
+
+void update_jvs_buttons(jvs_board_t* board) {
+    unsigned char sysButtons = 0x00;
+    if (GetAsyncKeyState(board->test_keybind) < 0) sysButtons |= 0x80;
+    board->last_sysbuttons = sysButtons;
+
+    for (int player = 0; player < PLAYER_COUNT; player++) {
+        unsigned short buttons = 0x0000;
+        for (int i = 0; i < SWITCH_BYTES * 8; i++) {
+            int scancode = board->keybinds[player][i];
+            unsigned char flags = board->flags[player][i];
+
+            if (flags & JVS_FLAG_NC) continue;
+            if (flags & JVS_FLAG_INVERT)
+                buttons |= (GetAsyncKeyState(scancode) >= 0) << i;
+            else
+                buttons |= (GetAsyncKeyState(scancode) < 0) << i;
+        }
+        board->last_buttons[player] = buttons;
+    }
 }
 
 unsigned char jvs_exchange(jvs_board_t* board, unsigned char* inData, short inCount,
@@ -136,7 +157,7 @@ unsigned char jvs_exchange(jvs_board_t* board, unsigned char* inData, short inCo
 
                 jvs_write(JVS_FEATURE_PLAYERS);
                 jvs_write(PLAYER_COUNT);
-                jvs_write(13);
+                jvs_write(13);  // bits per player
                 jvs_write(JVS_FEATURE_PAD);
                 jvs_write(JVS_FEATURE_COINS);
                 jvs_write(COIN_COUNTERS);
@@ -169,31 +190,15 @@ unsigned char jvs_exchange(jvs_board_t* board, unsigned char* inData, short inCo
                     jvs_write(JVS_REPORT_PARAM_INVALID);
                     break;
                 }
+                update_jvs_buttons(board);
 
                 jvs_write(JVS_REPORT_OK);
-                unsigned char buttons = 0x00;
-                if (GetAsyncKeyState(board->test_keybind) < 0) buttons |= 0x80;
-                jvs_write(buttons);
-
+                jvs_write(board->last_sysbuttons);
                 for (int player = 0; player < players; player++) {
-                    for (int j = 0; j < switch_bytes; j++) {
-                        buttons = 0x00;
-                        for (int bit = 0; bit < 8; bit++) {
-                            int scancode =
-                                board->keybinds[player][(switch_bytes - j - 1) * 8 + bit];
-                            unsigned char flags =
-                                board->flags[player][(switch_bytes - j - 1) * 8 + bit];
-
-                            if (flags & JVS_FLAG_NC) continue;
-                            if (flags & JVS_FLAG_INVERT)
-                                buttons |= (GetAsyncKeyState(scancode) >= 0) << bit;
-                            else
-                                buttons |= (GetAsyncKeyState(scancode) < 0) << bit;
-                        }
-                        jvs_write(buttons);
+                    for (int i = switch_bytes - 1; i >= 0; i--) {
+                        jvs_write((board->last_buttons[player] >> (i * 8)) & 0xff);
                     }
                 }
-
                 break;
 
             case JVS_CMD_READ_COIN:
@@ -323,6 +328,7 @@ void mxjvs_handle(unsigned char* paddedIn, short inCount, unsigned char* outData
 
     unsigned char* response = malloc(maxOut);
     jvs_board_t* board = &(*jvs_config)[jvs_num_boards - destination];
+    // jvs_board_t* board = &(*jvs_config)[0];
     unsigned char packetSize;
     unsigned char status =
         board->handler(board, inData + 3, inData[2] - 1, response + 4, &packetSize);
@@ -475,10 +481,10 @@ jvs_board_t maimai_jvs_config[1] = { {
     },
     .coin_counts = {0, 0},
     .handler = &jvs_exchange,
-    .id = JVS_837_13551_ID,
+    .id = JVS_837_14572_ID,
 } };
 
-jvs_board_t under_night_jvs_config[2] = {
+jvs_board_t under_night_jvs_config[1] = {
     {
         .test_keybind = VK_OEM_4,  // [{
         .coin_keybinds = {'1', '2'},
@@ -497,57 +503,7 @@ jvs_board_t under_night_jvs_config[2] = {
                 VK_RETURN, // Start
             },
             {
-            0
-            },
-        },
-        .flags = {
-            {
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-            },
-            {
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-            },
-        },
-        .coin_counts = {0, 0},
-        .handler = &jvs_exchange,
-        .id = JVS_837_13551_ID,
-    },
-    {
-        .test_keybind = VK_OEM_4,  // [{
-        .coin_keybinds = {0, 0},
-        .keybinds = {
-            {
-                0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0,
                 'J',         // D (EXCs)
                 'P',         // C (Heavy)
                 'O',         // B (Middle)
@@ -559,7 +515,6 @@ jvs_board_t under_night_jvs_config[2] = {
                 VK_BACK,     // Service
                 VK_RETURN,   // Start
             },
-            {0},
         },
         .flags = {
             {
@@ -581,28 +536,105 @@ jvs_board_t under_night_jvs_config[2] = {
                 JVS_FLAG_NONE,
             },
             {
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
+                // JVS_FLAG_NC,
                 JVS_FLAG_NC,
                 JVS_FLAG_NC,
                 JVS_FLAG_NC,
                 JVS_FLAG_NC,
                 JVS_FLAG_NC,
                 JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
+                JVS_FLAG_NONE,
             },
         },
         .coin_counts = {0, 0},
         .handler = &jvs_exchange,
-        .id = JVS_837_13551_ID,
+        .id = JVS_837_14572_ID,
     },
+    // {
+    //     .test_keybind = VK_OEM_4,  // [{
+    //     .coin_keybinds = {0, 0},
+    //     .keybinds = {
+    //         {
+    //             0, 0, 0, 0, 0, 0,
+    //             'J',         // D (EXCs)
+    //             'P',         // C (Heavy)
+    //             'O',         // B (Middle)
+    //             'I',         // A (Light)
+    //             VK_NUMPAD6,  // Right
+    //             VK_NUMPAD4,  // Left
+    //             VK_NUMPAD2,  // Down
+    //             VK_NUMPAD8,  // Up
+    //             VK_BACK,     // Service
+    //             VK_RETURN,   // Start
+    //         },
+    //         {0},
+    //     },
+    //     .flags = {
+    //         {
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NONE,
+    //             JVS_FLAG_NONE,
+    //             JVS_FLAG_NONE,
+    //             JVS_FLAG_NONE,
+    //             JVS_FLAG_NONE,
+    //             JVS_FLAG_NONE,
+    //             JVS_FLAG_NONE,
+    //             JVS_FLAG_NONE,
+    //             JVS_FLAG_NONE,
+    //             JVS_FLAG_NONE,
+    //         },
+    //         {
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //             JVS_FLAG_NC,
+    //         },
+    //     },
+    //     .coin_counts = {0, 0},
+    //     .handler = &jvs_exchange,
+    //     .id = JVS_837_14572_ID,
+    // },
 };
 
 // jvs_board_t (*jvs_config)[] = &maimai_jvs_config;

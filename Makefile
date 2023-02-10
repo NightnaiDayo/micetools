@@ -71,6 +71,9 @@ dist:
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\micedump.exe" "$(DIST_DIR)/util/micedump.exe"
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\micetinker.exe" "$(DIST_DIR)/util/micetinker.exe"
 	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\micemonitor.exe" "$(DIST_DIR)/util/micemonitor.exe"
+	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\exio_test.exe" "$(DIST_DIR)/util/exio_test.exe"
+	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\dongleDecrypt.exe" "$(DIST_DIR)/util/dongleDecrypt.exe"
+	@copy /Y "$(BUILD_DIR_32)/src/micetools/util\testBin.exe" "$(DIST_DIR)/util/testBin.exe"
 
 	@copy /Y "src/micetools/miceboot\TrueCrypt.cmd" "$(DIST_DIR)/Execute/TrueCrypt.cmd"
 

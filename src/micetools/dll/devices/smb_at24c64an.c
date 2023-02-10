@@ -4,6 +4,8 @@
 
 #define EEPROM_DUMP L"dev/eeprom.bin"
 
+#include "../../sysconf.h"
+
 // 8192 x 8 (64kbit) of eeprom
 BYTE EEPROM_DATA[0x2000];
 
@@ -39,9 +41,9 @@ void eeprom_restore() {
         *(uint32_t*)&val = (uint32_t)((a << 24) | (b << 16) | (c << 8) | d); \
     } while (0)
 
-#define fix_crc(block)                                                            \
-    do {                                                                          \
-        (block).m_Crc = amCrc32RGet(sizeof(block) - 4, (BYTE*)(&(block)) + 4, 0); \
+#define fix_crc(block)                                                              \
+    do {                                                                            \
+        (block).m_Crc = amiCrc32RCalc(sizeof(block) - 4, (BYTE*)(&(block)) + 4, 0); \
     } while (0)
 
 void set_eeprom_network_config() {
@@ -87,7 +89,14 @@ int build_eeprom() {
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_STATIC_REG], &Static, sizeof Static);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_STATIC_DUP], &Static, sizeof Static);
 
-    AM_SYSDATAwH_CREDIT Credit = { 0 };
+    AM_SYSDATAwH_CREDIT Credit = {
+        .m_Config = {
+            .ServiceType = 1,
+            .CreditRate = 1,
+            .CoinRate = { 1, 1 },
+            .Cost = { 1, 1, 1, 1, 1, 1, 1, 1 },
+        },
+     };
     fix_crc(Credit);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_CREDIT_REG], &Credit, sizeof Credit);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_CREDIT_DUP], &Credit, sizeof Credit);
@@ -96,10 +105,10 @@ int build_eeprom() {
 
     AM_SYSDATAwH_HISTORY History = { 0 };
     // TODO: Game ID here should be configurable.
-    History.m_GameId[0] = 'S';
-    History.m_GameId[1] = 'D';
-    History.m_GameId[2] = 'E';
-    History.m_GameId[3] = 'Y';
+    History.m_GameId[0] = GAME_ID_0;
+    History.m_GameId[1] = GAME_ID_1;
+    History.m_GameId[2] = GAME_ID_2;
+    History.m_GameId[3] = GAME_ID_3;
     History.m_Region = MiceConfig.sysconf.region & (1 | 2 | 4 | 8);
     fix_crc(History);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_HISTORY_REG], &History, sizeof History);

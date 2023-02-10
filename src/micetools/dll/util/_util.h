@@ -13,3 +13,6 @@ void SetDataForHandle(HANDLE hObject, DWORD type, PVOID pData, BOOL isHeap);
 BOOL RemoveDataForHandle(HANDLE hObject, DWORD type);
 HANDLE GetDummyHandle();
 void BytesToHex(char* hex_buffer, BYTE* bytes, DWORD nbytes);
+void PrintStack(void);
+
+void make_dirs(const char* path);

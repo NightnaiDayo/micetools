@@ -29,3 +29,5 @@ end_scene_hook_t* end_scene_hook_list;
 void register_gui_hook(FnEndScene* end_scene);
 void hook_gui();
 void setup_hud_gui();
+
+extern HWND mainWindow;

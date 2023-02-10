@@ -10,3 +10,5 @@ Game.exe:                         Game.patch
 mxnetwork.exe:                    mxnetwork.patch
 maimai_dump_.exe:                 maimai_dump_.patch
 RingGame.exe:                     UnderNightInBirthExLate[st].patch
+nxAuth.exe:                       nxAuth.patch
+ALLNetProc_Win.exe:               ALLNetProc_Win.patch

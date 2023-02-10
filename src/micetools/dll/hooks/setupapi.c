@@ -109,11 +109,11 @@ BOOL WINAPI FakeSetupDiDestroyDeviceInfoList(HDEVINFO DevicesInfoSet) {
 }
 
 void hook_setupapi() {
-    hook("Setupapi.DLL", "SetupDiGetClassDevsA", FakeSetupDiGetClassDevsA, (void**)&TrueSetupDiGetClassDevsA, 6);
+    hook("Setupapi.DLL", "SetupDiGetClassDevsA", FakeSetupDiGetClassDevsA, (void**)&TrueSetupDiGetClassDevsA);
     hook("Setupapi.DLL", "SetupDiEnumDeviceInterfaces", FakeSetupDiEnumDeviceInterfaces,
-         (void**)&TrueSetupDiEnumDeviceInterfaces, 7);
+         (void**)&TrueSetupDiEnumDeviceInterfaces);
     hook("Setupapi.DLL", "SetupDiGetDeviceInterfaceDetailA", FakeSetupDiGetDeviceInterfaceDetailA,
-         (void**)&TrueSetupDiGetDeviceInterfaceDetailA, 6);
+         (void**)&TrueSetupDiGetDeviceInterfaceDetailA);
     hook("Setupapi.DLL", "SetupDiDestroyDeviceInfoList", FakeSetupDiDestroyDeviceInfoList,
-         (void**)&TrueSetupDiDestroyDeviceInfoList, 7);
+         (void**)&TrueSetupDiDestroyDeviceInfoList);
 }

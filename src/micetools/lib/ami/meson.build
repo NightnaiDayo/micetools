@@ -18,3 +18,10 @@ amiDebug = static_library(
         'amiDebug.c',
     ],
 )
+
+amiMd5 = static_library(
+    'amiMd5',
+    sources: [
+        'amiMd5.c',
+    ],
+)

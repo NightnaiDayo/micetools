@@ -2,6 +2,8 @@
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+HWND mainWindow;
+
 static HWND window;
 BOOL CALLBACK EnumWindowsCallback(HWND handle, LPARAM lParam) {
     DWORD wndProcId;
@@ -134,9 +136,11 @@ void post_win_create(HWND hWnd) {
     // Don't double-hook!
     if (TrueEndScene != NULL) return;
 
+    mainWindow = hWnd;
+
     void* d3d9Device[119];
     if (GetD3D9Device(d3d9Device, sizeof(d3d9Device))) {
-        *((PVOID*)&TrueEndScene) = CreateHook((PVOID)d3d9Device[42], (PVOID)hkEndScene, 7);
+        *((PVOID*)&TrueEndScene) = CreateHook32((PVOID)d3d9Device[42], (PVOID)hkEndScene);
     }
 
     if (hWnd && !SetWindowSubclass(hWnd, WndProc, (int)&WndProc, (DWORD_PTR)NULL)) {
@@ -270,8 +274,8 @@ int WINAPI FakeGetSystemMetrics(int nIndex) {
 }
 
 void hook_gui() {
-    hook("User32.dll", "CreateWindowExA", FakeCreateWindowExA, (void**)&TrueCreateWindowExA, 7);
-    hook("User32.dll", "CreateWindowExW", FakeCreateWindowExW, (void**)&TrueCreateWindowExW, 7);
-    hook("User32.dll", "GetSystemMetrics", FakeGetSystemMetrics, (void**)&TrueGetSystemMetrics, 7);
-    hook("D3d9.dll", "Direct3DCreate9", FakeDirect3DCreate9, (void**)&TrueDirect3DCreate9, 5);
+    hook("User32.dll", "CreateWindowExA", FakeCreateWindowExA, (void**)&TrueCreateWindowExA);
+    hook("User32.dll", "CreateWindowExW", FakeCreateWindowExW, (void**)&TrueCreateWindowExW);
+    hook("User32.dll", "GetSystemMetrics", FakeGetSystemMetrics, (void**)&TrueGetSystemMetrics);
+    hook("D3d9.dll", "Direct3DCreate9", FakeDirect3DCreate9, (void**)&TrueDirect3DCreate9);
 }

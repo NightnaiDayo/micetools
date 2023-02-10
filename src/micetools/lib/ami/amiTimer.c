@@ -23,7 +23,7 @@ amtime_t* amiTimerGet(amtime_t* time) {
 int amiTimerDiffSec(amtime_t* start, amtime_t* now) {
     if (start == NULL || now == NULL) return -1;
 
-    return (now->seconds - (now->microseconds < start->microseconds)) - start->seconds;
+    return (start->seconds - (start->microseconds < now->microseconds)) - now->seconds;
 }
 
 int amiTimerDiffMsec(amtime_t* start, amtime_t* now) {

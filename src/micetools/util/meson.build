@@ -43,3 +43,31 @@ executable(
         'micemonitor.c',
     ],
 )
+
+executable(
+    'exio_test',
+    win_subsystem: subsystem,
+    sources: [
+        'exio_test.c',
+    ],
+)
+
+executable(
+    'dongleDecrypt',
+    win_subsystem: subsystem,
+    sources: [
+        'dongleDecrypt.c',
+    ],
+    link_with: [
+        amDongle,
+        amSerialId,
+    ],
+)
+
+executable(
+    'testBin',
+    win_subsystem: subsystem,
+    sources: [
+        'test.c',
+    ],
+)

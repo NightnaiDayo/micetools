@@ -46,9 +46,9 @@ AM_DONGLE_STATUS amlib_init_dongle(void) {
     if ((err = amDongleGetNetworkAddress(&iNetworkAddress, AM_DONGLE_BLOCK)) != AM_DONGLE_STATUS_OK)
         return err;
 
-    sprintf(amlibDongle.networkAddress, "%d.%d.%d.%d", iNetworkAddress & 0xff,
-            (iNetworkAddress >> 8) & 0xff, (iNetworkAddress >> 16) & 0xff,
-            (iNetworkAddress >> 24) & 0xff);
+    sprintf_s(amlibDongle.networkAddress, sizeof amlibDongle.networkAddress, "%d.%d.%d.%d",
+              iNetworkAddress & 0xff, (iNetworkAddress >> 8) & 0xff, (iNetworkAddress >> 16) & 0xff,
+              (iNetworkAddress >> 24) & 0xff);
 
     return AM_DONGLE_STATUS_OK;
 }
@@ -93,6 +93,19 @@ void miceDumpKCMxkeychip(void) {
     printf("Play Limit: %08x\n", billingData);
     amDongleBillingGetNearfull(&billingData, AM_DONGLE_BLOCK);
     printf("  Nearfull: %08x\n", billingData);
+
+    unsigned char seed[16];
+    amDongleGetSeed(seed, AM_DONGLE_BLOCK);
+    printf("     Seed: ");
+    for (int i = 0; i < sizeof seed; i++) printf("%02x", seed[i]);
+    puts("");
+
+    unsigned char keyfile[16];
+    amDongleSetIv(AM_DONGLE_BLOCK);
+    amDongleEncrypt(seed, keyfile, AM_DONGLE_BLOCK);
+    printf("  Keyfile: ");
+    for (int i = 0; i < sizeof keyfile; i++) printf("%02x", keyfile[i]);
+    puts("");
 
     amDongleExit();
 }

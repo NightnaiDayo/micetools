@@ -111,43 +111,15 @@ IOCTL_MXSUPERIO_READ:
 - W83627UHC (schematics, sheet 16)
 */
 
-// SMBUS Devices (+1 is implied for read addresses)
-#define SMBUS_PCA9535 0x40
-#define SMBUS_DIMM_A1 0xA0
-#define SMBUS_DIMM_B1 0xA4
-#define SMBUS_EXIO 0xA8
-#define SMBUS_N2 0xAA
-#define SMBUS_EEPROM 0xAE
-
 // Keychip
-#define DS_GET_EEPROM 0x40
-#define DS_GET_UNIQUE_NUMBER 0xA0
-#define DS_GET_STATUS 0xA8
-#define DS_STATUS_FLAG_BUSY 2
-#define DS_I2C_CHALLENGE_RESPONSE 0xB0
+// #define DS_REG_ID 0xA0
+// #define DS_REG_ID_END 0xA7
+// #define DS_REG_STATUS 0xA8
 
-#define EXIO_GET_BUSY 0x00
+// #define DS_STATUS_FLAG_BUSY 2
+// #define DS_I2C_CHALLENGE_RESPONSE 0xB0
 
-// Old
-// TODO: Check for uses, then delete
 #pragma pack(push, 1)
-typedef struct mxsmbus_request_packet_ {
-    BYTE status;
-    BYTE prt;
-    BYTE addr;
-    BYTE reg;
-    BYTE dlen;
-    BYTE data[32];
-} mxsmbus_request_packet;
-typedef struct mxsmbus_i2c_packet_ {
-    BYTE status;
-    BYTE prt;
-    WORD addr;
-    WORD reg;
-    BYTE dlen;
-    BYTE data[32];
-} mxsmbus_i2c_packet;
-
 typedef struct _MXSMBUS_REQUEST_PACKET {
     BYTE status;
     BYTE command;

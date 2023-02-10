@@ -159,14 +159,14 @@ BOOL WINAPI FakeClearCommError(HANDLE hFile, LPDWORD lpErrors, LPCOMSTAT lpStat)
 }
 
 void hook_commio() {
-    hook("Kernel32.dll", "GetCommState", FakeGetCommState, (void**)&TrueGetCommState, 6);
-    hook("Kernel32.dll", "SetCommState", FakeSetCommState, (void**)&TrueSetCommState, 6);
-    hook("Kernel32.dll", "GetCommTimeouts", FakeGetCommTimeouts, (void**)&TrueGetCommTimeouts, 6);
-    hook("Kernel32.dll", "SetCommTimeouts", FakeSetCommTimeouts, (void**)&TrueSetCommTimeouts, 6);
-    hook("Kernel32.dll", "SetupComm", FakeSetupComm, (void**)&TrueSetupComm, 6);
-    hook("Kernel32.dll", "PurgeComm", FakePurgeComm, (void**)&TruePurgeComm, 6);
+    hook("Kernel32.dll", "GetCommState", FakeGetCommState, (void**)&TrueGetCommState);
+    hook("Kernel32.dll", "SetCommState", FakeSetCommState, (void**)&TrueSetCommState);
+    hook("Kernel32.dll", "GetCommTimeouts", FakeGetCommTimeouts, (void**)&TrueGetCommTimeouts);
+    hook("Kernel32.dll", "SetCommTimeouts", FakeSetCommTimeouts, (void**)&TrueSetCommTimeouts);
+    hook("Kernel32.dll", "SetupComm", FakeSetupComm, (void**)&TrueSetupComm);
+    hook("Kernel32.dll", "PurgeComm", FakePurgeComm, (void**)&TruePurgeComm);
     hook("Kernel32.dll", "GetCommModemStatus", FakeGetCommModemStatus,
-         (void**)&TrueGetCommModemStatus, 6);
-    hook("Kernel32.dll", "WaitCommEvent", FakeWaitCommEvent, (void**)&TrueWaitCommEvent, 6);
-    hook("Kernel32.dll", "ClearCommError", FakeClearCommError, (void**)&TrueClearCommError, 6);
+         (void**)&TrueGetCommModemStatus);
+    hook("Kernel32.dll", "WaitCommEvent", FakeWaitCommEvent, (void**)&TrueWaitCommEvent);
+    hook("Kernel32.dll", "ClearCommError", FakeClearCommError, (void**)&TrueClearCommError);
 }

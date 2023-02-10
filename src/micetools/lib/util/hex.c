@@ -78,20 +78,18 @@ int hex_to_bin(char *hex, unsigned char *bin, int hex_len) {
     return 1;
 }
 void bin_to_hex(char *hex, unsigned char *bin, int nbytes) {
-    int hex_len = nbytes * 2;
-    while (nbytes--) {
-        if (bin[0] & 0x0f > 0x09)
-            hex[--hex_len] = (bin[0] & 0x0f) + 'a';
+    for (int i = 0; i < nbytes; i++) {
+        if ((bin[i] & 0xf0) > 0x90)
+            hex[i * 2] = ((bin[i] & 0xf0) >> 4) - 0x0a + 'a';
         else
-            hex[--hex_len] = (bin[0] & 0x0f) + '0';
+            hex[i * 2] = ((bin[i] & 0xf0) >> 4) + '0';
 
-        if (bin[0] & 0xf0 > 0x90)
-            hex[--hex_len] = ((bin[0] & 0xf0) >> 4) + 'a';
+        if ((bin[i] & 0x0f) > 0x09)
+            hex[i * 2 + 1] = (bin[i] & 0x0f) - 0x0a + 'a';
         else
-            hex[--hex_len] = ((bin[0] & 0xf0) >> 4) + '0';
-
-        bin++;
+            hex[i * 2 + 1] = (bin[i] & 0x0f) + '0';
     }
+    hex[nbytes * 2] = '\0';
 }
 
 int hex_to_int(unsigned int *value, char *hex) {

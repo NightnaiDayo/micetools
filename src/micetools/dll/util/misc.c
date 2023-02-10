@@ -1,6 +1,32 @@
+#define _WIN32_WINNT 0x0600
 #include <Windows.h>
+#include <dbghelp.h>
 
 #include "../hooks/files.h"
+
+void PrintStack(void) {
+    unsigned int i;
+    void* stack[100];
+    unsigned short frames;
+    SYMBOL_INFO* symbol;
+    HANDLE process;
+
+    process = GetCurrentProcess();
+
+    SymInitialize(process, NULL, TRUE);
+
+    frames = CaptureStackBackTrace(0, 100, stack, NULL);
+    symbol = (SYMBOL_INFO*)calloc(sizeof(SYMBOL_INFO) + 256 * sizeof(char), 1);
+    symbol->MaxNameLen = 255;
+    symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+
+    for (i = 0; i < frames; i++) {
+        SymFromAddr(process, (DWORD64)(stack[i]), 0, symbol);
+        printf("%i: %s - 0x%0X\n", frames - i - 1, symbol->Name, symbol->Address);
+    }
+
+    free(symbol);
+}
 
 BOOL FileExists(wchar_t* szPath) {
     DWORD dwAttrib = GetFileAttributesW(szPath);
@@ -95,4 +121,30 @@ void BytesToHex(char* hex_buffer, BYTE* bytes, DWORD nbytes) {
         sprintf(hex_buffer + i * 3, "%02x ", bytes[i]);
     }
     hex_buffer[nbytes * 3] = '\0';
+}
+
+void make_dirs(const char* path) {
+    int count = 0;
+    size_t i;
+    size_t len = strlen(path);
+    char* temp = malloc(len + 1);
+    memcpy(temp, path, len + 1);
+
+    for (i = 0; i < len; i++) {
+        if (temp[i] == '/' || temp[i] == '\\') count++;
+    }
+    if (count == 0) {
+        free(temp);
+        return;
+    }
+
+    for (i = 0; i < len && count; i++) {
+        if (temp[i] == '/' || temp[i] == '\\') {
+            temp[i] = '\0';
+            CreateDirectory(temp, NULL);
+            temp[i] = '\\';
+            count--;
+        }
+    }
+    free(temp);
 }

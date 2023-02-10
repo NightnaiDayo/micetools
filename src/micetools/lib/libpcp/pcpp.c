@@ -1025,7 +1025,6 @@ e_pcpp_t pcppSendRequestMain(pcpp_t* stream, undefined4 param_2, timeout_t timeo
 
 e_pcpp_t pcppRecvBinary(pcpp_t* stream, unsigned char* recv_buf, size_t buf_len, uint param_4) {
     size_t* psVar1;
-    char** send_buf;
     int iVar2;
     e_pcpt_t eVar3;
     e_pcpp_t eVar4;
@@ -1097,14 +1096,14 @@ e_pcpp_t pcppRecvBinary(pcpp_t* stream, unsigned char* recv_buf, size_t buf_len,
         stream->last_active = _amTimeMs(local_10);
         if (stream->recv_binary_buf_len < stream->field_0x1fc ||
             stream->recv_binary_buf_len == stream->field_0x1fc) {
-            send_buf = (char**)&stream->send_buf;
+            unsigned char* send_buf = (unsigned char*)stream->send_buf;
             psVar1 = &stream->send_buf_len;
             stream->state = pcpp_state_send_binary_ack;
-            *send_buf[0] = PCP_CHAR_BINACK;
+            send_buf[0] = PCP_CHAR_BINACK;
             *psVar1 = 1;
             iVar2 = pcppGetBlockingTime(stream->field_0x20c, param_4, stream, _amTimeMs(now),
                                         &recvb_local);
-            eVar3 = pcptSend(&stream->sock, (unsigned char*)*send_buf, psVar1, stream->field_0x208,
+            eVar3 = pcptSend(&stream->sock, send_buf, psVar1, stream->field_0x208,
                              recvb_local);
             eVar4 = _errT2P(eVar3);
             stream->err = eVar4;
@@ -1126,7 +1125,7 @@ e_pcpp_t pcppRecvBinary(pcpp_t* stream, unsigned char* recv_buf, size_t buf_len,
                 *psVar1 = PCP_SEND_BUF_MAX;
                 ZERO(stream->send_buf);
                 eVar3 =
-                    pcptRecv(&stream->data_sock, (unsigned char*)*send_buf, psVar1, recvb_local);
+                    pcptRecv(&stream->data_sock, send_buf, psVar1, recvb_local);
                 eVar4 = _errT2P(eVar3);
                 stream->err = eVar4;
                 if ((iVar2 != 0) && (eVar4 == e_pcpp_to)) {

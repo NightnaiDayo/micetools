@@ -10,7 +10,7 @@
 #include "../../lib/mice/config.h"
 #include "../hooks/logging.h"
 
-extern WCHAR exePath[MAX_PATH + 1];
+extern WCHAR exeName[MAX_PATH + 1];
 extern DWORD imageOffset;
 
 extern BOOL(WINAPI* TrueWriteFile)(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
@@ -79,11 +79,11 @@ DWORD* ppLogcb;
 
 int _do_log(BYTE log_level, const char* caller, const char* format, va_list args) {
     // TODO: These are all horrible bodges
-    if (wcscmp(exePath, L"mxnetwork.exe") == 0) {
+    if (wcscmp(exeName, L"mxnetwork.exe") == 0) {
         // *((DWORD*)(imageOffset + 0x004438e8)) = (DWORD)(&logcb);
         *((DWORD*)(imageOffset + 0x004438e8)) = 0x00000000;
     }
-    if (wcscmp(exePath, L"maimai_dump_.exe") == 0) {
+    if (wcscmp(exeName, L"maimai_dump_.exe") == 0) {
         *((DWORD*)(imageOffset + 0x00c820ec)) = 0x00000001;
         pLogcb = (DWORD)(&amLogCallback);
         ppLogcb = &pLogcb;
@@ -134,7 +134,7 @@ int _do_log(BYTE log_level, const char* caller, const char* format, va_list args
 int vlog_trace(const char* caller, const char* format, va_list args) {
     return _do_log(LOG_TRACE, caller, format, args);
 }
-int log_trace(const char* caller, const char* format, ...) {
+int _log_trace(const char* caller, const char* format, ...) {
     va_list args;
     va_start(args, format);
     int ret = vlog_trace(caller, format, args);
@@ -144,7 +144,7 @@ int log_trace(const char* caller, const char* format, ...) {
 int vlog_misc(const char* caller, const char* format, va_list args) {
     return _do_log(LOG_MISC, caller, format, args);
 }
-int log_misc(const char* caller, const char* format, ...) {
+int _log_misc(const char* caller, const char* format, ...) {
     va_list args;
     va_start(args, format);
     int ret = vlog_misc(caller, format, args);
@@ -154,7 +154,7 @@ int log_misc(const char* caller, const char* format, ...) {
 int vlog_info(const char* caller, const char* format, va_list args) {
     return _do_log(LOG_INFO, caller, format, args);
 }
-int log_info(const char* caller, const char* format, ...) {
+int _log_info(const char* caller, const char* format, ...) {
     va_list args;
     va_start(args, format);
     int ret = vlog_info(caller, format, args);
@@ -164,7 +164,7 @@ int log_info(const char* caller, const char* format, ...) {
 int vlog_warning(const char* caller, const char* format, va_list args) {
     return _do_log(LOG_WARNING, caller, format, args);
 }
-int log_warning(const char* caller, const char* format, ...) {
+int _log_warning(const char* caller, const char* format, ...) {
     va_list args;
     va_start(args, format);
     int ret = vlog_warning(caller, format, args);
@@ -174,7 +174,7 @@ int log_warning(const char* caller, const char* format, ...) {
 int vlog_error(const char* caller, const char* format, va_list args) {
     return _do_log(LOG_ERROR, caller, format, args);
 }
-int log_error(const char* caller, const char* format, ...) {
+int _log_error(const char* caller, const char* format, ...) {
     va_list args;
     va_start(args, format);
     int ret = vlog_error(caller, format, args);
@@ -184,7 +184,7 @@ int log_error(const char* caller, const char* format, ...) {
 int vlog_game(const char* caller, const char* format, va_list args) {
     return _do_log(LOG_GAME, caller, format, args);
 }
-int log_game(const char* caller, const char* format, ...) {
+int _log_game(const char* caller, const char* format, ...) {
     va_list args;
     va_start(args, format);
     int ret = vlog_game(caller, format, args);

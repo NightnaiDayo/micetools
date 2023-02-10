@@ -74,7 +74,7 @@ BOOL smbus_PCA9535_read(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                     // data[0] = 0b00001000;
                     // data[0] = 0b0'111'0'000;
 
-                    data[0] = DIPSW_LANDSCAPE | DIPSW_RES_DEFAULT;
+                    data[0] = DIPSW_LANDSCAPE | DIPSW_RES_1920x1080;
 
                     return TRUE;
                 case PCA9535_IN1:  // SW1/2 + extras

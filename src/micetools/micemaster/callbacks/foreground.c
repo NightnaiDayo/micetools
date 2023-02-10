@@ -165,8 +165,8 @@ void mxmPcpActiveFgprocess(pcpa_t* stream, MX_MASTER* mxMaster) {
             pcpaSetSendPacket(stream, MXM_FG_ACTIVE, "1");
             mxMaster->m_current = mxMaster->m_next;
             mxMaster->m_next = 0;
-            mxMaster->m_field5_0x14 = 1;
-            mxMaster->m_field4_0x10 = 1;
+            mxMaster->m_changeIsSpawn = 1;
+            mxMaster->m_processStateChange = true;
             return;
         }
 
@@ -179,19 +179,19 @@ void mxmPcpActiveFgprocess(pcpa_t* stream, MX_MASTER* mxMaster) {
             if (mxMaster->m_next != 0) {
                 mxMaster->m_current = mxMaster->m_next;
                 mxMaster->m_next = 0;
-                mxMaster->m_field4_0x10 = 1;
+                mxMaster->m_processStateChange = true;
                 return;
             }
 
             mxMaster->m_fault = 1;
             mxMaster->m_current = 1;
-            mxMaster->m_field4_0x10 = 1;
+            mxMaster->m_processStateChange = true;
             return;
         }
 
         mxMaster->m_next = 0;
         mxMaster->m_current = 0;
-        mxMaster->m_field4_0x10 = 1;
+        mxMaster->m_processStateChange = true;
         return;
     } else {
         pcpaSetSendPacket(stream, MXM_FG_ACTIVE, mxMaster->m_current == 0 ? "0" : "1");

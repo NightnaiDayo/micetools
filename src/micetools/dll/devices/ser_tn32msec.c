@@ -15,30 +15,45 @@ BYTE extra[0xff];
  * TODO: Validate against a real board
  */
 enum TN32_Opcode {
-    TN32Op_Unknown20 = 0x20,
+    TN32Op_Unknown20 = 0x20,  // where did this come from??
     TN32Op_GetFWVersion = 0x30,
     TN32Op_GetHWVersion = 0x32,
+
     TN32Op_RadioOn = 0x40,
     TN32Op_RadioOff = 0x41,
     TN32Op_Poll = 0x42,
     TN32Op_MifareSelectTag = 0x43,
     TN32Op_Unknown44 = 0x44,  // Present in code, not seen used
+
     TN32Op_SetKeyBana = 0x50,
     TN32Op_GetKeyBana = 0x51,
     TN32Op_ReadBlock = 0x52,
     TN32Op_Unknown53 = 0x53,  // Present in code, not seen used
     TN32Op_SetKeyAime = 0x54,
     TN32Op_GetKeyAime = 0x55,
+
+    // Firmware update (I think)
     TN32Op_Unknown60 = 0x60,  // Present in code, not seen used
     TN32Op_Unknown61 = 0x61,  // Present in code, not seen used
     TN32Op_Reset = 0x62,
+    TN32Op_Unknown63 = 0x63,
+    TN32Op_Unknown64 = 0x64,
+
     TN32Op_Unknown70 = 0x70,  // Present in code, not seen used
     TN32Op_FelicaEncap = 0x71,
+
+    // No responses to either
+    LedUnknown80 = 0x80,
+    LedSetColour = 0x81,
+
+    LedGetInfo = 0xf0,
+    LedF2 = 0xf2,
+    LedF3 = 0xf3,
+    LedF4 = 0xf4,
+    LedReset = 0xf5,
 };
 
-#define LedReset 0xf5
-#define LedGetInfo 0xf0
-#define LedSetColour 0x81
+char* OpcodeNames[256];
 
 const char FWVer[] = "TN32MSEC003S F/W Ver1.2";
 const char HWVer[] = "TN32MSEC003S H/W Ver3.0";
@@ -84,7 +99,7 @@ typedef struct FelicaMemory {
 
 MifareMemory_t mifareMemory;
 FelicaMemory_t felicaMemory;
-BYTE luid[10] = {0x01, 0x23, 0x45, 0x67, 0x89, 0x01, 0x23, 0x45, 0x67, 0x89};
+BYTE luid[10] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0x01, 0x23, 0x45, 0x67, 0x89 };
 #define PMm_VALUE 0x00F1000000014300ULL
 
 #define FelicaSystemBlock_RC 0x00
@@ -135,8 +150,7 @@ void populate_felica(NFCFelica_t* card) {
         0x00, 0x2a, 0x05, 0x73, 0x02, 0x01, 0x03, 0x00,
         // ^DFC^    ^~~~~~ arbitary value
     };
-    memcpy(felicaMemory.systemBlocks[FelicaSystemBlock_ID].bytes, blockID,
-           16);
+    memcpy(felicaMemory.systemBlocks[FelicaSystemBlock_ID].bytes, blockID, 16);
     BYTE blockDID[16] = {
         // IDd (=IDm)
         0x01,
@@ -157,8 +171,7 @@ void populate_felica(NFCFelica_t* card) {
         0x43,
         0x00,
     };
-    memcpy(felicaMemory.systemBlocks[FelicaSystemBlock_D_ID].bytes, blockDID,
-           16);
+    memcpy(felicaMemory.systemBlocks[FelicaSystemBlock_D_ID].bytes, blockDID, 16);
 }
 void populate_mifare(NFCMifare_t* card) {
     card->type = CardType_Mifare;
@@ -202,14 +215,16 @@ BYTE AIME_KEY[6];
 BYTE BANA_KEY[6];
 
 DWORD WINAPI aime_bd_thread(com_device_t* dev) {
+    static int fwNumBytes = 0;
+
     log_info("aime_bd", "%ls woke up", dev->com->wName);
     bool radio = false;
 
     while (1) {
         comio_recv_head_t req;
-        comio_next_req(dev, &req, extra);
+        unsigned char sum = comio_next_req(dev, &req, extra);
 
-        log_info("aime_bd", "(%d) %02x", req.dst, req.op);
+        log_info("aime_bd", "(%d) %02x(%d) = %s", req.dst, req.op, req.length, OpcodeNames[req.op]);
 
         if (req.dst == 0x00 || req.dst == 0x01) {
             // Aime readers
@@ -218,12 +233,14 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
                     comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
                     break;
                 case TN32Op_GetFWVersion:
-                    comio_reply(dev, &req, COMIO_STATUS_OK, sizeof FWVer - 1,
-                                (LPBYTE)FWVer);
+                    // BYTE fver = 0x10;
+                    // comio_reply(dev, &req, COMIO_STATUS_OK, 1, &fver);
+                    comio_reply(dev, &req, COMIO_STATUS_OK, sizeof FWVer - 1, (LPBYTE)FWVer);
                     break;
                 case TN32Op_GetHWVersion:
-                    comio_reply(dev, &req, COMIO_STATUS_OK, sizeof HWVer - 1,
-                                (LPBYTE)HWVer);
+                    // BYTE hver = 0x10;
+                    // comio_reply(dev, &req, COMIO_STATUS_OK, 1, &hver);
+                    comio_reply(dev, &req, COMIO_STATUS_OK, sizeof HWVer - 1, (LPBYTE)HWVer);
                     break;
                 case TN32Op_SetKeyAime:
                     if (req.length != sizeof AIME_KEY) {
@@ -232,10 +249,8 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
                         memcpy(AIME_KEY, extra, sizeof AIME_KEY);
                         comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
 
-                        log_info("aime_bd",
-                                 "Aime key: %02x %02x %02x %02x %02x %02x",
-                                 AIME_KEY[0], AIME_KEY[1], AIME_KEY[2],
-                                 AIME_KEY[3], AIME_KEY[4], AIME_KEY[5]);
+                        log_info("aime_bd", "Aime key: %02x %02x %02x %02x %02x %02x", AIME_KEY[0],
+                                 AIME_KEY[1], AIME_KEY[2], AIME_KEY[3], AIME_KEY[4], AIME_KEY[5]);
                     }
                     break;
                 case TN32Op_SetKeyBana:
@@ -245,10 +260,8 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
                         memcpy(BANA_KEY, extra, sizeof BANA_KEY);
                         comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
 
-                        log_info("aime_bd",
-                                 "Bana key: %02x %02x %02x %02x %02x %02x",
-                                 BANA_KEY[0], BANA_KEY[1], BANA_KEY[2],
-                                 BANA_KEY[3], BANA_KEY[4], BANA_KEY[5]);
+                        log_info("aime_bd", "Bana key: %02x %02x %02x %02x %02x %02x", BANA_KEY[0],
+                                 BANA_KEY[1], BANA_KEY[2], BANA_KEY[3], BANA_KEY[4], BANA_KEY[5]);
                     }
                     break;
                 case TN32Op_RadioOn:
@@ -274,6 +287,43 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
                     comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
                     break;
 
+                case TN32Op_Unknown60:
+                    // req.length == 0; start firmware update?
+                    comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
+                    break;
+                case TN32Op_Unknown61:
+                    // null-terminated line of the firmware hex!
+                    comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
+                    log_info("aime_bd", "Recv firmware: %s", extra);
+                    break;
+                case TN32Op_Unknown63:
+                    // req.length == 0; start binary firmware update?
+                    fwNumBytes = 0;
+                    comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
+                    break;
+                case TN32Op_Unknown64:
+                    // Raw binary firmware data
+                    // [req.length == 256 -> wraps to 00] [256 bytes]
+                    if (req.length == 0) {
+                        unsigned char update_buffer[256];
+                        update_buffer[0] = sum;
+                        comio_read(dev, update_buffer + 1, 255);
+                        // We need to account for the actual checksum at the end of this lot
+                        comio_read(dev, &sum, 1);
+
+                        fwNumBytes += 256;
+                    } else {
+                        fwNumBytes += req.length;
+                    }
+
+                    // nxAuth is segfaulting past this. Rather than figure it out, let's just
+                    // protect it from itself for now.
+                    if (fwNumBytes >= 0x3000)
+                        ;
+                    else
+                        comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
+                    break;
+
                 // TODO: These
                 case TN32Op_ReadBlock:
                     comio_reply(dev, &req, COMIO_STATUS_NG, 0, NULL);
@@ -291,12 +341,10 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
                 case LedGetInfo:
                     // TODO: I'm not sure what this actually means.
                     // 838-15084 is probably a part number
-                    comio_reply(dev, &req, COMIO_STATUS_OK, 9,
-                                (BYTE*)"15084\xff\x10\x00\x12");
+                    comio_reply(dev, &req, COMIO_STATUS_OK, 9, (BYTE*)"15084\xff\x10\x00\x12");
                     break;
                 case LedSetColour:
-                    log_misc("nfc", "Set LED: #%02x%02x%02x", extra[0],
-                             extra[1], extra[2]);
+                    log_misc("nfc", "Set LED: #%02x%02x%02x", extra[0], extra[1], extra[2]);
                     printf(
                         "\033[48;2;%d;%d;%dm                                 "
                         "        \033[0m",
@@ -311,6 +359,31 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
 }
 
 void install_aime_bd() {
+    ZeroMemory(OpcodeNames, sizeof OpcodeNames);
+    OpcodeNames[TN32Op_Unknown20] = "Unknown20";
+    OpcodeNames[TN32Op_GetFWVersion] = "GetFWVersion";
+    OpcodeNames[TN32Op_GetHWVersion] = "GetHWVersion";
+    OpcodeNames[TN32Op_RadioOn] = "RadioOn";
+    OpcodeNames[TN32Op_RadioOff] = "RadioOff";
+    OpcodeNames[TN32Op_Poll] = "Poll";
+    OpcodeNames[TN32Op_MifareSelectTag] = "MifareSelectTag";
+    OpcodeNames[TN32Op_Unknown44] = "Unknown44";
+    OpcodeNames[TN32Op_SetKeyBana] = "SetKeyBana";
+    OpcodeNames[TN32Op_GetKeyBana] = "GetKeyBana";
+    OpcodeNames[TN32Op_ReadBlock] = "ReadBlock";
+    OpcodeNames[TN32Op_Unknown53] = "Unknown53";
+    OpcodeNames[TN32Op_SetKeyAime] = "SetKeyAime";
+    OpcodeNames[TN32Op_GetKeyAime] = "GetKeyAime";
+    OpcodeNames[TN32Op_Unknown60] = "Unknown60";
+    OpcodeNames[TN32Op_Unknown61] = "Unknown61";
+    OpcodeNames[TN32Op_Reset] = "Reset";
+    OpcodeNames[TN32Op_Unknown70] = "Unknown70";
+    OpcodeNames[TN32Op_FelicaEncap] = "FelicaEncap";
+
+    OpcodeNames[LedReset] = "LedReset";
+    OpcodeNames[LedGetInfo] = "LedGetInfo";
+    OpcodeNames[LedSetColour] = "LedSetColour";
+
     char* text = MiceConfig.devices.aime_bd;
     char* copy = (char*)malloc(strlen(text) + 1);
     memcpy_s(copy, strlen(text) + 1, text, strlen(text) + 1);
@@ -319,8 +392,7 @@ void install_aime_bd() {
     char* token = strtok_s(copy, ",", &next_token);
     while (token != NULL) {
         BYTE com_port = atoi(token) & 0xFF;
-        if (com_port)
-            com_device_thread(new_com_device(com_port), aime_bd_thread);
+        if (com_port) com_device_thread(new_com_device(com_port), aime_bd_thread);
         token = strtok_s(NULL, ",", &next_token);
     }
 

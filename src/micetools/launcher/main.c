@@ -55,6 +55,11 @@ void parse_cmdline(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
     load_mice_config();
 
+    fprintf(stderr, "Argc: %d\n", argc);
+    CHAR workDir[MAX_PATH + 1];
+    GetCurrentDirectory(MAX_PATH, workDir);
+    fprintf(stderr, "Work dir: %s\n", workDir);
+
     fprintf(stderr, "Micetools version: %s\n", MICE_VERSION);
 
     parse_cmdline(argc, argv);
@@ -98,7 +103,7 @@ int main(int argc, char* argv[]) {
 
     char* extra_injections = MiceConfig.launcher.inject;
     HANDLE game_proc =
-        start_and_inject(exe_name, cmdline, micepath, debug_wait, boot_delay, extra_injections);
+        start_and_inject(exe_name, cmdline, micepath, debug_wait, boot_delay, extra_injections, 0);
     if (!game_proc) return -1;
 
     if (FAILED(WaitForSingleObject(game_proc, INFINITE))) {

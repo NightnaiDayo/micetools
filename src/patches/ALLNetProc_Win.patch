@@ -1,0 +1,21 @@
+*00503de8: 00000000 > 01000000 # amBackupDebugLevel
+*005052c0: 00000000 > 01000000 # amDipswDebugLevel
+*00500990: 00000000 > 01000000 # amDongleDebugLevel
+*00503de4: 00000000 > 01000000 # amEepromDebugLevel
+*005057bc: 00000000 > 01000000 # amGcatcherDebugLevel
+*00505cd4: 00000000 > 01000000 # amGdeliverDebugLevel
+*0050674c: 00000000 > 01000000 # amGfetcherDebugLevel
+*00504990: 00000000 > 01000000 # amHmDebugLevel
+*00505d20: 00000000 > 01000000 # amInstallDebugLevel
+*00500980: 00000000 > 01000000 # amiTimerDebugLevel
+*005049a0: 00000000 > 01000000 # amMasterDebugLevel
+*00504418: 00000000 > 01000000 # amNetworkDebugLevel
+*00506798: 00000000 > 01000000 # amPlatformDebugLevel
+*005041f8: 00000000 > 01000000 # amRtcDebugLevel
+*00504410: 00000000 > 01000000 # amSramDebugLevel
+*0050690c: 00000000 > 01000000 # libpcpDebugLevel
+
+*004f48bc: 01000000 > 05000000 # ALPB_DEBUG_PRINT::m_systemLogLevel
+*00506eec: 00000000 > 00000000 # ALPB_DEBUG_PRINT::m_debugPrintLevel
+
+

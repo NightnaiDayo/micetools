@@ -1,0 +1,42 @@
+#include "smbus.h"
+
+smbus_callback_t smbus_ds2460_write;
+smbus_callback_t smbus_ds2460_read;
+
+// Specification
+#define DS2460_EEPROM_SIZE 112
+#define DS2460_INPUT_BUFFER_SIZE 64
+
+#define DS2460_MAC_LEN 20
+
+// Registers
+#define DS2460_MEM_SHA 0x00
+#define DS2460_MEM_MAC 0x40
+#define DS2460_MEM_SSECRET 0x54
+#define DS2460_MEM_CMD 0x5C
+#define DS2460_MEM_MATCHMAC 0x5E
+#define DS2460_MEM_ESECRET1 0x60
+#define DS2460_MEM_ESECRET2 0x68
+#define DS2460_MEM_ESECRET3 0x70
+#define DS2460_MEM_EEPROM 0x80
+#define DS2460_MEM_SERIAL 0xF0
+
+#define DS2460_CMD_COMPUTE 0x80
+#define DS2460_CMD_COMPUTE_GP_SHA 0x20
+#define DS2460_CMD_COMPUTE_TO_MAC_BUFFER 0x04
+
+#define DS2460_CMD_TXSECRET 0x40
+
+// Consts
+#define DS2460_REQUEST_COMPUTE_MAC 0x94
+
+// Wiring
+#define DS2460_GND 0
+#define DS2460_VCC 1
+
+#define DS2460_PIN_AD0 DS2460_GND
+#define DS2460_PIN_AD1 DS2460_VCC
+#define DS2460_PIN_AD2 DS2460_VCC
+
+#define DS2460_ADDRESS \
+    (0b10'0'0'0'0'0 | DS2460_PIN_AD0 | (DS2460_PIN_AD1 << 2) | (DS2460_PIN_AD2 << 4))

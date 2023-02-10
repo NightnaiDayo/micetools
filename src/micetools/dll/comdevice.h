@@ -47,7 +47,7 @@ BYTE comdev_peek(com_device_t* com);
 void comio_read(com_device_t* com, BYTE* data, BYTE len);
 void comio_write(com_device_t* com, BYTE* data, BYTE len);
 
-void comio_next_req(com_device_t* com, comio_recv_head_t* head, BYTE* data);
+unsigned char comio_next_req(com_device_t* com, comio_recv_head_t* head, BYTE* data);
 void comio_reply(com_device_t* com, comio_recv_head_t* req, BYTE status, BYTE len, BYTE* data);
 
 void com_device_thread(com_device_t* com, FnComDeviceThread* thread);

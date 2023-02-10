@@ -9,18 +9,23 @@ BOOL WINAPI Fake_SetLocalTime(const SYSTEMTIME* lpSystemTime) {
     memcpy(&localTime, lpSystemTime, sizeof localTime);
     ltCache = TRUE;
 
-    log_info("time", "Not setting local time to: %04d-%02d-%02d %02d:%02d:%02d.%04d", lpSystemTime->wYear,
-             lpSystemTime->wMonth, lpSystemTime->wDay, lpSystemTime->wHour, lpSystemTime->wMinute,
-             lpSystemTime->wSecond, lpSystemTime->wMilliseconds);
+    log_info("time", "Not setting local time to: %04d-%02d-%02d %02d:%02d:%02d.%04d",
+             lpSystemTime->wYear, lpSystemTime->wMonth, lpSystemTime->wDay, lpSystemTime->wHour,
+             lpSystemTime->wMinute, lpSystemTime->wSecond, lpSystemTime->wMilliseconds);
     return TRUE;
 }
 BOOL WINAPI Fake_SetSystemTime(const SYSTEMTIME* lpSystemTime) {
     memcpy(&systemTime, lpSystemTime, sizeof systemTime);
     stCache = TRUE;
 
-    log_info("time", "Not setting system time to: %04d-%02d-%02d %02d:%02d:%02d.%04d", lpSystemTime->wYear,
-             lpSystemTime->wMonth, lpSystemTime->wDay, lpSystemTime->wHour, lpSystemTime->wMinute,
-             lpSystemTime->wSecond, lpSystemTime->wMilliseconds);
+    log_info("time", "Not setting system time to: %04d-%02d-%02d %02d:%02d:%02d.%04d",
+             lpSystemTime->wYear, lpSystemTime->wMonth, lpSystemTime->wDay, lpSystemTime->wHour,
+             lpSystemTime->wMinute, lpSystemTime->wSecond, lpSystemTime->wMilliseconds);
+    return TRUE;
+}
+
+BOOL WINAPI Fake_SetTimeZoneInformation(const TIME_ZONE_INFORMATION* lpTimeZoneInformation) {
+    log_info("time", "Not setting timezone to: %d", lpTimeZoneInformation->Bias);
     return TRUE;
 }
 
@@ -41,8 +46,9 @@ BOOL WINAPI Fake_GetSystemTime(SYSTEMTIME* lpSystemTime) {
 }
 
 void hook_time() {
-    hook("Kernel32.dll", "SetLocalTime", Fake_SetLocalTime, (void**)&TrueSetLocalTime, 6);
-    hook("Kernel32.dll", "SetSystemTime", Fake_SetSystemTime, (void**)&TrueSetSystemTime, 6);
-    hook("Kernel32.dll", "GetLocalTime", Fake_GetLocalTime, (void**)&TrueGetLocalTime, 6);
-    hook("Kernel32.dll", "GetSystemTime", Fake_GetSystemTime, (void**)&TrueGetSystemTime, 6);
+    hook("Kernel32.dll", "SetLocalTime", Fake_SetLocalTime, NULL);
+    hook("Kernel32.dll", "SetSystemTime", Fake_SetSystemTime, NULL);
+    hook("Kernel32.dll", "SetTimeZoneInformation", Fake_SetTimeZoneInformation, NULL);
+    hook("Kernel32.dll", "GetLocalTime", Fake_GetLocalTime, (void**)&TrueGetLocalTime);
+    hook("Kernel32.dll", "GetSystemTime", Fake_GetSystemTime, (void**)&TrueGetSystemTime);
 }

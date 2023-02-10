@@ -110,7 +110,7 @@ void comio_write(com_device_t* com, BYTE* data, BYTE len) {
         comdev_write(com, &one_byte, 1);
     }
 }
-void comio_next_req(com_device_t* com, comio_recv_head_t* head, BYTE* data) {
+unsigned char comio_next_req(com_device_t* com, comio_recv_head_t* head, BYTE* data) {
     BYTE one_byte;
     do {
         if (comdev_available(com) < (sizeof *head + 1)) {
@@ -131,6 +131,7 @@ void comio_next_req(com_device_t* com, comio_recv_head_t* head, BYTE* data) {
     comio_read(com, data, head->length);
     unsigned char sum;
     comio_read(com, &sum, 1);
+    return sum;
 }
 void comio_reply(com_device_t* com, comio_recv_head_t* req, BYTE status, BYTE len, BYTE* data) {
     BYTE one_byte;

@@ -69,9 +69,6 @@ BOOL handle_smbus(BYTE command, WORD v_addr, WORD command_code, BYTE nbytes, BYT
 BOOL WINAPI mxsmbus_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer,
                              DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
                              LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
-    mxsmbus_i2c_packet* i2c_packet = (mxsmbus_i2c_packet*)lpInBuffer;
-    mxsmbus_i2c_packet* i2c_out = (mxsmbus_i2c_packet*)lpOutBuffer;
-
     // Default value
     if (lpBytesReturned) *lpBytesReturned = nOutBufferSize;
 

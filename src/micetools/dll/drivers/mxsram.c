@@ -35,7 +35,7 @@ void sram_restore() {
 
 #define fix_crc(block)                                                            \
     do {                                                                          \
-        (block).m_Crc = amCrc32RGet(sizeof(block) - 4, (BYTE*)(&(block)) + 4, 0); \
+        (block).m_Crc = amiCrc32RCalc(sizeof(block) - 4, (BYTE*)(&(block)) + 4, 0); \
     } while (0)
 
 int build_sram() {

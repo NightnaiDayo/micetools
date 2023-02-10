@@ -25,6 +25,7 @@ shared_library(
         dmi_lib,
         mice_lib,
         amiTimer,
+        amiMd5,
         mxklib,
     ],
     include_directories: [

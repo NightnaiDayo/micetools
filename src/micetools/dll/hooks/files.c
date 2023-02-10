@@ -37,9 +37,69 @@ void hook_file(file_hook_t* hook) {
     hl->next = hook;
 };
 
+struct buffer_file {
+    LPBYTE buffer;
+    DWORD nBytes;
+    DWORD access;
+};
+BOOL bf_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
+                 LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped) {
+    struct buffer_file* pBF = (struct buffer_file*)ctx->m_HookData;
+    if (!(pBF->access & GENERIC_READ)) {
+        SetLastError(ERROR_ACCESS_DENIED);
+        return FALSE;
+    }
+
+    if (ctx->m_Pointer.QuadPart > pBF->nBytes) {
+        *lpNumberOfBytesRead = 0;
+        return TRUE;
+    }
+    if (ctx->m_Pointer.QuadPart + nNumberOfBytesToRead > pBF->nBytes) {
+        nNumberOfBytesToRead = (pBF->nBytes - ctx->m_Pointer.QuadPart) & 0xffffffff;
+    }
+    *lpNumberOfBytesRead = nNumberOfBytesToRead;
+    memcpy(lpBuffer, pBF->buffer + ctx->m_Pointer.QuadPart, nNumberOfBytesToRead);
+    return TRUE;
+}
+BOOL bf_WriteFile(file_context_t* ctx, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
+                  LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped) {
+    struct buffer_file* pBF = (struct buffer_file*)ctx->m_HookData;
+    if (!(pBF->access & GENERIC_WRITE)) {
+        SetLastError(ERROR_ACCESS_DENIED);
+        return FALSE;
+    }
+
+    if (ctx->m_Pointer.QuadPart > pBF->nBytes) {
+        *lpNumberOfBytesWritten = 0;
+        return TRUE;
+    }
+    if (ctx->m_Pointer.QuadPart + nNumberOfBytesToWrite > pBF->nBytes) {
+        nNumberOfBytesToWrite = (pBF->nBytes - ctx->m_Pointer.QuadPart) & 0xffffffff;
+    }
+    *lpNumberOfBytesWritten = nNumberOfBytesToWrite;
+    memcpy(pBF->buffer + ctx->m_Pointer.QuadPart, lpBuffer, nNumberOfBytesToWrite);
+    return TRUE;
+}
+
+void hook_file_with_buffer(LPCWSTR filename, LPBYTE buffer, DWORD nBytes, DWORD access) {
+    file_hook_t* hook = new_file_hook(filename);
+
+    struct buffer_file** ppBF = &((struct buffer_file*)hook->hook_data);
+    *ppBF = malloc(sizeof **ppBF);
+    (*ppBF)->buffer = buffer;
+    (*ppBF)->nBytes = nBytes;
+    (*ppBF)->access = access;
+
+    hook->ReadFile = bf_ReadFile;
+    hook->WriteFile = bf_WriteFile;
+
+    hook_file(hook);
+}
+
 drive_redirect_t DRIVE_REDIRECT_TABLE[] = {
     // Note: Had to create last_shime.log
     { .drive = "C:\\Documents and Settings\\AppUser\\temp\\", .path = ".\\dev\\temp\\" },
+    { .drive = "E:\\", .path = "\\\\.\\E:" },
     // {.drive = "C:\\ProgramData/boost_interprocess/", .path = "\\\\.\\ipc\\"},
 };
 
@@ -57,27 +117,6 @@ file_hook_t* find_hook(LPCWSTR lpFileName) {
     return NULL;
 };
 
-void make_dirs(char* path) {
-    int count = 0;
-    size_t i;
-    size_t len = strlen(path);
-    while (1) {
-        int n = 0;
-        for (i = 0; i < len; i++) {
-            if (path[i] == '\\' || path[i] == '/' || path[i] == '\0') {
-                if (n++ == count) {
-                    path[i] = '\0';
-                    count++;
-                    break;
-                }
-                path[i] = '\\';
-            }
-        }
-        if (i == len) return;
-        CreateDirectory(path, NULL);
-    }
-}
-
 char WORKING_DIR[MAX_PATH + 1] = { 0 };
 char get_gamedata_drive() {
     if (WORKING_DIR[0] == 0x00) {
@@ -87,7 +126,7 @@ char get_gamedata_drive() {
 }
 
 inline char char_lower(char value) {
-    if ('A' <= value <= 'Z') return value - 'A' + 'a';
+    if ('A' <= value && value <= 'Z') return value - 'A' + 'a';
     return value;
 }
 
@@ -114,13 +153,15 @@ BOOL redirect_path(LPCSTR path, LPCSTR* redirected) {
         }
     }
 
+    // Don't redirect local paths
+    GetCurrentDirectoryA(sizeof WORKING_DIR, WORKING_DIR);
+    if (strstr(path, WORKING_DIR) == path) {
+        puts("SKIP");
+        return FALSE;
+    }
+
     if ((('a' <= path[0] && path[0] <= 'z') || ('A' <= path[0] && path[0] <= 'Z')) &&
         path[1] == ':' && (path[2] == '/' || path[2] == '\\')) {
-        // TODO: Ca
-        if (char_lower(path[0]) == char_lower(get_gamedata_drive())) {
-            return FALSE;
-        }
-
         ZeroMemory(_redirected_path, sizeof _redirected_path);
         snprintf(_redirected_path, sizeof _redirected_path, "dev\\%c\\%s", char_lower(path[0]),
                  path + 3);
@@ -188,10 +229,13 @@ HANDLE WINAPI FakeCreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
 }
 
 BOOL WINAPI FakePathFileExistsA(LPCSTR pszPath) {
+    log_misc(HOOKS_LOGGER, "PathFileExists(%s)", pszPath);
     redirect_path(pszPath, &pszPath);
-    return TruePathFileExistsA(pszPath);
+    BOOL ret = TruePathFileExistsA(pszPath);
+    return ret;
 }
 BOOL WINAPI FakePathFileExistsW(LPCWSTR pszPath) {
+    log_misc(HOOKS_LOGGER, "PathFileExists(%ls)", pszPath);
     LPCSTR redirected;
     if (redirect_path_w(pszPath, &redirected)) {
         return TruePathFileExistsA(redirected);
@@ -318,8 +362,10 @@ DWORD WINAPI FakeWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesT
         log_error(HOOKS_LOGGER, "WriteFile(%ls) unimplemented", file_hook->filename);
         return FALSE;
     }
-    return file_hook->WriteFile(&(pHData->ctx), lpBuffer, nNumberOfBytesToWrite,
-                                lpNumberOfBytesWritten, lpOverlapped);
+    BOOL ret = file_hook->WriteFile(&(pHData->ctx), lpBuffer, nNumberOfBytesToWrite,
+                                    lpNumberOfBytesWritten, lpOverlapped);
+    if (ret) pHData->ctx.m_Pointer.QuadPart += *lpNumberOfBytesWritten;
+    return ret;
 }
 
 BOOL WINAPI FakeReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
@@ -328,6 +374,7 @@ BOOL WINAPI FakeReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRe
         return TrueReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead,
                             lpOverlapped);
     }
+    // log_misc(HOOKS_LOGGER, "ReadFile(%d) %d", hFile, nNumberOfBytesToRead);
 
     open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
     if (pHData == NULL) {
@@ -341,8 +388,10 @@ BOOL WINAPI FakeReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRe
         log_error(HOOKS_LOGGER, "ReadFile(%ls) unimplemented", file_hook->filename);
         return FALSE;
     }
-    return file_hook->ReadFile(&(pHData->ctx), lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead,
-                               lpOverlapped);
+    BOOL ret = file_hook->ReadFile(&(pHData->ctx), lpBuffer, nNumberOfBytesToRead,
+                                   lpNumberOfBytesRead, lpOverlapped);
+    if (ret) pHData->ctx.m_Pointer.QuadPart += *lpNumberOfBytesRead;
+    return ret;
 }
 
 BOOL WINAPI FakeCloseHandle(HANDLE hObject) {
@@ -355,24 +404,48 @@ int WINAPIV Fake_stat64i32(const char* path, struct _stat64i32* buffer) {
     return True_stat64i32(path, buffer);
 };
 
+DWORD WINAPI FakeGetFileAttributesA(LPCSTR lpFileName) {
+    // The game quits out if MiniDump is present!
+    if (strcmp(lpFileName, "Y:\\MiniDump\\") == 0) {
+        return 0;
+    }
+
+    LPCSTR redirected;
+    if (redirect_path(lpFileName, &redirected)) {
+        return TrueGetFileAttributesA(redirected);
+    }
+    return TrueGetFileAttributesA(lpFileName);
+}
+DWORD WINAPI FakeGetFileAttributesW(LPCWSTR lpFileName) {
+    LPCSTR redirected;
+    if (redirect_path_w(lpFileName, &redirected)) {
+        return TrueGetFileAttributesA(redirected);
+    }
+    return TrueGetFileAttributesW(lpFileName);
+}
+
 void hook_io() {
-    hook("Kernel32.dll", "DeviceIoControl", FakeDeviceIoControl, (void**)&TrueDeviceIoControl, 5);
+    hook("Kernel32.dll", "DeviceIoControl", FakeDeviceIoControl, (void**)&TrueDeviceIoControl);
 
-    hook("Kernel32.dll", "CreateFileA", FakeCreateFileA, (void**)&TrueCreateFileA, 6);
-    hook("Kernel32.dll", "CreateFileW", FakeCreateFileW, (void**)&TrueCreateFileW, 6);
+    hook("Kernel32.dll", "CreateFileA", FakeCreateFileA, (void**)&TrueCreateFileA);
+    hook("Kernel32.dll", "CreateFileW", FakeCreateFileW, (void**)&TrueCreateFileW);
 
-    hook("Kernel32.dll", "CloseHandle", FakeCloseHandle, (void**)&TrueCloseHandle, 6);
-    hook("Kernel32.dll", "SetFilePointer", FakeSetFilePointer, (void**)&TrueSetFilePointer, 6);
-    hook("Kernel32.dll", "SetFilePointerEx", FakeSetFilePointerEx, (void**)&TrueSetFilePointerEx,
-         6);
-    hook("Kernel32.dll", "WriteFile", FakeWriteFile, (void**)&TrueWriteFile, 6);
-    hook("Kernel32.dll", "ReadFile", FakeReadFile, (void**)&TrueReadFile, 6);
-    hook("Kernel32.dll", "GetFileSizeEx", FakeGetFileSizeEx, (void**)&TrueGetFileSizeEx, 6);
+    hook("Kernel32.dll", "CloseHandle", FakeCloseHandle, (void**)&TrueCloseHandle);
+    hook("Kernel32.dll", "SetFilePointer", FakeSetFilePointer, (void**)&TrueSetFilePointer);
+    hook("Kernel32.dll", "SetFilePointerEx", FakeSetFilePointerEx, (void**)&TrueSetFilePointerEx);
+    hook("Kernel32.dll", "WriteFile", FakeWriteFile, (void**)&TrueWriteFile);
+    hook("Kernel32.dll", "ReadFile", FakeReadFile, (void**)&TrueReadFile);
+    hook("Kernel32.dll", "GetFileSizeEx", FakeGetFileSizeEx, (void**)&TrueGetFileSizeEx);
 
-    hook("Shlwapi.dll", "PathFileExistsA", FakePathFileExistsA, (void**)&TruePathFileExistsA, 5);
-    hook("Shlwapi.dll", "PathFileExistsW", FakePathFileExistsW, (void**)&TruePathFileExistsW, 5);
-    hook("Kernel32.dll", "DeleteFileA", FakeDeleteFileA, (void**)&TrueDeleteFileA, 7);
-    hook("Kernel32.dll", "DeleteFileW", FakeDeleteFileW, (void**)&TrueDeleteFileW, 7);
+    hook("Shlwapi.dll", "PathFileExistsA", FakePathFileExistsA, (void**)&TruePathFileExistsA);
+    hook("Shlwapi.dll", "PathFileExistsW", FakePathFileExistsW, (void**)&TruePathFileExistsW);
+    hook("Kernel32.dll", "DeleteFileA", FakeDeleteFileA, (void**)&TrueDeleteFileA);
+    hook("Kernel32.dll", "DeleteFileW", FakeDeleteFileW, (void**)&TrueDeleteFileW);
 
-    hook("MSVCR90.DLL", "_stat64i32", Fake_stat64i32, (void**)&True_stat64i32, 5);
+    hook("Kernel32.dll", "GetFileAttributesA", FakeGetFileAttributesA,
+         (void**)&TrueGetFileAttributesA);
+    hook("Kernel32.dll", "GetFileAttributesW", FakeGetFileAttributesW,
+         (void**)&TrueGetFileAttributesW);
+
+    hook("MSVCR90.DLL", "_stat64i32", Fake_stat64i32, (void**)&True_stat64i32);
 }

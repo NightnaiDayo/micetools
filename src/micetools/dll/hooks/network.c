@@ -4,14 +4,15 @@ int WINAPI Fake_connect(SOCKET s, const SOCKADDR* name, int namelen) {
     ULONG addr = _byteswap_ulong(((SOCKADDR_IN*)name)->sin_addr.S_un.S_addr);
     USHORT port = _byteswap_ushort(((SOCKADDR_IN*)name)->sin_port);
     // Poorly exclude pcps. TODO: better
-    if (port < 40100 || port > 40120) {
-        log_info("connect", "%hhu.%hhu.%hhu.%hhu:%hu", (addr >> 24) & 0xff, (addr >> 16) & 0xff,
-                 (addr >> 8) & 0xff, addr & 0xff, port);
-    }
+    // if (port < 40100 || port > 40120) {
+    log_misc("connect", "%hhu.%hhu.%hhu.%hhu:%hu", (addr >> 24) & 0xff, (addr >> 16) & 0xff,
+             (addr >> 8) & 0xff, addr & 0xff, port);
+    // }
     return True_connect(s, name, namelen);
 }
 
 #define IF_INDEX 1
+// Sega prefix
 #define MAC_PREFIX_0 0xD8
 #define MAC_PREFIX_1 0xBB
 #define MAC_PREFIX_2 0xC1
@@ -89,6 +90,8 @@ DNS_STATUS WINAPI FakeDnsQuery_A(PCSTR pszName, WORD wType, DWORD Options, PVOID
     if (ppQueryResults) {
         for (size_t i = 0; i < sizeof INTERCEPT_DNS / sizeof INTERCEPT_DNS[0]; i++) {
             if (strcmp(pszName, INTERCEPT_DNS[i].name) == 0) {
+                printf("%08x\n", MiceConfig.network.naominet_jp);
+
                 log_info("dns", "Replacing %s with %08x", pszName, *INTERCEPT_DNS[i].address);
 
                 // We only support replacing at most one address, but that's all we'll ever need to!
@@ -111,10 +114,14 @@ INT WSAAPI FakeWSAStringToAddressA(LPSTR AddressString, INT AddressFamily,
     log_misc("dns", "(WSA)DNS lookup for %s", AddressString);
     for (size_t i = 0; i < sizeof INTERCEPT_DNS / sizeof INTERCEPT_DNS[0]; i++) {
         if (strcmp(AddressString, INTERCEPT_DNS[i].name) == 0) {
-            log_info("dns", "(WSA)Replacing %s with %08x", AddressString, INTERCEPT_DNS[i].address);
+            log_info("dns", "(WSA)Replacing %s with %08x", AddressString,
+                     *INTERCEPT_DNS[i].address);
 
             lpAddress->sa_family = AF_INET;
-            memcpy(&lpAddress->sa_data, INTERCEPT_DNS[i].address, 4);
+            PULONG addr = &(((SOCKADDR_IN*)lpAddress)->sin_addr.S_un.S_addr);
+            *addr = _byteswap_ulong(
+                *INTERCEPT_DNS[i]
+                     .address);  //(192UL) | (168UL << 8) | (103UL << 16) | (200UL << 24);
             return ERROR_SUCCESS;
         }
     }
@@ -124,9 +131,9 @@ INT WSAAPI FakeWSAStringToAddressA(LPSTR AddressString, INT AddressFamily,
 }
 
 void hook_network() {
-    hook("Ws2_32.dll", "connect", Fake_connect, (void**)&True_connect, 5);
+    hook("Ws2_32.dll", "connect", Fake_connect, (void**)&True_connect);
     hook("Ws2_32.dll", "WSAStringToAddressA", FakeWSAStringToAddressA,
-         (void**)&TrueWSAStringToAddressA, 7);
-    hook("Iphlpapi.dll", "GetIfTable", FakeGetIfTable, (void**)&TrueGetIfTable, 5);
-    hook("Dnsapi.dll", "DnsQuery_A", FakeDnsQuery_A, (void**)&TrueDnsQuery_A, 5);
+         (void**)&TrueWSAStringToAddressA);
+    hook("Iphlpapi.dll", "GetIfTable", FakeGetIfTable, (void**)&TrueGetIfTable);
+    hook("Dnsapi.dll", "DnsQuery_A", FakeDnsQuery_A, (void**)&TrueDnsQuery_A);
 }

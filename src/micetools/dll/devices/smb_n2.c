@@ -3,6 +3,7 @@
 #include <openssl/rand.h>
 
 #include "../../lib/mxk/mxk.h"
+#include "../../sysconf.h"
 #include "_devices.h"
 
 #define N2_TAG_OFFSET 0
@@ -111,19 +112,18 @@ typedef struct {
 } N2_KEYCHIP_INFO, *PN2_KEYCHIP_INFO;
 #pragma pack(pop)
 
-N2_KEYCHIP_INFO n2_keychip_info = {
-    .m_KeyId = { 'A', '7', '2', 'E', '-', '0', '2', 'D', '1', '1', '2', '6', '1', '1', '1', '6' },
-    .m_Appboot = {
-        .m_Format = 1,
-        .m_GameId = { 'S' , 'D', 'E', 'Y' },
-        .m_Region = 0xff,
-        .m_ModelType = 2,
-        .m_SystemFlag = 0x24,
-        .m_PlatformId = {'A', 'A', 'S'},
-        .m_DvdFlag = 1,
-        .m_NetworkAddr = (192 << 0) | (168 << 8) | (103 << 16) | (0 << 24),
-    }
-};
+N2_KEYCHIP_INFO n2_keychip_info = { .m_KeyId = KEY_ID,
+                                    .m_Appboot = {
+                                        .m_Format = 1,
+                                        .m_GameId = GAME_ID,
+                                        .m_Region = 0xff,
+                                        .m_ModelType = 2,
+                                        .m_SystemFlag = 0x24,
+                                        .m_PlatformId = HW_ID,
+                                        .m_DvdFlag = 1,
+                                        .m_NetworkAddr =
+                                            (192 << 0) | (168 << 8) | (103 << 16) | (0 << 24),
+                                    } };
 
 WORD n2_enable_session(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut) {
     *nOut = 20;
@@ -172,10 +172,13 @@ WORD n2_read_keychip_id(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nO
 
     *nOut = (nbytes & 0xff) + 2;
 
-    n2_keychip_info.m_Appboot.m_Crc = amCrc32RGet(sizeof n2_keychip_info.m_Appboot - 4, (LPBYTE)&n2_keychip_info.m_Appboot + 4, 0);
-    n2_keychip_info.m_Crc = amCrc32RGet(sizeof n2_keychip_info - 4, (LPBYTE)&n2_keychip_info + 4, 0);
+    n2_keychip_info.m_Appboot.m_Crc = amiCrc32RCalc(sizeof n2_keychip_info.m_Appboot - 4,
+                                                    (LPBYTE)&n2_keychip_info.m_Appboot + 4, 0);
+    n2_keychip_info.m_Crc =
+        amiCrc32RCalc(sizeof n2_keychip_info - 4, (LPBYTE)&n2_keychip_info + 4, 0);
 
-    mxkCryptEncryptAes128CBC(n2_enc_key.key, n2_enc_key.iv, dataOut + 2, (LPBYTE)&n2_keychip_info, nbytes);
+    mxkCryptEncryptAes128CBC(n2_enc_key.key, n2_enc_key.iv, dataOut + 2, (LPBYTE)&n2_keychip_info,
+                             nbytes);
 
     log_misc("smb-n2", "Read keychip ID: %08x", nbytes);
     return N2_SUCCESS;
@@ -192,9 +195,9 @@ WORD n2_encrypt_with_gkey(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD 
     BYTE temp[16];
     mxkCryptDecryptAes128CBC(n2_enc_key.key, n2_enc_key.iv, dataIn + 1, temp, sizeof temp);
 
-    for(size_t i=0;i<17;i++)printf(" %02x",dataIn[i]);
+    for (size_t i = 0; i < 17; i++) printf(" %02x", dataIn[i]);
     puts("");
-    for(size_t i=0;i<17;i++)printf(" %02x",temp[i]);
+    for (size_t i = 0; i < 17; i++) printf(" %02x", temp[i]);
     puts("");
 
     // Do Gkey encryption
@@ -245,7 +248,6 @@ WORD n2_decrypt_with_skey(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD 
     mxkCryptEncryptAes128CBC(n2_enc_key.key, n2_enc_key.iv, dataOut, temp, sizeof temp);
     return N2_SUCCESS;
 }
-
 
 n2_command N2_COMMANDS[0xff];
 #define N2_INSTALL_COMMAND(ord, tag_, paramSize_, handler_) \

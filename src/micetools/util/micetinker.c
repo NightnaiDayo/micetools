@@ -32,8 +32,8 @@ BOOL change_region(BYTE region) {
     puts("");
 
     data[12] = region;
-    amCrc32RCreateTable();
-    ((DWORD*)data)[0] = amCrc32RGet(sizeof data - 4, data + 4, 0);
+    amiCrc32RInit();
+    ((DWORD*)data)[0] = amiCrc32RCalc(sizeof data - 4, data + 4, 0);
 
     amEepromWrite(0, data, sizeof data);
     amEepromRead(0, data, sizeof data);

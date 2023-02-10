@@ -6,7 +6,7 @@ LPBYTE dmi_table = NULL;
 WORD dmi_size = 0;
 WORD _dmi_max = 0;
 
-DMI_BIOS deafult_dmi_bios = {
+DMI_BIOS default_dmi_bios = {
     .Head.Type = DmiTypeBios,
     .Head.Length = 0x12,
     .Head.Handle = 0x0000,
@@ -32,7 +32,7 @@ DMI_SYSTEM default_dmi_system = {
     .Serial = 0x04,        // "To Be Filled By O.E.M."
 };
 
-DMI_STRING deafult_dmi_string = {
+DMI_STRING default_dmi_string = {
     .Head.Type = DmiTypeString,
     .Head.Length = 0x05,
     .Head.Handle = 0x0002,
@@ -80,7 +80,7 @@ static void dmi_append_with_strings(void* data, WORD size, int num_strings, ...)
 
 void dmi_build_default() {
     dmi_init();
-    dmi_append_with_strings(&deafult_dmi_bios, sizeof deafult_dmi_bios, 3,
+    dmi_append_with_strings(&default_dmi_bios, sizeof default_dmi_bios, 3,
                             "American Megatrends Inc.", "080015 ", "07/28/2011");
 
     // Platform AAM: Board type one of "Supermicro"(=1) or "Advantech"(=2)
@@ -89,9 +89,9 @@ void dmi_build_default() {
                             "To Be Filled By O.E.M.", "To Be Filled By O.E.M.",
                             "To Be Filled By O.E.M.");
 
-    deafult_dmi_string.NoStrings = 5;
+    default_dmi_string.NoStrings = 5;
 
-    dmi_append_with_strings(&deafult_dmi_string, sizeof deafult_dmi_string,
+    dmi_append_with_strings(&default_dmi_string, sizeof default_dmi_string,
                             // OEM strings:
                             // 0: ??
                             // 1: ??

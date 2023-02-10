@@ -670,9 +670,9 @@ AM_DONGLE_STATUS amDongleRecvBinary(void) {
     uint bufferLength;
 
     switch (amDongle.requestCode) {
-        case AM_DONGLE_WTF_80:
+        case AM_DONGLE_APPBOOT_SEED:
             buffer = amDongle.valueBuffer;
-            bufferLength = 0x10;
+            bufferLength = 16;
             break;
         case AM_DONGLE_WTF_81:
         case AM_DONGLE_REQUEST_BILLING_GET_CA_CERT:
@@ -999,7 +999,7 @@ AM_DONGLE_STATUS amDongleEncrypt(unsigned char *pt, unsigned char *ct,
 
     if (pt == NULL || ct == NULL) return AM_DONGLE_STATUS_ERR_INVALID_PARAM;
 
-    char ptHex[32];
+    char ptHex[33];
     bin_to_hex(ptHex, pt, 16);
     pcp_send_data_t *packet = pcpaSetSendPacket(&amDongle.pcpa, "keychip.encrypt", ptHex);
     if (packet == NULL && amDongleDebugLevel > 0)
@@ -1020,7 +1020,8 @@ AM_DONGLE_STATUS amDongleDecrypt(unsigned char *ct, unsigned char *pt,
 
     if (ct == NULL || pt == NULL) return AM_DONGLE_STATUS_ERR_INVALID_PARAM;
 
-    char ctHex[32];
+    char ctHex[33];
+    ZeroMemory(ctHex, 33);
     bin_to_hex(ctHex, ct, 16);
     pcp_send_data_t *packet = pcpaSetSendPacket(&amDongle.pcpa, "keychip.decrypt", ctHex);
     if (packet == NULL && amDongleDebugLevel > 0)
@@ -1119,7 +1120,51 @@ AM_DONGLE_STATUS amDongleBillingAddPlayCount(void *playCount, AM_DONGLE_BLOCKING
         amiDebugLog("Error: pcpaAddSendPacket return NULL");
     }
     amDongle.valueBuffer = playCount;
-    amDongle.requestCode = 0xf;
+    amDongle.requestCode = AM_DONGLE_REQUEST_BILLING_ADD_PLAYCOUNT;
+    if (blocking == AM_DONGLE_BLOCK) {
+        return amDongleSendAndReceiveEx();
+    }
+    return amDongleOpen();
+}
+
+AM_DONGLE_STATUS amDongleSetIv(AM_DONGLE_BLOCKING blocking) {
+    if (!amDongle.m_init) return AM_DONGLE_STATUS_ERR_NO_INIT;
+    if (!amDongle.auth_ready) return AM_DONGLE_STATUS_ERR_AUTH_READY;
+    if (!amDongle.done_init || !amDongle.available) return AM_DONGLE_STATUS_NG;
+    if (amDongle.seq != AM_DONGLE_SEQ_NONE) return AM_DONGLE_STATUS_BUSY;
+
+    pcp_send_data_t *send_data =
+        pcpaSetSendPacket(&amDongle.pcpa, "keychip.setiv", "?");
+    if (send_data == NULL && amDongleDebugLevel > 0) {
+        amiDebugLog("Error: pcpaSetSendPacket return NULL");
+    }
+
+    amDongle.requestCode = AM_DONGLE_REQUEST_SET_IV;
+    if (blocking == AM_DONGLE_BLOCK) {
+        return amDongleSendAndReceiveEx();
+    }
+    return amDongleOpen();
+}
+
+AM_DONGLE_STATUS amDongleGetSeed(unsigned char* seed, AM_DONGLE_BLOCKING blocking) {
+    if (!amDongle.m_init) return AM_DONGLE_STATUS_ERR_NO_INIT;
+    if (!amDongle.auth_ready) return AM_DONGLE_STATUS_ERR_AUTH_READY;
+    if (!amDongle.done_init || !amDongle.available) return AM_DONGLE_STATUS_NG;
+    if (amDongle.seq != AM_DONGLE_SEQ_NONE) return AM_DONGLE_STATUS_BUSY;
+    if (seed == NULL) return AM_DONGLE_STATUS_ERR_INVALID_PARAM;
+
+    pcp_send_data_t *send_data =
+        pcpaSetSendPacket(&amDongle.pcpa, "keychip.appboot.seed", "?");
+    if (send_data == NULL && amDongleDebugLevel > 0) {
+        amiDebugLog("Error: pcpaSetSendPacket return NULL");
+    }
+    send_data = pcpaAddSendPacket(&amDongle.pcpa, "cache", "1");
+    if (send_data == NULL && amDongleDebugLevel > 0) {
+        amiDebugLog("Error: pcpaAddSendPacket return NULL");
+    }
+
+    amDongle.requestCode = AM_DONGLE_APPBOOT_SEED;
+    amDongle.valueBuffer = seed;
     if (blocking == AM_DONGLE_BLOCK) {
         return amDongleSendAndReceiveEx();
     }

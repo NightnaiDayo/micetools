@@ -19,6 +19,8 @@ executable(
         amiDebug,
         amDongle,
         amInstall,
+        amiMd5,
+        amiCrc,
     ],
     include_directories: incdir,
     dependencies: [],

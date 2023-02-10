@@ -33,12 +33,12 @@ LSTATUS WINAPI FakeRegEnumValueA(HKEY hKey, DWORD dwIndex, LPSTR lpValueName,
 }
 
 void hook_registry() {
-    hook("Advapi32.dll", "RegCloseKey", FakeRegCloseKey, (void**)&TrueRegCloseKey, 4);
-    hook("Advapi32.dll", "RegCreateKeyExA", FakeRegCreateKeyExA, (void**)&TrueRegCreateKeyExA, 6);
-    hook("Advapi32.dll", "RegDeleteKeyA", FakeRegDeleteKeyA, (void**)&TrueRegDeleteKeyA, 4);
+    hook("Advapi32.dll", "RegCloseKey", FakeRegCloseKey, (void**)&TrueRegCloseKey);
+    hook("Advapi32.dll", "RegCreateKeyExA", FakeRegCreateKeyExA, (void**)&TrueRegCreateKeyExA);
+    hook("Advapi32.dll", "RegDeleteKeyA", FakeRegDeleteKeyA, (void**)&TrueRegDeleteKeyA);
     hook("Advapi32.dll", "RegDeleteKeyValueA", FakeRegDeleteKeyValueA,
-         (void**)&TrueRegDeleteKeyValueA, 5);
-    hook("Advapi32.dll", "RegEnumKeyExA", FakeRegEnumKeyExA, (void**)&TrueRegEnumKeyExA, 5);
+         (void**)&TrueRegDeleteKeyValueA);
+    hook("Advapi32.dll", "RegEnumKeyExA", FakeRegEnumKeyExA, (void**)&TrueRegEnumKeyExA);
     // TODO: Passthrough
-    // hook("Advapi32.dll", "RegEnumValueA", FakeRegEnumValueA, (void**)&TrueRegEnumValueA, 5);
+    // hook("Advapi32.dll", "RegEnumValueA", FakeRegEnumValueA, (void**)&TrueRegEnumValueA);
 }
