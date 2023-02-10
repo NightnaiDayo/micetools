@@ -324,14 +324,22 @@ void mxjvs_handle(unsigned char* paddedIn, short inCount, unsigned char* outData
     }
 
     unsigned char destination = inData[1];
-    if (destination == 0 || destination > jvs_num_boards) return;
+    // Not broadcast, not master-bound, and within bounds
+    if (destination != 0xff && (destination == 0 || destination > jvs_num_boards)) return;
 
     unsigned char* response = malloc(maxOut);
-    jvs_board_t* board = &(*jvs_config)[jvs_num_boards - destination];
-    // jvs_board_t* board = &(*jvs_config)[0];
     unsigned char packetSize;
-    unsigned char status =
-        board->handler(board, inData + 3, inData[2] - 1, response + 4, &packetSize);
+    unsigned char status;
+    if (destination == 0xff) {
+        for (int i = 0; i < jvs_num_boards; i++) {
+            jvs_board_t* board = &(*jvs_config)[i];
+            status = board->handler(board, inData + 3, inData[2] - 1, response + 4, &packetSize);
+            if (packetSize != 0) break;
+        }
+    } else {
+        jvs_board_t* board = &(*jvs_config)[jvs_num_boards - destination];
+        status = board->handler(board, inData + 3, inData[2] - 1, response + 4, &packetSize);
+    }
     free(inData);
 
     if (status == JVS_STATUS_OK) {
@@ -637,10 +645,10 @@ jvs_board_t under_night_jvs_config[1] = {
     // },
 };
 
-// jvs_board_t (*jvs_config)[] = &maimai_jvs_config;
-// size_t jvs_num_boards = sizeof maimai_jvs_config / sizeof maimai_jvs_config[0];
-jvs_board_t (*jvs_config)[] = &under_night_jvs_config;
-size_t jvs_num_boards = sizeof under_night_jvs_config / sizeof under_night_jvs_config[0];
+jvs_board_t (*jvs_config)[] = &maimai_jvs_config;
+size_t jvs_num_boards = sizeof maimai_jvs_config / sizeof maimai_jvs_config[0];
+// jvs_board_t (*jvs_config)[] = &under_night_jvs_config;
+// size_t jvs_num_boards = sizeof under_night_jvs_config / sizeof under_night_jvs_config[0];
 
 void setup_mxjvs() {
     file_hook_t* mxjvs = new_file_hook(L"\\\\.\\mxjvs");

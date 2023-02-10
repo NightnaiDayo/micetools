@@ -55,8 +55,8 @@ void make_default_config() {
     if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment); \
     fprintf(config_file, "%s = %d ;(int)\n", #n, default);
 
-#define CFG_hex(s, n, precision, default, comment)                                              \
-    if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment);                       \
+#define CFG_hex(s, n, precision, default, comment)                                               \
+    if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment);                        \
     fprintf(config_file, "%s = %.*X ;(hex, %d byte%s)\n", #n, precision, 0x##default, precision, \
             precision == 1 ? "" : "s");
 
@@ -93,7 +93,6 @@ int handler(void *user, const char *section, const char *name, const char *value
 #define CFG_int(s, n, default, comment)                                          \
     else if (_stricmp(section, #s) == 0 && _stricmp(name, #n) == 0) {            \
         cfg->s.n = strtol(value, &end, 10);                                      \
-        printf("%s.%s:%d\n", #s, #n, cfg->s.n);\
         if (end == value || *end != '\0' || errno == ERANGE) cfg->s.n = default; \
     }
 #define CFG_hex(s, n, precision, default, comment)                                   \

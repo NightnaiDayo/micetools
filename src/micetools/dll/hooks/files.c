@@ -99,7 +99,6 @@ void hook_file_with_buffer(LPCWSTR filename, LPBYTE buffer, DWORD nBytes, DWORD 
 drive_redirect_t DRIVE_REDIRECT_TABLE[] = {
     // Note: Had to create last_shime.log
     { .drive = "C:\\Documents and Settings\\AppUser\\temp\\", .path = ".\\dev\\temp\\" },
-    { .drive = "E:\\", .path = "\\\\.\\E:" },
     // {.drive = "C:\\ProgramData/boost_interprocess/", .path = "\\\\.\\ipc\\"},
 };
 
@@ -155,10 +154,7 @@ BOOL redirect_path(LPCSTR path, LPCSTR* redirected) {
 
     // Don't redirect local paths
     GetCurrentDirectoryA(sizeof WORKING_DIR, WORKING_DIR);
-    if (strstr(path, WORKING_DIR) == path) {
-        puts("SKIP");
-        return FALSE;
-    }
+    if (strstr(path, WORKING_DIR) == path) return FALSE;
 
     if ((('a' <= path[0] && path[0] <= 'z') || ('A' <= path[0] && path[0] <= 'Z')) &&
         path[1] == ':' && (path[2] == '/' || path[2] == '\\')) {
