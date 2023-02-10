@@ -70,10 +70,10 @@ BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
         //                          CREATE_NEW_CONSOLE);
     } else {
         dwCreationFlags |= CREATE_NEW_CONSOLE;
-        wsprintfW(commandLineW, L"mice86 -b %ls", lpApplicationName);
+        wsprintfW(commandLineW, L"mice -b %ls", lpApplicationName);
         printf("%ls %ls\n", micePathW, commandLineW);
         BOOL ret =
-            TrueCreateProcessW(L"mice86.cmd", commandLineW, lpProcessAttributes, lpThreadAttributes,
+            TrueCreateProcessW(L"mice.cmd", commandLineW, lpProcessAttributes, lpThreadAttributes,
                                bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory,
                                lpStartupInfo, lpProcessInformation);
         printf("%d\n", ret);

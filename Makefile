@@ -5,12 +5,10 @@ BUILD_DRIVE := M:
 
 MICE := "$(BUILD_DIR)/src\mice.exe"
 
-# VCVARS_32 := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars32.bat"
-# VCVARS_64 := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
+# VCVARS := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars32.bat"
 
 # For windows XP:
-VCVARS_32 := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars32.bat" -vcvars_ver=14.16
-VCVARS_64 := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat" -vcvars_ver=14.16
+VCVARS := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars32.bat" -vcvars_ver=14.16
 
 .ONESHELL:
 
@@ -20,7 +18,7 @@ all: mice dist
 mice:
 	-@subst $(BUILD_DRIVE) .
 	@cd /D $(BUILD_DRIVE) \
-	& $(VCVARS_32) \
+	& $(VCVARS) \
 	& meson setup --cross cross-32.ini $(BUILD_DRIVE)\$(BUILD_DIR) \
 	& meson compile -C $(BUILD_DRIVE)\$(BUILD_DIR)
 	@subst $(BUILD_DRIVE) /D

@@ -23,7 +23,7 @@ SECTION(launcher, "These options are only used during initial bootstrapping")
 CFG_str(launcher, game_binary, "", "Override binary detection")
 CFG_bool(launcher, wait_for_debugger, false, "Wait for a debugger to attach when starting")
 CFG_int(launcher, startup_delay, 0, "Pause during startup")
-CFG_str(launcher, mice_dll, "mice86.dll", "The path to mice's DLL")
+CFG_str(launcher, mice_dll, "mice.dll", "The path to mice's DLL")
 CFG_str(launcher, inject, "", "Extra DLLs to inject during boot")
 ENDSECTION(launcher)
 
