@@ -2,8 +2,6 @@
 
 #include "./files.h"
 
-// const char OS_VERSION[] = "Service Pack 3";
-
 OSVERSIONINFOA OS_VERSION = {
     .dwOSVersionInfoSize = 148,
     .dwMajorVersion = 5,
@@ -47,14 +45,43 @@ LONG WINAPI FakeChangeDisplaySettingsExA(LPCSTR lpszDeviceName, DEVMODEA* lpDevM
     return 0;
 }
 
+FARPROC FakeGetProcAddress(HMODULE hModule, LPCSTR lpProcName) {
+    log_trace("system", "GetProcAddress(%s)", lpProcName);
+    return TrueGetProcAddress(hModule, lpProcName);
+}
+HMODULE FakeGetModuleHandleA(LPCSTR lpModuleName) {
+    log_trace("system", "GetModuleHandleA(%s)", lpModuleName);
+    return TrueGetModuleHandleA(lpModuleName);
+}
+
+LONG WINAPI FakeRtlGetVersion(PRTL_OSVERSIONINFOW lpVersionInformation) {
+    log_trace("system", "RtlGetVersion(%p)", lpVersionInformation);
+
+    if (lpVersionInformation->dwOSVersionInfoSize >= sizeof (OSVERSIONINFOW)) {
+        lpVersionInformation->dwMajorVersion = OS_VERSION.dwMajorVersion;
+        lpVersionInformation->dwMinorVersion = OS_VERSION.dwMinorVersion;
+        lpVersionInformation->dwBuildNumber = OS_VERSION.dwBuildNumber;
+    }
+    if (lpVersionInformation->dwOSVersionInfoSize >= sizeof (OSVERSIONINFOEXW)) {
+        PRTL_OSVERSIONINFOEXW lpVersionInformationEx = (PRTL_OSVERSIONINFOEXW)lpVersionInformation;
+        lpVersionInformationEx->wServicePackMajor = 3;
+        lpVersionInformationEx->wServicePackMinor = 0;
+    }
+    return 0;
+}
+
 void hook_system() {
     // TODO: This should be part of drives/hooks.c
     hook("Kernel32.dll", "GetVolumeInformationW", FakeGetVolumeInformationW, NULL);
     hook("Kernel32.dll", "GetTempPathW", FakeGetTempPathW, NULL);
-    hook("Kernel32.dll", "GetVersionExA", FakeGetVersionExA, NULL);
+    // hook("Kernel32.dll", "GetVersionExA", FakeGetVersionExA, NULL);
+    // hook("Kernel32.dll", "GetProcAddress", FakeGetProcAddress, (void*)&TrueGetProcAddress);
+    // hook("Kernel32.dll", "GetModuleHandleA", FakeGetModuleHandleA, (void*)&TrueGetModuleHandleA);
 
     hook("User32.dll", "ChangeDisplaySettingsA", FakeChangeDisplaySettingsA, NULL);
     hook("User32.dll", "ChangeDisplaySettingsExA", FakeChangeDisplaySettingsExA, NULL);
+
+    // hook("ntdll.dll", "RtlGetVersion", FakeRtlGetVersion, NULL);
 
     // hook("User32.dll", "LoadCursorFromFileA", FakeLoadCursorFromFileA, NULL);
     // hook("User32.dll", "SetSystemCursor", FakeSetSystemCursor, NULL);

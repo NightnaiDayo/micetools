@@ -2,6 +2,7 @@
 #include "../common.h"
 
 static int(WINAPI* True_connect)(SOCKET s, const SOCKADDR* name, int namelen);
+static int(WINAPI* True_bind)(SOCKET s, const SOCKADDR* addr, int namelen);
 
 static DWORD(WINAPI* TrueGetIfTable)(PMIB_IFTABLE pIfTable, PULONG pdwSize, BOOL bOrder);
 

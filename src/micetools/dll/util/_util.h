@@ -15,4 +15,7 @@ HANDLE GetDummyHandle();
 void BytesToHex(char* hex_buffer, BYTE* bytes, DWORD nbytes);
 void PrintStack(void);
 
+BOOL PathEqual(LPCSTR path1, LPCSTR path2);
+BOOL PathPrefix(LPCSTR path, LPCSTR prefix);
+
 void make_dirs(const char* path);

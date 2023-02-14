@@ -4,6 +4,8 @@ extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam
 
 HWND mainWindow;
 
+static unsigned int hookType;
+
 static HWND window;
 BOOL CALLBACK EnumWindowsCallback(HWND handle, LPARAM lParam) {
     DWORD wndProcId;
@@ -105,10 +107,11 @@ void draw_rect(IDirect3DDevice9* dev, int x, int y, int w, int h, unsigned char 
 
 HRESULT __stdcall hkEndScene(IDirect3DDevice9* pDevice) {
     static bool showMenu = false;
+    hookType = UI_HOOK_DX9;
 
     end_scene_hook_t* head = end_scene_hook_list;
     while (head != NULL) {
-        head->hook(pDevice);
+        head->hook(hookType, pDevice);
         head = head->next;
     }
     return TrueEndScene(pDevice);
@@ -138,13 +141,15 @@ void post_win_create(HWND hWnd) {
 
     mainWindow = hWnd;
 
-    void* d3d9Device[119];
-    if (GetD3D9Device(d3d9Device, sizeof(d3d9Device))) {
-        *((PVOID*)&TrueEndScene) = CreateHook32((PVOID)d3d9Device[42], (PVOID)hkEndScene);
-    }
+    if (hookType == UI_HOOK_DX9) {
+        void* d3d9Device[119];
+        if (GetD3D9Device(d3d9Device, sizeof(d3d9Device))) {
+            *((PVOID*)&TrueEndScene) = CreateHook32((PVOID)d3d9Device[42], (PVOID)hkEndScene);
+        }
 
-    if (hWnd && !SetWindowSubclass(hWnd, WndProc, (int)&WndProc, (DWORD_PTR)NULL)) {
-        log_error("gui", "failed to SetWindowSubclass(%d)", GetLastError());
+        if (hWnd && !SetWindowSubclass(hWnd, WndProc, (int)&WndProc, (DWORD_PTR)NULL)) {
+            log_error("gui", "failed to SetWindowSubclass(%d)", GetLastError());
+        }
     }
 }
 
@@ -158,22 +163,36 @@ BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMoni
     return TRUE;
 }
 
-void SetupWindowPosition(int* X, int* Y, int* nWidth, int* nHeight) {
+void SetupWindowPosition(LPRECT lpRect, DWORD dwStyle) {
+    int x = lpRect->left;
+    int y = lpRect->top;
+    int w = lpRect->right - x;
+    int h = lpRect->bottom - y;
+
     monitorIndex = 0;
     EnumDisplayMonitors(NULL, NULL, MonitorEnumProc, (LPARAM)NULL);
 
-    if (MiceConfig.window.w) *nWidth = MiceConfig.window.w;
-    if (MiceConfig.window.h) *nHeight = MiceConfig.window.h;
+    if (!MiceConfig.window.nosize) {
+        if (MiceConfig.window.w) w = MiceConfig.window.w;
+        if (MiceConfig.window.h) h = MiceConfig.window.h;
+    }
 
     if (MiceConfig.window.centre) {
-        *X = ((monitorRect.right - monitorRect.left) - *nWidth) / 2;
-        *Y = ((monitorRect.bottom - monitorRect.top) - *nHeight) / 2;
+        x = ((monitorRect.right - monitorRect.left) - w) / 2;
+        y = ((monitorRect.bottom - monitorRect.top) - h) / 2;
     } else {
-        *X = MiceConfig.window.x;
-        *Y = MiceConfig.window.y;
+        x = MiceConfig.window.x;
+        y = MiceConfig.window.y;
     }
-    *X += monitorRect.left;
-    *Y += monitorRect.top;
+    x += monitorRect.left;
+    y += monitorRect.top;
+
+    lpRect->left = x;
+    lpRect->right = x + w;
+    lpRect->top = y;
+    lpRect->bottom = y + h;
+
+    AdjustWindowRect(lpRect, dwStyle, FALSE);
 }
 
 HWND WINAPI FakeCreateWindowExA(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName,
@@ -186,9 +205,16 @@ HWND WINAPI FakeCreateWindowExA(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWi
                                    nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
 
-    SetupWindowPosition(&X, &Y, &nWidth, &nHeight);
-    HWND hWnd = TrueCreateWindowExA(dwExStyle, lpClassName, "Micetools", dwStyle, X, Y, nWidth,
-                                    nHeight, hWndParent, hMenu, hInstance, lpParam);
+    RECT winRect;
+    winRect.left = X;
+    winRect.right = X + nWidth;
+    winRect.top = Y;
+    winRect.bottom = Y + nHeight;
+    SetupWindowPosition(&winRect, dwStyle);
+    HWND hWnd =
+        TrueCreateWindowExA(dwExStyle, lpClassName, "Micetools", dwStyle, winRect.left, winRect.top,
+                            winRect.right - winRect.left, winRect.bottom - winRect.top, hWndParent,
+                            hMenu, hInstance, lpParam);
     post_win_create(hWnd);
     return hWnd;
 }
@@ -202,9 +228,16 @@ HWND WINAPI FakeCreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lp
                                    nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
 
-    SetupWindowPosition(&X, &Y, &nWidth, &nHeight);
-    HWND hWnd = TrueCreateWindowExW(dwExStyle, lpClassName, L"Micetools", dwStyle, X, Y, nWidth,
-                                    nHeight, hWndParent, hMenu, hInstance, lpParam);
+    RECT winRect;
+    winRect.left = X;
+    winRect.right = X + nWidth;
+    winRect.top = Y;
+    winRect.bottom = Y + nHeight;
+    SetupWindowPosition(&winRect, dwStyle);
+    HWND hWnd =
+        TrueCreateWindowExW(dwExStyle, lpClassName, L"Micetools", dwStyle, winRect.left,
+                            winRect.top, winRect.right - winRect.left, winRect.bottom - winRect.top,
+                            hWndParent, hMenu, hInstance, lpParam);
     post_win_create(hWnd);
     return hWnd;
 }
@@ -238,26 +271,39 @@ HRESULT STDMETHODCALLTYPE FakeCreateDevice(IDirect3D9* this, UINT Adapter, D3DDE
 
     RECT winRect;
     GetWindowRect(hFocusWindow, &winRect);
-    int w = MiceConfig.window.w ? MiceConfig.window.w : (winRect.right - winRect.left);
-    int h = MiceConfig.window.h ? MiceConfig.window.h : (winRect.bottom - winRect.top);
-    int x = MiceConfig.window.x;
-    int y = MiceConfig.window.y;
-    if (MiceConfig.window.centre) {
-        x = ((monitorRect.right - monitorRect.left) - w) / 2;
-        y = ((monitorRect.bottom - monitorRect.top) - h) / 2;
+    DWORD dwStyle = GetWindowLongW(hFocusWindow, GWL_STYLE);
+    SetupWindowPosition(&winRect, dwStyle);
+
+    SetWindowPos(hFocusWindow, HWND_TOP, winRect.left, winRect.top, winRect.right - winRect.left,
+                 winRect.bottom - winRect.top, 0);
+
+    HRESULT res = TrueCreateDevice(this, Adapter, DeviceType, hFocusWindow, BehaviorFlags,
+                                   pPresentationParameters, ppReturnedDeviceInterface);
+    if (res != S_OK) {
+        switch (res) {
+            case D3DERR_DEVICELOST:
+                log_error("D3D9", "CreateDevice failed: Device lost");
+                break;
+            case D3DERR_INVALIDCALL:
+                log_error("D3D9", "CreateDevice failed: Invalid call");
+                break;
+            case D3DERR_NOTAVAILABLE:
+                log_error("D3D9", "CreateDevice failed: Requested configuration not available");
+                break;
+            case D3DERR_OUTOFVIDEOMEMORY:
+                log_error("D3D9", "CreateDevice failed: VMem exhausted");
+                break;
+            default:
+                log_error("D3D9", "CreateDevice failed: %08x", res);
+                break;
+        }
     }
-
-    x += monitorRect.left;
-    y += monitorRect.top;
-
-    SetWindowPos(hFocusWindow, HWND_TOP, x, y, w, h, 0);
-
-    return TrueCreateDevice(this, Adapter, DeviceType, hFocusWindow, BehaviorFlags,
-                            pPresentationParameters, ppReturnedDeviceInterface);
+    return res;
 }
 
 IDirect3D9* WINAPI FakeDirect3DCreate9(UINT SDKVersion) {
     IDirect3D9* pD3D = TrueDirect3DCreate9(D3D_SDK_VERSION);
+    hookType = UI_HOOK_DX9;
 
     TrueCreateDevice = pD3D->lpVtbl->CreateDevice;
     DWORD patch = (DWORD)&FakeCreateDevice;
@@ -267,15 +313,50 @@ IDirect3D9* WINAPI FakeDirect3DCreate9(UINT SDKVersion) {
 };
 
 int WINAPI FakeGetSystemMetrics(int nIndex) {
-    int real = TrueGetSystemMetrics(nIndex);
-    if (nIndex == SM_CXSCREEN && MiceConfig.window.w) return MiceConfig.window.w;
-    if (nIndex == SM_CYSCREEN && MiceConfig.window.h) return MiceConfig.window.h;
-    return nIndex;
+    if (nIndex == SM_CXSCREEN && MiceConfig.window.w)
+        return MiceConfig.window.w;
+    else if (nIndex == SM_CYSCREEN && MiceConfig.window.h)
+        return MiceConfig.window.h;
+    return TrueGetSystemMetrics(nIndex);
+}
+
+void __cdecl Fake_glutFullScreen(void) {
+    hookType = UI_HOOK_GLUT;
+    if (!MiceConfig.window.windowed) True_glutFullScreen();
+}
+
+void __cdecl Fake_glutSwapBuffers(void) {
+    hookType = UI_HOOK_GLUT;
+    end_scene_hook_t* head = end_scene_hook_list;
+    while (head != NULL) {
+        head->hook(hookType, NULL);
+        head = head->next;
+    }
+    True_glutSwapBuffers();
+}
+
+LONG WINAPI FakeChangeDisplaySettingsExW(LPCWSTR lpszDeviceName, DEVMODEW* lpDevMode, HWND hwnd,
+                                         DWORD dwflags, LPVOID lParam) {
+    if (MiceConfig.window.windowed) return DISP_CHANGE_SUCCESSFUL;
+
+    return TrueChangeDisplaySettingsExW(lpszDeviceName, lpDevMode, hwnd, dwflags, lParam);
+}
+
+void __cdecl Fake_glutInitDisplayMode(unsigned int mode) {
+    hookType = UI_HOOK_GLUT;
+    True_glutInitDisplayMode(mode);
 }
 
 void hook_gui() {
     hook("User32.dll", "CreateWindowExA", FakeCreateWindowExA, (void**)&TrueCreateWindowExA);
     hook("User32.dll", "CreateWindowExW", FakeCreateWindowExW, (void**)&TrueCreateWindowExW);
     hook("User32.dll", "GetSystemMetrics", FakeGetSystemMetrics, (void**)&TrueGetSystemMetrics);
+    hook("User32.dll", "ChangeDisplaySettingsExW", FakeChangeDisplaySettingsExW,
+         (void**)&TrueChangeDisplaySettingsExW);
     hook("D3d9.dll", "Direct3DCreate9", FakeDirect3DCreate9, (void**)&TrueDirect3DCreate9);
+    // Hooked as a way to identify use of GLUT
+    hook("FREEGLUT.DLL", "glutInitDisplayMode", Fake_glutInitDisplayMode,
+         (void**)&True_glutInitDisplayMode);
+    hook("FREEGLUT.DLL", "glutFullScreen", Fake_glutFullScreen, (void**)&True_glutFullScreen);
+    hook("FREEGLUT.DLL", "glutSwapBuffers", Fake_glutSwapBuffers, (void**)&True_glutSwapBuffers);
 }

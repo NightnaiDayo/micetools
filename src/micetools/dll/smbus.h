@@ -1,16 +1,6 @@
 #pragma once
 #include "common.h"
 
-// PCA9535 (DIPSW)
-#define PCA9535_IN0 0x00
-#define PCA9535_IN1 0x01
-#define PCA9535_OUT0 0x02
-#define PCA9535_OUT1 0x03
-#define PCA9535_INV0 0x04
-#define PCA9535_INV1 0x05
-#define PCA9535_CONF0 0x06
-#define PCA9535_CONF1 0x07
-
 /*
 W83627UHG:
     Configuration is based on HEFRAS

@@ -8,7 +8,7 @@ config_t Config = {
 #include "config.def"
     ._keep_linter_happy = true};
 
-void make_default_config() {
+static void make_default_config() {
     FILE *config_file;
     fopen_s(&config_file, CONFIG_PATH, "w");
     if (config_file == NULL) {
@@ -52,7 +52,7 @@ void make_default_config() {
     fclose(config_file);
 }
 
-int handler(void *user, const char *section, const char *name, const char *value) {
+static int handler(void *user, const char *section, const char *name, const char *value) {
     config_t *cfg = (config_t *)user;
 
     char *end;
@@ -83,7 +83,7 @@ void load_config() {
     if (ini_parse(CONFIG_PATH, handler, &Config) < 0) printf("Can't load '%s', using defaults\n", CONFIG_PATH);
 }
 
-int main() {
+int mxkMain() {
     DWORD dwAttrib = GetFileAttributes(CONFIG_PATH);
     if (dwAttrib == INVALID_FILE_ATTRIBUTES || (dwAttrib & FILE_ATTRIBUTE_DIRECTORY)) make_default_config();
 
@@ -99,4 +99,8 @@ int main() {
         err = mxkPcpServer();
         if (err != e_pcpp_ok) PCP_LOG("Server tick: %d\n", err);
     }
+}
+
+int main() {
+    return mxkMain();
 }

@@ -148,6 +148,10 @@ void tea_hook_test(char* fmt, ...) {
     va_end(argp);
 }
 
+int mxkMain();
+DWORD WINAPI MxkThreadProc(LPVOID lpParameter) { mxkMain(); };
+void spawn_pcp_processes(void) { CreateThread(NULL, 0, &MxkThreadProc, NULL, 0, NULL); }
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
     if (ul_reason_for_call != DLL_PROCESS_ATTACH) return TRUE;
 
@@ -162,10 +166,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         // *((DWORD*)(0x00407850)) = (DWORD)(&logcb);
     }
 
-    if (wcscmp(exeName, L"RingGame.exe") == 0) {
-        log_warning(BOOT_LOGGER, "Bodge hook goo!");
-        CreateHook32((void*)(0x005f2580), &tea_hook_test);
-    }
+    spawn_pcp_processes();
+
+    // if (wcscmp(exeName, L"RingGame.exe") == 0) {
+    //     log_warning(BOOT_LOGGER, "Bodge hook goo!");
+    //     CreateHook32((void*)(0x005f2580), &tea_hook_test);
+    // }
 
     return TRUE;
 }

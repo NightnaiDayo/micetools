@@ -18,6 +18,10 @@ openssl_lib = meson.get_compiler('c').find_library('libeay32', dirs: [
 ], required: true)
 assert(openssl_lib.found(), 'Please download openssl!')
 
+freeglut_lib = meson.get_compiler('c').find_library('freeglut', dirs: [
+    join_paths(meson.source_root(), 'lib')
+], required: true)
+
 add_project_link_arguments(
     '/FIXED:NO',
     '/DYNAMICBASE',

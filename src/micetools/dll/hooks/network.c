@@ -5,10 +5,18 @@ int WINAPI Fake_connect(SOCKET s, const SOCKADDR* name, int namelen) {
     USHORT port = _byteswap_ushort(((SOCKADDR_IN*)name)->sin_port);
     // Poorly exclude pcps. TODO: better
     // if (port < 40100 || port > 40120) {
-    log_misc("connect", "%hhu.%hhu.%hhu.%hhu:%hu", (addr >> 24) & 0xff, (addr >> 16) & 0xff,
+    log_info("connect", "%hhu.%hhu.%hhu.%hhu:%hu", (addr >> 24) & 0xff, (addr >> 16) & 0xff,
              (addr >> 8) & 0xff, addr & 0xff, port);
     // }
     return True_connect(s, name, namelen);
+}
+
+int WINAPI Fake_bind(SOCKET s, const SOCKADDR* name, int namelen) {
+    ULONG addr = _byteswap_ulong(((SOCKADDR_IN*)name)->sin_addr.S_un.S_addr);
+    USHORT port = _byteswap_ushort(((SOCKADDR_IN*)name)->sin_port);
+    log_info("bind", "%hhu.%hhu.%hhu.%hhu:%hu", (addr >> 24) & 0xff, (addr >> 16) & 0xff,
+             (addr >> 8) & 0xff, addr & 0xff, port);
+    return True_bind(s, name, namelen);
 }
 
 #define IF_INDEX 1
@@ -132,6 +140,7 @@ INT WSAAPI FakeWSAStringToAddressA(LPSTR AddressString, INT AddressFamily,
 
 void hook_network() {
     hook("Ws2_32.dll", "connect", Fake_connect, (void**)&True_connect);
+    hook("Ws2_32.dll", "bind", Fake_bind, (void**)&True_bind);
     hook("Ws2_32.dll", "WSAStringToAddressA", FakeWSAStringToAddressA,
          (void**)&TrueWSAStringToAddressA);
     hook("Iphlpapi.dll", "GetIfTable", FakeGetIfTable, (void**)&TrueGetIfTable);

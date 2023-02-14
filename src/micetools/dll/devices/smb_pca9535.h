@@ -1,7 +1,28 @@
-#include "smbus.h"
+#include "../smbus.h"
 
 smbus_callback_t smbus_PCA9535_write;
 smbus_callback_t smbus_PCA9535_read;
+
+#define DIPSW_LANDSCAPE 0b0000'0'000
+#define DIPSW_PORTRAIT 0b0000'1'000
+
+#define DIPSW_RES_DEFAULT 0b0'000'0000  // = 640x480
+#define DIPSW_RES_640x480 0b0'001'0000
+#define DIPSW_RES_1024x600 0b0'010'0000
+#define DIPSW_RES_1024x768 0b0'011'0000
+#define DIPSW_RES_1280x720 0b0'100'0000
+#define DIPSW_RES_1280x1024 0b0'101'0000
+#define DIPSW_RES_1360x768 0b0'110'0000
+#define DIPSW_RES_1920x1080 0b0'111'0000
+
+#define PCA9535_REG_IN0 0x00
+#define PCA9535_REG_IN1 0x01
+#define PCA9535_REG_OUT0 0x02
+#define PCA9535_REG_OUT1 0x03
+#define PCA9535_REG_INV0 0x04
+#define PCA9535_REG_INV1 0x05
+#define PCA9535_REG_CONF0 0x06
+#define PCA9535_REG_CONF1 0x07
 
 #define PCA9535_GND 0
 #define PCA9535_VCC 1

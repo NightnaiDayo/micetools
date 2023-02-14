@@ -4,6 +4,8 @@
 #include "jvs.h"
 #include "mx.h"
 
+#include "../key_config.h"
+
 BOOL JVS_SENSE = false;
 BOOL coin_solenoid = false;
 BOOL test_btn = false;
@@ -16,12 +18,7 @@ BOOL test_btn = false;
 const char JVS_837_14572_ID[] = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551 ;Ver1.00;98/10";
 
 typedef struct _jvs_board {
-    char test_keybind;
-    char coin_keybinds[COIN_COUNTERS];
-
-    char keybinds[PLAYER_COUNT][16];
-    unsigned char flags[PLAYER_COUNT][16];
-
+    int num;
     unsigned short coin_counts[COIN_COUNTERS];
 
     unsigned char (*handler)(struct _jvs_board* board, unsigned char* inData, short inCount,
@@ -35,8 +32,7 @@ typedef struct _jvs_board {
 #define JVS_FLAG_NC 1
 #define JVS_FLAG_INVERT 2
 
-jvs_board_t (*jvs_config)[];
-size_t jvs_num_boards;
+jvs_board_t jvs_boards[JVS_IO_MAX] = { 0 };
 
 short jvs_unpad(unsigned char* paddedData, short length, unsigned char* unpaddedData) {
     short index = 0;
@@ -71,20 +67,29 @@ short jvs_pad(unsigned char* unpaddedData, short length, unsigned char* paddedDa
 
 void update_jvs_buttons(jvs_board_t* board) {
     unsigned char sysButtons = 0x00;
-    if (GetAsyncKeyState(board->test_keybind) < 0) sysButtons |= 0x80;
+    if (GetAsyncKeyState(jvsKeybindings[board->num].test) < 0) sysButtons |= 0x80;
     board->last_sysbuttons = sysButtons;
 
     for (int player = 0; player < PLAYER_COUNT; player++) {
         unsigned short buttons = 0x0000;
         for (int i = 0; i < SWITCH_BYTES * 8; i++) {
-            int scancode = board->keybinds[player][i];
-            unsigned char flags = board->flags[player][i];
+            buttons <<= 1;
+            if (i < 14) {
+                int scancode = jvsKeybindings[board->num].buttons[(i + 1) * 2 + player];
+                bool invert = jvsKeybindings[board->num].invert[(i + 1) * 2 + player];
 
-            if (flags & JVS_FLAG_NC) continue;
-            if (flags & JVS_FLAG_INVERT)
-                buttons |= (GetAsyncKeyState(scancode) >= 0) << i;
-            else
-                buttons |= (GetAsyncKeyState(scancode) < 0) << i;
+                if (scancode == 0) continue;
+
+                if (invert)
+                    buttons |= (GetAsyncKeyState(scancode) >= 0);// << i;
+                else
+                    buttons |= (GetAsyncKeyState(scancode) < 0);// << i;
+            }
+
+            // 0x80 == push 3
+
+            // buttons |= 1;
+            // buttons |= 0x80;
         }
         board->last_buttons[player] = buttons;
     }
@@ -206,9 +211,12 @@ unsigned char jvs_exchange(jvs_board_t* board, unsigned char* inData, short inCo
                 unsigned char coin_count;
                 jvs_read(coin_count);
 
-                if (board->coin_keybinds[0] && GetAsyncKeyState(board->coin_keybinds[0]) & 1)
+                int coin1 = jvsKeybindings[board->num].buttons[0];
+                int coin2 = jvsKeybindings[board->num].buttons[1];
+
+                if (coin1 && GetAsyncKeyState(coin1) & 1)
                     board->coin_counts[0]++;
-                if (board->coin_keybinds[1] && GetAsyncKeyState(board->coin_keybinds[1]) & 1)
+                if (coin2 && GetAsyncKeyState(coin2) & 1)
                     board->coin_counts[1]++;
 
                 for (unsigned char slot = 0; slot < coin_count; slot++) {
@@ -325,19 +333,19 @@ void mxjvs_handle(unsigned char* paddedIn, short inCount, unsigned char* outData
 
     unsigned char destination = inData[1];
     // Not broadcast, not master-bound, and within bounds
-    if (destination != 0xff && (destination == 0 || destination > jvs_num_boards)) return;
+    if (destination != 0xff && (destination == 0 || destination > numJvsBoards)) return;
 
     unsigned char* response = malloc(maxOut);
     unsigned char packetSize;
     unsigned char status;
     if (destination == 0xff) {
-        for (int i = 0; i < jvs_num_boards; i++) {
-            jvs_board_t* board = &(*jvs_config)[i];
+        for (int i = 0; i < numJvsBoards; i++) {
+            jvs_board_t *board = &jvs_boards[i];
             status = board->handler(board, inData + 3, inData[2] - 1, response + 4, &packetSize);
             if (packetSize != 0) break;
         }
     } else {
-        jvs_board_t* board = &(*jvs_config)[jvs_num_boards - destination];
+        jvs_board_t* board = &jvs_boards[numJvsBoards - destination];
         status = board->handler(board, inData + 3, inData[2] - 1, response + 4, &packetSize);
     }
     free(inData);
@@ -405,252 +413,257 @@ BOOL mxjvs_SetCommState(void* com, LPDCB lpDCB) {
     return TRUE;
 }
 
-jvs_board_t maimai_jvs_config[1] = { {
-    .test_keybind = VK_OEM_4,  // [{
-        .coin_keybinds = {'1', '2'},
-    .keybinds = {
-        {
-            0,
-            0,
-            0,
-            'W',  // *1P8
-            'Q',  // *1P7
-            'A',  // *1P6
-            'Z',  // *1P5
-            'X',  // *1P4
-            'C',  // *1P3
-            0,
-            'E',  // *1P1
-            'D',  // *1P2
-            0,
-            0,
-            '1',  // *1P Service
-            0,
+// jvs_board_t maimai_jvs_config[1] = { {
+//     .test_keybind = VK_OEM_4,  // [{
+//     .coin_keybinds = {'1', '2'},
+//     .keybinds = {
+//         {
+//             0,
+//             0,
+//             0,
+//             'W',  // *1P8
+//             'Q',  // *1P7
+//             'A',  // *1P6
+//             'Z',  // *1P5
+//             'X',  // *1P4
+//             'C',  // *1P3
+//             0,
+//             'E',  // *1P1
+//             'D',  // *1P2
+//             0,
+//             0,
+//             '1',  // *1P Service
+//             0,
 
-        },
-        {
-            0,
-            0,
-            0,
-            'I',            // *2P8
-            'U',            // *2P7
-            'J',            // *2P6
-            'M',            // *2P5
-            VK_OEM_COMMA,   // *2P4
-            VK_OEM_PERIOD,  // *2P3
-            0,
-            'O',            // *2P1
-            'L',            // *2P2
-            0,
-            0,
-            '2',            // *2P Service
-            0,
+//         },
+//         {
+//             0,
+//             0,
+//             0,
+//             'I',            // *2P8
+//             'U',            // *2P7
+//             'J',            // *2P6
+//             'M',            // *2P5
+//             VK_OEM_COMMA,   // *2P4
+//             VK_OEM_PERIOD,  // *2P3
+//             0,
+//             'O',            // *2P1
+//             'L',            // *2P2
+//             0,
+//             0,
+//             '2',            // *2P Service
+//             0,
 
-        },
-    },
-    .flags = {
-        {
-            JVS_FLAG_NC,
-            JVS_FLAG_NC,
-            JVS_FLAG_NC,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_NC,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_NC,
-            JVS_FLAG_NC,
-            JVS_FLAG_NONE,
-            JVS_FLAG_NC,
-        },
-        {
+//         },
+//     },
+//     .flags = {
+//         {
+//             JVS_FLAG_NC,
+//             JVS_FLAG_NC,
+//             JVS_FLAG_NC,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_NC,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_NC,
+//             JVS_FLAG_NC,
+//             JVS_FLAG_NONE,
+//             JVS_FLAG_NC,
+//         },
+//         {
 
-            JVS_FLAG_NC,
-            JVS_FLAG_NC,
-            JVS_FLAG_NC,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_NC,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_INVERT,
-            JVS_FLAG_NC,
-            JVS_FLAG_NC,
-            JVS_FLAG_NONE,
-            JVS_FLAG_NC,
-        },
-    },
-    .coin_counts = {0, 0},
-    .handler = &jvs_exchange,
-    .id = JVS_837_14572_ID,
-} };
+//             JVS_FLAG_NC,
+//             JVS_FLAG_NC,
+//             JVS_FLAG_NC,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_NC,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_INVERT,
+//             JVS_FLAG_NC,
+//             JVS_FLAG_NC,
+//             JVS_FLAG_NONE,
+//             JVS_FLAG_NC,
+//         },
+//     },
+//     .coin_counts = {0, 0},
+//     .handler = &jvs_exchange,
+//     .id = JVS_837_14572_ID,
+// } };
 
-jvs_board_t under_night_jvs_config[1] = {
-    {
-        .test_keybind = VK_OEM_4,  // [{
-        .coin_keybinds = {'1', '2'},
-        .keybinds = {
-            {
-                0, 0, 0, 0, 0, 0,
-                'A',       // D (EXCs)
-                'R',       // C (Heavy)
-                'E',       // B (Middle)
-                'W',       // A (Light)
-                VK_RIGHT,  // Right
-                VK_LEFT,   // Left
-                VK_DOWN,   // Down
-                VK_UP,     // Up
-                VK_BACK,   // Service
-                VK_RETURN, // Start
-            },
-            {
-            0, 0, 0, 0, 0, 0,
-                'J',         // D (EXCs)
-                'P',         // C (Heavy)
-                'O',         // B (Middle)
-                'I',         // A (Light)
-                VK_NUMPAD6,  // Right
-                VK_NUMPAD4,  // Left
-                VK_NUMPAD2,  // Down
-                VK_NUMPAD8,  // Up
-                VK_BACK,     // Service
-                VK_RETURN,   // Start
-            },
-        },
-        .flags = {
-            {
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-            },
-            {
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                // JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NC,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-                JVS_FLAG_NONE,
-            },
-        },
-        .coin_counts = {0, 0},
-        .handler = &jvs_exchange,
-        .id = JVS_837_14572_ID,
-    },
-    // {
-    //     .test_keybind = VK_OEM_4,  // [{
-    //     .coin_keybinds = {0, 0},
-    //     .keybinds = {
-    //         {
-    //             0, 0, 0, 0, 0, 0,
-    //             'J',         // D (EXCs)
-    //             'P',         // C (Heavy)
-    //             'O',         // B (Middle)
-    //             'I',         // A (Light)
-    //             VK_NUMPAD6,  // Right
-    //             VK_NUMPAD4,  // Left
-    //             VK_NUMPAD2,  // Down
-    //             VK_NUMPAD8,  // Up
-    //             VK_BACK,     // Service
-    //             VK_RETURN,   // Start
-    //         },
-    //         {0},
-    //     },
-    //     .flags = {
-    //         {
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NONE,
-    //             JVS_FLAG_NONE,
-    //             JVS_FLAG_NONE,
-    //             JVS_FLAG_NONE,
-    //             JVS_FLAG_NONE,
-    //             JVS_FLAG_NONE,
-    //             JVS_FLAG_NONE,
-    //             JVS_FLAG_NONE,
-    //             JVS_FLAG_NONE,
-    //             JVS_FLAG_NONE,
-    //         },
-    //         {
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //             JVS_FLAG_NC,
-    //         },
-    //     },
-    //     .coin_counts = {0, 0},
-    //     .handler = &jvs_exchange,
-    //     .id = JVS_837_14572_ID,
-    // },
-};
+// jvs_board_t under_night_jvs_config[1] = {
+//     {
+//         .test_keybind = VK_OEM_4,  // [{
+//         .coin_keybinds = {'1', '2'},
+//         .keybinds = {
+//             {
+//                 0, 0, 0, 0, 0, 0,
+//                 'A',       // D (EXCs)
+//                 'R',       // C (Heavy)
+//                 'E',       // B (Middle)
+//                 'W',       // A (Light)
+//                 VK_RIGHT,  // Right
+//                 VK_LEFT,   // Left
+//                 VK_DOWN,   // Down
+//                 VK_UP,     // Up
+//                 VK_BACK,   // Service
+//                 VK_RETURN, // Start
+//             },
+//             {
+//             0, 0, 0, 0, 0, 0,
+//                 'J',         // D (EXCs)
+//                 'P',         // C (Heavy)
+//                 'O',         // B (Middle)
+//                 'I',         // A (Light)
+//                 VK_NUMPAD6,  // Right
+//                 VK_NUMPAD4,  // Left
+//                 VK_NUMPAD2,  // Down
+//                 VK_NUMPAD8,  // Up
+//                 VK_BACK,     // Service
+//                 VK_RETURN,   // Start
+//             },
+//         },
+//         .flags = {
+//             {
+//                 JVS_FLAG_NC,
+//                 JVS_FLAG_NC,
+//                 JVS_FLAG_NC,
+//                 JVS_FLAG_NC,
+//                 JVS_FLAG_NC,
+//                 JVS_FLAG_NC,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//             },
+//             {
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 // JVS_FLAG_NC,
+//                 JVS_FLAG_NC,
+//                 JVS_FLAG_NC,
+//                 JVS_FLAG_NC,
+//                 JVS_FLAG_NC,
+//                 JVS_FLAG_NC,
+//                 JVS_FLAG_NC,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//                 JVS_FLAG_NONE,
+//             },
+//         },
+//         .coin_counts = {0, 0},
+//         .handler = &jvs_exchange,
+//         .id = JVS_837_14572_ID,
+//     },
+//     // {
+//     //     .test_keybind = VK_OEM_4,  // [{
+//     //     .coin_keybinds = {0, 0},
+//     //     .keybinds = {
+//     //         {
+//     //             0, 0, 0, 0, 0, 0,
+//     //             'J',         // D (EXCs)
+//     //             'P',         // C (Heavy)
+//     //             'O',         // B (Middle)
+//     //             'I',         // A (Light)
+//     //             VK_NUMPAD6,  // Right
+//     //             VK_NUMPAD4,  // Left
+//     //             VK_NUMPAD2,  // Down
+//     //             VK_NUMPAD8,  // Up
+//     //             VK_BACK,     // Service
+//     //             VK_RETURN,   // Start
+//     //         },
+//     //         {0},
+//     //     },
+//     //     .flags = {
+//     //         {
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NONE,
+//     //             JVS_FLAG_NONE,
+//     //             JVS_FLAG_NONE,
+//     //             JVS_FLAG_NONE,
+//     //             JVS_FLAG_NONE,
+//     //             JVS_FLAG_NONE,
+//     //             JVS_FLAG_NONE,
+//     //             JVS_FLAG_NONE,
+//     //             JVS_FLAG_NONE,
+//     //             JVS_FLAG_NONE,
+//     //         },
+//     //         {
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //             JVS_FLAG_NC,
+//     //         },
+//     //     },
+//     //     .coin_counts = {0, 0},
+//     //     .handler = &jvs_exchange,
+//     //     .id = JVS_837_14572_ID,
+//     // },
+// };
 
-jvs_board_t (*jvs_config)[] = &maimai_jvs_config;
-size_t jvs_num_boards = sizeof maimai_jvs_config / sizeof maimai_jvs_config[0];
-// jvs_board_t (*jvs_config)[] = &under_night_jvs_config;
-// size_t jvs_num_boards = sizeof under_night_jvs_config / sizeof under_night_jvs_config[0];
+void init_jvs_boards() {
+    for (int i = 0; i < _countof(jvs_boards); i++) {
+        jvs_boards[i].num = i;
+        jvs_boards[i].id = JVS_837_14572_ID;
+        jvs_boards[i].handler = &jvs_exchange;
+    }
+}
 
 void setup_mxjvs() {
+    init_jvs_boards();
+
     file_hook_t* mxjvs = new_file_hook(L"\\\\.\\mxjvs");
     mxjvs->DeviceIoControl = &mxjvs_DeviceIoControl;
     hook_file(mxjvs);
@@ -668,6 +681,6 @@ void setup_mxjvs() {
     mxjvs->com_hook = jvscom;
 
     // TODO: Looks like some things might use JVS on COM4. We should setup a comdevice for this!
-    // file_hook_t* jvscom_file = new_file_hook(jvscom->wName);
-    // hook_file(jvscom_file);
+    file_hook_t* jvscom_file = new_file_hook(jvscom->wName);
+    hook_file(jvscom_file);
 }

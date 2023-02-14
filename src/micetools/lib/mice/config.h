@@ -1,3 +1,6 @@
+#pragma once
+
+#include <stdint.h>
 #include <stdbool.h>
 
 #define CONFIG_PATH "mice.ini"
@@ -17,4 +20,5 @@ typedef struct config {
 extern config_t MiceConfig;
 
 void make_default_config();
+void save_current_config();
 void load_mice_config();

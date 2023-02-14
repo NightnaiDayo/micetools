@@ -21,6 +21,10 @@
 #pragma once
 #include "imgui.h"      // IMGUI_IMPL_API
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Backend API
 IMGUI_IMPL_API bool     ImGui_ImplOpenGL3_Init(const char* glsl_version = nullptr);
 IMGUI_IMPL_API void     ImGui_ImplOpenGL3_Shutdown();
@@ -53,4 +57,8 @@ IMGUI_IMPL_API void     ImGui_ImplOpenGL3_DestroyDeviceObjects();
 // Otherwise imgui_impl_opengl3_loader.h will be used.
 #endif
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif

@@ -132,7 +132,7 @@ inline char char_lower(char value) {
 BOOL redirect_path(LPCSTR path, LPCSTR* redirected) {
     for (int i = 0; i < sizeof DRIVE_REDIRECT_TABLE / sizeof DRIVE_REDIRECT_TABLE[0]; i++) {
         drive_redirect_t row = DRIVE_REDIRECT_TABLE[i];
-        if (strncmp(path, row.drive, strlen(row.drive)) == 0) {
+        if (PathPrefix(path, row.drive)) {
             log_trace(HOOKS_LOGGER, "Redirecting '%s' to '%s'", path, row.path);
 
             size_t new_len = strlen(path) - strlen(row.drive) + strlen(row.path);
@@ -154,7 +154,7 @@ BOOL redirect_path(LPCSTR path, LPCSTR* redirected) {
 
     // Don't redirect local paths
     GetCurrentDirectoryA(sizeof WORKING_DIR, WORKING_DIR);
-    if (strstr(path, WORKING_DIR) == path) return FALSE;
+    if (PathPrefix(path, WORKING_DIR)) return FALSE;
 
     if ((('a' <= path[0] && path[0] <= 'z') || ('A' <= path[0] && path[0] <= 'Z')) &&
         path[1] == ':' && (path[2] == '/' || path[2] == '\\')) {
@@ -259,8 +259,8 @@ BOOL WINAPI FakeDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lp
                                 LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     open_hook_t* pHData = GetDataForHandle(hDevice, HDATA_FILE);
     if (pHData == NULL) {
-        log_trace(HOOKS_LOGGER, "DeviceIoControl(0x%p, 0x%08x, 0x%p, 0x%x, -, 0x%x, 0, 0)", hDevice,
-                  dwIoControlCode, lpInBuffer, nInBufferSize, nOutBufferSize);
+        // log_trace(HOOKS_LOGGER, "DeviceIoControl(0x%p, 0x%08x, 0x%p, 0x%x, -, 0x%x, 0, 0)", hDevice,
+        //           dwIoControlCode, lpInBuffer, nInBufferSize, nOutBufferSize);
 
         return TrueDeviceIoControl(hDevice, dwIoControlCode, lpInBuffer, nInBufferSize, lpOutBuffer,
                                    nOutBufferSize, lpBytesReturned, lpOverlapped);
@@ -402,9 +402,10 @@ int WINAPIV Fake_stat64i32(const char* path, struct _stat64i32* buffer) {
 
 DWORD WINAPI FakeGetFileAttributesA(LPCSTR lpFileName) {
     // The game quits out if MiniDump is present!
-    if (strcmp(lpFileName, "Y:\\MiniDump\\") == 0) {
+    if (PathEqual(lpFileName, "Y:\\MiniDump\\") == 0) {
         return 0;
     }
+    return (DWORD)-1;
 
     LPCSTR redirected;
     if (redirect_path(lpFileName, &redirected)) {

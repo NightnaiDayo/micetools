@@ -133,6 +133,10 @@ void make_dirs(const char* path) {
     for (i = 0; i < len; i++) {
         if (temp[i] == '/' || temp[i] == '\\') count++;
     }
+    // Don't create directories for trailing slashes
+    if (count && i && (temp[i - 1] == '/' || temp[i - 1] == '\\')) {
+        count--;
+    }
     if (count == 0) {
         free(temp);
         return;

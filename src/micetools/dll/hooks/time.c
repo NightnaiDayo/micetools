@@ -31,18 +31,40 @@ BOOL WINAPI Fake_SetTimeZoneInformation(const TIME_ZONE_INFORMATION* lpTimeZoneI
 
 // TODO: Store deltas instead
 BOOL WINAPI Fake_GetLocalTime(SYSTEMTIME* lpSystemTime) {
+    log_trace("time", "GetLocalTime");
     if (ltCache) {
         memcpy(lpSystemTime, &localTime, sizeof localTime);
         return TRUE;
     }
+
+    // lpSystemTime->wYear = 2023;
+    // lpSystemTime->wMonth = 2;
+    // lpSystemTime->wDayOfWeek = 0;
+    // lpSystemTime->wDay = 12;
+    // lpSystemTime->wHour = 17;
+    // lpSystemTime->wMinute = 29;
+    // lpSystemTime->wSecond = 12;
+    // lpSystemTime->wMilliseconds = 764;
+    // return TRUE;
     return TrueGetLocalTime(lpSystemTime);
 }
 BOOL WINAPI Fake_GetSystemTime(SYSTEMTIME* lpSystemTime) {
+    log_trace("time", "GetSystemTime");
     if (stCache) {
         memcpy(lpSystemTime, &systemTime, sizeof systemTime);
         return TRUE;
     }
     return TrueGetSystemTime(lpSystemTime);
+
+    // lpSystemTime->wYear = 2023;
+    // lpSystemTime->wMonth = 2;
+    // lpSystemTime->wDayOfWeek = 0;
+    // lpSystemTime->wDay = 12;
+    // lpSystemTime->wHour = 17;
+    // lpSystemTime->wMinute = 29;
+    // lpSystemTime->wSecond = 12;
+    // lpSystemTime->wMilliseconds = 764;
+    // return TRUE;
 }
 
 void hook_time() {

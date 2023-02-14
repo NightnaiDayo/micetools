@@ -54,7 +54,7 @@ imgui = static_library('imgui',
         dependency('vulkan', required: get_option('vulkan')),
         dependency('glfw3', required: get_option('glfw')),
         dependency('sdl', required: get_option('sdl')),
-        dependency('glut', required: get_option('glut')),
+        # dependency('glut', required: get_option('glut')),
     ],
     include_directories: include_dirs,
 )

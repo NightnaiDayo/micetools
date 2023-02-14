@@ -20,6 +20,7 @@
 #define SBR0_PATH (DISK_PATH "sbr0.bin")
 #define SBR1_PATH (DISK_PATH "sbr1.bin")
 #define ORIGINAL0_PATH (DISK_PATH "original0.bin")
+#define PATCH0_PATH (DISK_PATH "patch0.bin")
 
 extern physical_disk_t SSD;
 extern physical_disk_t UPDATE_USB;
@@ -37,7 +38,10 @@ void init_all_pd();
 
 mice_partition_read_function_t ReadFunc_Original0;
 mice_partition_write_function_t WriteFunc_Original0;
+mice_partition_read_function_t ReadFunc_Patch0;
+mice_partition_write_function_t WriteFunc_Patch0;
 mice_partition_read_function_t ReadFunc_OSLogFiles;
+mice_partition_write_function_t WriteFunc_OS;
 
 FnDeviceIoControl c_drive_DeviceIoControl;
 FnDeviceIoControl x_drive_DeviceIoControl;

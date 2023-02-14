@@ -16,13 +16,17 @@ BOOL WINAPI FakeCreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine,
                                LPPROCESS_INFORMATION lpProcessInformation) {
     log_info("spawn", "CreateProcessA %s %s", lpApplicationName, lpCommandLine);
 
+    return TrueCreateProcessA("mxAuthDisc.bat", "", lpProcessAttributes,
+                              lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment,
+                              lpCurrentDirectory, lpStartupInfo, lpProcessInformation);
+
     HANDLE fake_evt = CreateEvent(NULL, TRUE, FALSE, NULL);
     SetEvent(fake_evt);
 
     if (lpProcessInformation) {
         lpProcessInformation->hProcess = fake_evt;
     }
-    return FALSE;
+    return TRUE;
 }
 BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
                                LPSECURITY_ATTRIBUTES lpProcessAttributes,
@@ -95,5 +99,5 @@ BOOL WINAPI FakeGetExitCodeProcess(HANDLE hProcess, LPDWORD lpExitCode) {
 void hook_processes() {
     hook("Kernel32.dll", "CreateProcessW", FakeCreateProcessW, (void**)&TrueCreateProcessW);
     hook("Kernel32.dll", "CreateProcessA", FakeCreateProcessA, (void**)&TrueCreateProcessA);
-    hook("Kernel32.dll", "GetExitCodeProcess", FakeGetExitCodeProcess, NULL);
+    // hook("Kernel32.dll", "GetExitCodeProcess", FakeGetExitCodeProcess, NULL);
 }

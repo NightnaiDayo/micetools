@@ -36,11 +36,6 @@ void eeprom_restore() {
     _CloseHandle(dump);
 }
 
-#define SET_IP(val, a, b, c, d)                                              \
-    do {                                                                     \
-        *(uint32_t*)&val = (uint32_t)((a << 24) | (b << 16) | (c << 8) | d); \
-    } while (0)
-
 #define fix_crc(block)                                                              \
     do {                                                                            \
         (block).m_Crc = amiCrc32RCalc(sizeof(block) - 4, (BYTE*)(&(block)) + 4, 0); \
@@ -48,38 +43,24 @@ void eeprom_restore() {
 
 void set_eeprom_network_config() {
     AM_SYSDATAwH_NETWORK_ETH0 NetEth0 = { 0 };
-    NetEth0.m_Eth.m_Flag = 0;
-    NetEth0.m_Eth.m_IpAddress = MiceConfig.network.ip_address;
-    NetEth0.m_Eth.m_SubnetMask = MiceConfig.network.subnet_mask;
-    NetEth0.m_Eth.m_Gateway = MiceConfig.network.gateway;
-    NetEth0.m_Eth.m_PrimaryDns = MiceConfig.network.primary_dns;
-    NetEth0.m_Eth.m_SecondaryDns = MiceConfig.network.secondary_dns;
+    NetEth0.m_Eth.m_Flag = 0;  // TODO: Allow DHCP
+    NetEth0.m_Eth.m_IpAddress = _byteswap_ulong(MiceConfig.network.ip_address);
+    NetEth0.m_Eth.m_SubnetMask = _byteswap_ulong(MiceConfig.network.subnet_mask);
+    NetEth0.m_Eth.m_Gateway = _byteswap_ulong(MiceConfig.network.gateway);
+    NetEth0.m_Eth.m_PrimaryDns = _byteswap_ulong(MiceConfig.network.primary_dns);
+    NetEth0.m_Eth.m_SecondaryDns = _byteswap_ulong(MiceConfig.network.secondary_dns);
     fix_crc(NetEth0);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_NETWORK_ETH0_REG], &NetEth0, sizeof NetEth0);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_NETWORK_ETH0_DUP], &NetEth0, sizeof NetEth0);
 
+    // TODO: Does anything ever use ETH1?
     AM_SYSDATAwH_NETWORK_ETH1 NetEth1 = { 0 };
     fix_crc(NetEth1);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_NETWORK_ETH1_REG], &NetEth1, sizeof NetEth1);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_NETWORK_ETH1_DUP], &NetEth1, sizeof NetEth1);
 }
 
-int build_eeprom() {
-    static BOOL built = false;
-    if (built) return 0;
-    built = true;
-
-    if (FileExists(EEPROM_DUMP)) {
-        eeprom_restore();
-        // Our network config always gets priority
-        set_eeprom_network_config();
-        return 0;
-    }
-
-    log_info("eeprom", "Building default EEPROM file");
-
-    memset(EEPROM_DATA, 0xff, sizeof EEPROM_DATA);
-
+void set_eeprom_static_config() {
     AM_SYSDATAwH_STATIC Static = {
         .m_Region = MiceConfig.sysconf.region & (1 | 2 | 4 | 8),
         .m_Rental = MiceConfig.sysconf.rental,
@@ -88,6 +69,24 @@ int build_eeprom() {
     fix_crc(Static);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_STATIC_REG], &Static, sizeof Static);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_STATIC_DUP], &Static, sizeof Static);
+}
+
+void build_eeprom() {
+    if (FileExists(EEPROM_DUMP)) {
+        eeprom_restore();
+        // Our network and static config always gets priority
+        set_eeprom_static_config();
+        set_eeprom_network_config();
+
+        eeprom_dump();
+        return;
+    }
+
+    log_info("eeprom", "Building default EEPROM file");
+
+    memset(EEPROM_DATA, 0xff, sizeof EEPROM_DATA);
+
+    set_eeprom_static_config();
 
     AM_SYSDATAwH_CREDIT Credit = {
         .m_Config = {
@@ -105,10 +104,10 @@ int build_eeprom() {
 
     AM_SYSDATAwH_HISTORY History = { 0 };
     // TODO: Game ID here should be configurable.
-    History.m_GameId[0] = GAME_ID_0;
-    History.m_GameId[1] = GAME_ID_1;
-    History.m_GameId[2] = GAME_ID_2;
-    History.m_GameId[3] = GAME_ID_3;
+    History.m_GameId[0] = '-';
+    History.m_GameId[1] = '-';
+    History.m_GameId[2] = '-';
+    History.m_GameId[3] = '-';
     History.m_Region = MiceConfig.sysconf.region & (1 | 2 | 4 | 8);
     fix_crc(History);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_HISTORY_REG], &History, sizeof History);
@@ -131,11 +130,21 @@ int build_eeprom() {
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_ALPB_DEV_CONFIG_DUP], &DevConfig, sizeof DevConfig);
 
     eeprom_dump();
-    return 1;
 }
 
+void ensure_valid_eeprom() {
+    static BOOL built = false;
+    if (built) {
+        eeprom_restore();
+        return;
+    }
+    build_eeprom();
+    built = true;
+}
+
+
 void eeprom_read(WORD addr, BYTE* data, BYTE length) {
-    if (!build_eeprom()) eeprom_restore();
+    ensure_valid_eeprom();
 
     if (addr >= sizeof EEPROM_DATA) return;
     if (length + addr > sizeof EEPROM_DATA) length = (sizeof EEPROM_DATA - addr) & 0xff;
@@ -143,7 +152,7 @@ void eeprom_read(WORD addr, BYTE* data, BYTE length) {
     memcpy(data, &EEPROM_DATA[addr], length);
 }
 void eeprom_write(WORD addr, BYTE* data, BYTE length) {
-    if (!build_eeprom()) eeprom_restore();
+    ensure_valid_eeprom();
 
     if (addr >= sizeof EEPROM_DATA) return;
     if (length + addr > sizeof EEPROM_DATA) length = (sizeof EEPROM_DATA - addr) & 0xff;

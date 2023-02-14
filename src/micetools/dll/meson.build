@@ -11,6 +11,7 @@ shared_library(
         'util/misc.c',
         'util/log.c',
         'util/hook.c',
+        'util/path.c',
 
         drivers_files,
         devices_files,
@@ -26,10 +27,11 @@ shared_library(
         mice_lib,
         amiTimer,
         amiMd5,
+        mxk,
         mxklib,
     ],
     include_directories: [
         openssl_inc,
     ],
-    dependencies: [cimgui.get_variable('cimgui_dep')]
+    dependencies: [cimgui.get_variable('cimgui_dep'), freeglut_lib]
 )

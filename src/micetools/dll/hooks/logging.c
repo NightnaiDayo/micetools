@@ -101,10 +101,10 @@ BOOL WINAPI FakeDeregisterEventSource(HANDLE hEventLog) { return TRUE; }
 // lpOutputString); }
 
 void hook_logging() {
-    hook("MSVCR90.DLL", "printf", Fakeprintf, (void**)&Trueprintf);
-    hook("MSVCR90.DLL", "fprintf", Fakefprintf, (void**)&Truefprintf);
-    hook("MSVCR90.DLL", "fprintf_s", Fakefprintf_s, (void**)&Truefprintf_s);
-    hook("MSVCR90.DLL", "vfprintf_s", Fakevfprintf_s, (void**)&Truevfprintf_s);
+    // hook("MSVCR90.DLL", "printf", Fakeprintf, (void**)&Trueprintf);
+    // hook("MSVCR90.DLL", "fprintf", Fakefprintf, (void**)&Truefprintf);
+    // hook("MSVCR90.DLL", "fprintf_s", Fakefprintf_s, (void**)&Truefprintf_s);
+    // hook("MSVCR90.DLL", "vfprintf_s", Fakevfprintf_s, (void**)&Truevfprintf_s);
 
     hook("Advapi32.dll", "RegisterEventSourceA", FakeRegisterEventSourceA,
          (void**)&TrueRegisterEventSourceA);

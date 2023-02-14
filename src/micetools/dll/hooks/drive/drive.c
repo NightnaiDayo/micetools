@@ -86,6 +86,53 @@ BOOL WriteFunc_Original0(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesTo
     return ret;
 }
 
+BOOL ReadFunc_Patch0(DWORD nOffset, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
+                        LPDWORD lpNumberOfBytesRead) {
+    *lpNumberOfBytesRead = 0;
+    if (!_PathFileExistsA(PATCH0_PATH)) {
+        log_error("drive", "Failed to open %s (does not exist)", PATCH0_PATH);
+        return FALSE;
+    }
+
+    HANDLE hFile =
+        _CreateFileA(PATCH0_PATH, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        log_error("drive", "Failed to open %s", PATCH0_PATH);
+        return FALSE;
+    }
+    LARGE_INTEGER seekTo;
+    seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)SSD.m_BlockSize;
+    _SetFilePointerEx(hFile, seekTo, NULL, FILE_BEGIN);
+    BOOL ret = _ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, NULL);
+    if (!ret) log_error("drive", "Failed to read to %s: %03x", PATCH0_PATH, GetLastError());
+    _CloseHandle(hFile);
+    return ret;
+}
+BOOL WriteFunc_Patch0(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
+                         LPDWORD lpNumberOfBytesWritten) {
+    *lpNumberOfBytesWritten = 0;
+
+    HANDLE hFile =
+        _CreateFileA(PATCH0_PATH, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, 0, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        log_error("drive", "Failed to open %s", PATCH0_PATH);
+        return FALSE;
+    }
+    LARGE_INTEGER seekTo;
+    seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)SSD.m_BlockSize;
+    _SetFilePointerEx(hFile, seekTo, NULL, FILE_BEGIN);
+    BOOL ret = _WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, NULL);
+    if (!ret) log_error("drive", "Failed to write to %s: %03x", PATCH0_PATH, GetLastError());
+    _CloseHandle(hFile);
+    return ret;
+}
+
+BOOL WriteFunc_OS(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
+                         LPDWORD lpNumberOfBytesWritten) {
+    *lpNumberOfBytesWritten = nNumberOfBytesToWrite;
+    log_warning("drive", "%d bytes write in OS at %08x", nNumberOfBytesToWrite, nOffset);
+    return TRUE;
+}
 BOOL ReadFunc_OSLogFiles(DWORD nOffset, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
                          LPDWORD lpNumberOfBytesRead) {
     if (nOffset == 2047 && nNumberOfBytesToRead == sizeof(AM_EVENT_LOG_HEADER)) {
@@ -613,7 +660,7 @@ void init_all_pd() {
 
 BOOL q_drive_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
                       LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped) {
-    log_misc("q", "CDROM read 0x%04x bytes at 0x%08x", nNumberOfBytesToRead,
+    log_game("q", "CDROM read 0x%04x bytes at 0x%08x", nNumberOfBytesToRead,
              ctx->m_Pointer.QuadPart);
 
     /**
@@ -628,7 +675,9 @@ BOOL q_drive_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytes
      * +512: Boot ID (128 sectors) [keychip.decrypt]
      */
 
-    HANDLE hFile = _CreateFileA("\\\\.\\E:", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+    // HANDLE hFile = _CreateFileA("\\\\.\\E:", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+    //                             OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE hFile = _CreateFileA("H:\\Arcades\\Images\\ALLNet_Pras_Multi_Ver2\\DVR-0069A.iso", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
                                 OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile == INVALID_HANDLE_VALUE) {
         log_error("q", "READ FAILED. FILE FALLBACK FAILED. %d", GetLastError());

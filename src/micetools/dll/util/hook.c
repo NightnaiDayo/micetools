@@ -103,6 +103,18 @@ void* CreateHook32(PVOID src, PVOID dst) {
     } else if (bSrc[0] == 0x68) {
         // push 0x...       (dword)
         len = 5;
+    } else if (bSrc[0] == 0x55 && bSrc[1] == 0x8B && bSrc[2] == 0xEC && bSrc[3] == 0x83 &&
+                         bSrc[4] == 0xE4) {
+        // pusb ebp
+        // mov ebp,esp
+        // and esp,ffffff**
+        len = 6;
+    } else if (bSrc[0] == 0x55 && bSrc[1] == 0x8B && bSrc[2] == 0xEC && bSrc[3] == 0x8b &&
+                         bSrc[4] == 0x45) {
+        // pusb ebp
+        // mov ebp,esp
+        // mov eax,DWORD PTR [...]
+        len = 6;
     } else {
         log_error(HOOKS_LOGGER, "Unable to identify gateway length! Function peek:");
         for (int i = 0; i < 16; i++) {
@@ -126,6 +138,8 @@ void* CreateHook32(PVOID src, PVOID dst) {
     return gateway;
 }
 
+extern FARPROC (*TrueGetProcAddress)(HMODULE hModule, LPCSTR lpProcName);
+
 void setup_hooks() {
     log_info(HOOKS_LOGGER, "attaching");
 
@@ -145,6 +159,8 @@ void setup_hooks() {
             continue;
         }
 
+        // void* original =
+        //     (TrueGetProcAddress ? TrueGetProcAddress : GetProcAddress)(dll, hook->name);
         void* original = GetProcAddress(dll, hook->name);
         if (original == NULL) {
             log_warning(HOOKS_LOGGER, "failed to get original %s (%03x)", hook->name,

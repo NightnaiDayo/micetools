@@ -34,7 +34,7 @@ void fprintf_prefix(FILE *file, const char *prefix, const char *text) {
     free(copy);
 }
 
-void make_default_config() {
+static void make_default_config() {
     FILE *config_file;
     fopen_s(&config_file, CONFIG_PATH, "w");
     if (config_file == NULL) {
@@ -78,7 +78,7 @@ void make_default_config() {
     fclose(config_file);
 }
 
-int handler(void *user, const char *section, const char *name, const char *value) {
+static int handler(void *user, const char *section, const char *name, const char *value) {
     config_t *cfg = (config_t *)user;
 
     char *end;

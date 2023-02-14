@@ -23,8 +23,8 @@ physical_disk_t SSD = {
         },
     },
     .m_Extended = {
-        { 0x102d83, MBR_FS_FAT16, SPD_OS, .m_ReadFunc = &ReadFunc_OSLogFiles },      // 512MB OS update
-        { 0x403947, MBR_FS_FAT16, SPD_Patch0, .m_ReadFunc = NULL },  // 2GB patch0
+        { 0x102d83, MBR_FS_FAT16, SPD_OS, .m_ReadFunc = &ReadFunc_OSLogFiles, .m_WriteFunc = &WriteFunc_OS },      // 512MB OS update
+        { 0x403947, MBR_FS_FAT16, SPD_Patch0, .m_ReadFunc = &ReadFunc_Patch0, .m_WriteFunc = &WriteFunc_Patch0 },  // 2GB patch0
         { 0x403947, MBR_FS_FAT16, SPD_Patch1, .m_ReadFunc = NULL },  // 2GB patch1
         { 0x48ed459, MBR_FS_NTFS, SPD_AppData, .m_ReadFunc = NULL }, // 40GB something
         {
@@ -102,9 +102,32 @@ physical_disk_t ALPHA_DVD = {
     } },
 };
 
+physical_disk_t APM_HDD = {
+    .m_BusType = BusTypeUsb,
+    .m_HasSegaboot = false,
+    .m_BlockSize = BLOCK_SIZE_HDD,
+    .m_TotalSize = 64 * 1024 * 1024 * (1024 / BLOCK_SIZE_HDD),
+    .m_DiskType = DiskType_HardDisk,
+    .m_IsFormatted = true,
+    .m_Partitions = {
+        // ~64GB big block
+        {
+            .m_Size = 0x801eb80,
+            .m_Filesystem = MBR_FS_NTFS,
+            .m_Volume = {
+                .m_Name = "APM",
+                .m_MountPoint = 'I',  // the APM loader mounts this for us
+            }
+        },
+    },
+    .m_Extended = {{ 0 }},
+};
+
 physical_disk_t* PHYSICAL_DISKS[] = {
     &SSD,
     &UPDATE_USB,
+    &APM_HDD,
+
     // &LOG_USB,
-    // &ALPHA_DVD,
+    &ALPHA_DVD,
 };
