@@ -95,6 +95,13 @@ CFG_bool(hooks, registry, true, "")
 CFG_bool(hooks, drives, true, "Provides an emulation layer for the physical game SSD")
 ENDSECTION(hooks)
 
+SECTION(keys, "Raw keybinding data. Edit this using the built in binding tool!")
+CFG_int(keys, test, 0, "")
+CFG_int(keys, service, 0, "")
+CFG_int(keys, board_count, 1, "")
+CFG_str(keys, keys, 0, "")
+ENDSECTION(keys)
+
 #undef CFG_str
 #undef CFG_int
 #undef CFG_bool

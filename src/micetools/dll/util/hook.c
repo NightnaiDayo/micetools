@@ -115,6 +115,12 @@ void* CreateHook32(PVOID src, PVOID dst) {
         // mov ebp,esp
         // mov eax,DWORD PTR [...]
         len = 6;
+    } else if (bSrc[0] == 0x55 && bSrc[1] == 0x8B && bSrc[2] == 0xEC && bSrc[3] == 0x80 &&
+                         bSrc[4] == 0x3D) {
+        // pusb ebp
+        // mov ebp,esp
+        // cmd BYTE PTR ds:0x...,0x...
+        len = 10;
     } else {
         log_error(HOOKS_LOGGER, "Unable to identify gateway length! Function peek:");
         for (int i = 0; i < 16; i++) {

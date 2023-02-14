@@ -320,12 +320,12 @@ int WINAPI FakeGetSystemMetrics(int nIndex) {
     return TrueGetSystemMetrics(nIndex);
 }
 
-void __cdecl Fake_glutFullScreen(void) {
+void __stdcall Fake_glutFullScreen(void) {
     hookType = UI_HOOK_GLUT;
     if (!MiceConfig.window.windowed) True_glutFullScreen();
 }
 
-void __cdecl Fake_glutSwapBuffers(void) {
+void __stdcall Fake_glutSwapBuffers(void) {
     hookType = UI_HOOK_GLUT;
     end_scene_hook_t* head = end_scene_hook_list;
     while (head != NULL) {
@@ -342,9 +342,27 @@ LONG WINAPI FakeChangeDisplaySettingsExW(LPCWSTR lpszDeviceName, DEVMODEW* lpDev
     return TrueChangeDisplaySettingsExW(lpszDeviceName, lpDevMode, hwnd, dwflags, lParam);
 }
 
-void __cdecl Fake_glutInitDisplayMode(unsigned int mode) {
+void __stdcall Fake_glutInitDisplayMode(unsigned int mode) {
     hookType = UI_HOOK_GLUT;
     True_glutInitDisplayMode(mode);
+}
+
+void __stdcall Fake_glutPositionWindow(int x, int y) {
+    RECT winRect;
+    GetWindowRect(window, &winRect);
+    DWORD dwStyle = GetWindowLongW(window, GWL_STYLE);
+    SetupWindowPosition(&winRect, dwStyle);
+
+    // True_glutPositionWindow(winRect.left, winRect.top);
+    // True_glutPositionWindow(x, y);
+}
+void __stdcall Fake_glutReshapeWindow(int width, int height) {
+    RECT winRect;
+    GetWindowRect(window, &winRect);
+    DWORD dwStyle = GetWindowLongW(window, GWL_STYLE);
+    SetupWindowPosition(&winRect, dwStyle);
+
+    // True_glutReshapeWindow(winRect.right - winRect.left, winRect.bottom - winRect.top);
 }
 
 void hook_gui() {
@@ -358,5 +376,9 @@ void hook_gui() {
     hook("FREEGLUT.DLL", "glutInitDisplayMode", Fake_glutInitDisplayMode,
          (void**)&True_glutInitDisplayMode);
     hook("FREEGLUT.DLL", "glutFullScreen", Fake_glutFullScreen, (void**)&True_glutFullScreen);
+    hook("FREEGLUT.DLL", "glutPositionWindow", Fake_glutPositionWindow,
+         (void**)&True_glutPositionWindow);
+    hook("FREEGLUT.DLL", "glutReshapeWindow", Fake_glutReshapeWindow,
+         (void**)&True_glutReshapeWindow);
     hook("FREEGLUT.DLL", "glutSwapBuffers", Fake_glutSwapBuffers, (void**)&True_glutSwapBuffers);
 }

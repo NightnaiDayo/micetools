@@ -690,11 +690,14 @@ void AddSettingButton(int board, int id) {
     }
     if (jvsKeybindings[board].buttons[id * 2]) {
         igSameLine(0, -1);
-        if (igButton(clear, vec0)) jvsKeybindings[board].buttons[id * 2] = 0;
+        if (igButton(clear, vec0)) {
+            jvsKeybindings[board].buttons[id * 2] = 0;
+            save_current_config();
+        }
     }
     igNextColumn();
     igBeginDisabled(!jvsKeybindings[board].buttons[id * 2]);
-    igCheckbox(invertName, &jvsKeybindings[board].invert[id * 2]);
+    if (igCheckbox(invertName, &jvsKeybindings[board].invert[id * 2])) save_current_config();
     igEndDisabled();
     igNextColumn();
 
@@ -716,11 +719,12 @@ void AddSettingButton(int board, int id) {
         igSameLine(0, -1);
         if (igButton(clear2, vec0)) {
             jvsKeybindings[board].buttons[id * 2 + 1] = 0;
+            save_current_config();
         }
     }
     igNextColumn();
     igBeginDisabled(!jvsKeybindings[board].buttons[id * 2 + 1]);
-    igCheckbox(invertName2, &jvsKeybindings[board].invert[id * 2 + 1]);
+    if (igCheckbox(invertName2, &jvsKeybindings[board].invert[id * 2 + 1])) save_current_config();
     igEndDisabled();
 
     igNextColumn();
@@ -729,6 +733,7 @@ void AddSettingButton(int board, int id) {
     if (igKeyBindPopup(name, &boundKey)) {
         if (boundKey != -1) {
             jvsKeybindings[board].buttons[id * 2 + (currentlyBinding - 1)] = boundKey;
+            save_current_config();
         }
         currentlyBinding = 0;
     }
@@ -777,11 +782,17 @@ void tab_jvs_board(int num) {
     if (igButton("Bind##JvsTest", vec0)) igOpenPopup_Str("BindJvsTest", ImGuiPopupFlags_None);
     if (jvsKeybindings[num].test) {
         igSameLine(0, -1);
-        if (igButton("Clear##ClearJvsTest", vec0)) jvsKeybindings[num].test = 0;
+        if (igButton("Clear##ClearJvsTest", vec0)) {
+            jvsKeybindings[num].test = 0;
+            save_current_config();
+        }
     }
     int boundKey;
     if (igKeyBindPopup("BindJvsTest", &boundKey))
-        if (boundKey != -1) jvsKeybindings[num].test = boundKey;
+        if (boundKey != -1) {
+            jvsKeybindings[num].test = boundKey;
+            save_current_config();
+        }
 
     igEndColumns();
 
@@ -803,51 +814,66 @@ void tab_system_buttons() {
 
     igTextUnformatted("System Test", NULL);
     igNextColumn();
-    if (keySystemTest == 0) {
+    if (MiceConfig.keys.test == 0) {
         igTextColored(DISABLED_COL, "None");
     } else {
-        GetKeyNameTextA(MapVirtualKey(keySystemTest, MAPVK_VK_TO_VSC) << 16, keyName,
+        GetKeyNameTextA(MapVirtualKey(MiceConfig.keys.test, MAPVK_VK_TO_VSC) << 16, keyName,
                         _countof(keyName));
         igTextUnformatted(keyName, NULL);
     }
     igNextColumn();
     if (igButton("Bind##BindTest", vec0)) igOpenPopup_Str("BindSysTest", ImGuiPopupFlags_None);
-    if (keySystemTest) {
+    if (MiceConfig.keys.test) {
         igSameLine(0, -1);
-        if (igButton("Clear##ClearTest", vec0)) keySystemTest = 0;
+        if (igButton("Clear##ClearTest", vec0)) {
+            MiceConfig.keys.test = 0;
+            save_current_config();
+        }
     }
     igNextColumn();
     if (igKeyBindPopup("BindSysTest", &boundKey))
-        if (boundKey != -1) keySystemTest = boundKey;
+        if (boundKey != -1) {
+            MiceConfig.keys.test = boundKey;
+            save_current_config();
+        }
 
     igTextUnformatted("System Service", NULL);
     igNextColumn();
-    if (keySystemService == 0) {
+    if (MiceConfig.keys.service == 0) {
         igTextColored(DISABLED_COL, "None");
     } else {
-        GetKeyNameTextA(MapVirtualKey(keySystemService, MAPVK_VK_TO_VSC) << 16, keyName,
+        GetKeyNameTextA(MapVirtualKey(MiceConfig.keys.service, MAPVK_VK_TO_VSC) << 16, keyName,
                         _countof(keyName));
         igTextUnformatted(keyName, NULL);
     }
     igNextColumn();
     if (igButton("Bind##BindService", vec0))
         igOpenPopup_Str("BindSysService", ImGuiPopupFlags_None);
-    if (keySystemService) {
+    if (MiceConfig.keys.service) {
         igSameLine(0, -1);
-        if (igButton("Clear##ClearService", vec0)) keySystemService = 0;
+        if (igButton("Clear##ClearService", vec0)) {
+            MiceConfig.keys.service = 0;
+            save_current_config();
+        }
     }
     igNextColumn();
     if (igKeyBindPopup("BindSysService", &boundKey))
-        if (boundKey != -1) keySystemService = boundKey;
+        if (boundKey != -1) {
+            MiceConfig.keys.service = boundKey;
+            save_current_config();
+        }
 }
 
 void tab_main_keybinds() {
-    igInputInt("Number of JVS boards", &numJvsBoards, 1, 1, ImGuiInputTextFlags_None);
-    if (numJvsBoards < 0) numJvsBoards = 0;
-    if (numJvsBoards > JVS_IO_MAX) numJvsBoards = JVS_IO_MAX;
+    if (igInputInt("Number of JVS boards", &MiceConfig.keys.board_count, 1, 1,
+                   ImGuiInputTextFlags_None)) {
+        if (MiceConfig.keys.board_count < 0) MiceConfig.keys.board_count = 0;
+        if (MiceConfig.keys.board_count > JVS_IO_MAX) MiceConfig.keys.board_count = JVS_IO_MAX;
+        save_current_config();
+    }
 
     if (igBeginTabBar("JVSBoards", 0)) {
-        for (int i = 0; i < numJvsBoards; i++) {
+        for (int i = 0; i < MiceConfig.keys.board_count; i++) {
             char name[32];
             snprintf(name, _countof(name), "Board %d", i + 1);
             if (igBeginTabItem(name, NULL, 0)) {

@@ -3,11 +3,11 @@
 int WINAPI Fake_connect(SOCKET s, const SOCKADDR* name, int namelen) {
     ULONG addr = _byteswap_ulong(((SOCKADDR_IN*)name)->sin_addr.S_un.S_addr);
     USHORT port = _byteswap_ushort(((SOCKADDR_IN*)name)->sin_port);
-    // Poorly exclude pcps. TODO: better
-    // if (port < 40100 || port > 40120) {
-    log_info("connect", "%hhu.%hhu.%hhu.%hhu:%hu", (addr >> 24) & 0xff, (addr >> 16) & 0xff,
-             (addr >> 8) & 0xff, addr & 0xff, port);
-    // }
+    // Poorly exclude nxauth. TODO: better
+    if (port != 40190) {
+        log_info("connect", "%hhu.%hhu.%hhu.%hhu:%hu", (addr >> 24) & 0xff, (addr >> 16) & 0xff,
+                 (addr >> 8) & 0xff, addr & 0xff, port);
+    }
     return True_connect(s, name, namelen);
 }
 

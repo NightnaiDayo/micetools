@@ -130,13 +130,13 @@ BOOL smbus_PCA9535_read(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                     static bool lastTest = false;
                     static bool lastSystem = false;
 
-                    if (keySystemTest && GetAsyncKeyState(keySystemTest) < 0) {
+                    if (MiceConfig.keys.test && GetAsyncKeyState(MiceConfig.keys.test) < 0) {
                         // if (!lastSystem)
                          dip &= ~0x04;
                         // lastSystem = true;
                     } else
                         lastSystem = false;
-                    if (keySystemService && GetAsyncKeyState(keySystemService) < 0) {
+                    if (MiceConfig.keys.service && GetAsyncKeyState(MiceConfig.keys.service) < 0) {
                         // if (!lastTest)
                         dip &= ~0x08;
                         // lastTest = true;

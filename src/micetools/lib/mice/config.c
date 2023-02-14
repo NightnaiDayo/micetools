@@ -6,6 +6,7 @@
 
 #include "../../../../subprojects/inih_dep/ini.h"
 #include "../../dll/devices/smb_pca9535.h"
+#include "../../dll/key_config.h"
 
 config_t MiceConfig = {
 #define SECTION(s, comment) .s = {
@@ -79,7 +80,24 @@ void make_default_config() {
     fclose(config_file);
 }
 
+char keybindBuffer[8192];
 void save_current_config() {
+    // Dump keybind settings
+    int i = 0;
+    for (int board = 0; board < MiceConfig.keys.board_count; board++) {
+        i += snprintf(keybindBuffer + i, _countof(keybindBuffer) - i, "%d,",
+                      jvsKeybindings[board].test);
+        for (int n = 0; n < JVS_BUTTON_PAIR_COUNT * 2; n++) {
+            i += snprintf(keybindBuffer + i, _countof(keybindBuffer) - i, "%d,",
+                          jvsKeybindings[board].buttons[n]);
+            i += snprintf(keybindBuffer + i, _countof(keybindBuffer) - i, "%d,",
+                          jvsKeybindings[board].invert[n]);
+        }
+    }
+    keybindBuffer[i] = '\0';
+    free(MiceConfig.keys.keys);
+    MiceConfig.keys.keys = strdup(keybindBuffer);
+
     FILE *config_file;
     fopen_s(&config_file, CONFIG_PATH, "w");
     if (config_file == NULL) {
@@ -162,8 +180,8 @@ static int handler(void *user, const char *section, const char *name, const char
     return 1;
 }
 
-const unsigned int RES_W[8] = {640, 640, 1024, 1024, 1280, 1280, 1360, 1920};
-const unsigned int RES_H[8] = {480, 480, 600, 768, 720, 1024, 768, 1080};
+const unsigned int RES_W[8] = { 640, 640, 1024, 1024, 1280, 1280, 1360, 1920 };
+const unsigned int RES_H[8] = { 480, 480, 600, 768, 720, 1024, 768, 1080 };
 void load_mice_config() {
     if (ini_parse(CONFIG_PATH, handler, &MiceConfig) < 0) {
         make_default_config();
@@ -190,5 +208,43 @@ void load_mice_config() {
             MiceConfig.sysconf.dipsw |= DIPSW_RES_1024x600;
         else if (MiceConfig.window.w == 640 && MiceConfig.window.h == 480)
             MiceConfig.sysconf.dipsw |= DIPSW_RES_640x480;
+    }
+
+    if (MiceConfig.keys.board_count < 0) MiceConfig.keys.board_count = 0;
+    if (MiceConfig.keys.board_count > JVS_IO_MAX) MiceConfig.keys.board_count = JVS_IO_MAX;
+
+    char *text = MiceConfig.keys.keys;
+    printf("Text: %s\n", text);
+    if (text) {
+        char *copy = (char *)malloc(strlen(text) + 1);
+        memcpy_s(copy, strlen(text) + 1, text, strlen(text) + 1);
+
+        char *next_token;
+        char *token = strtok_s(copy, ",", &next_token);
+        int board = 0;
+        int state = 0;
+        int n = 0;
+        while (token != NULL) {
+            int val = atoi(token);
+            if (state == 0) {
+                jvsKeybindings[board].test = val;
+                state = 1;
+            } else {
+                if (state == 1) {
+                    jvsKeybindings[board].buttons[n] = val;
+                    state = 2;
+                } else {
+                    jvsKeybindings[board].invert[n] = val;
+                    state = 1;
+                    if (n++ == JVS_BUTTON_PAIR_COUNT * 2) {
+                        n = 0;
+                        state = 0;
+                        if (board++ == JVS_IO_MAX) break;
+                    }
+                }
+            }
+            token = strtok_s(NULL, ",", &next_token);
+        }
+        free(copy);
     }
 }

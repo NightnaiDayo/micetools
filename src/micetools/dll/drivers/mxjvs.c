@@ -1,10 +1,9 @@
 #include <Windows.h>
 
 #include "../common.h"
+#include "../key_config.h"
 #include "jvs.h"
 #include "mx.h"
-
-#include "../key_config.h"
 
 BOOL JVS_SENSE = false;
 BOOL coin_solenoid = false;
@@ -81,9 +80,9 @@ void update_jvs_buttons(jvs_board_t* board) {
                 if (scancode == 0) continue;
 
                 if (invert)
-                    buttons |= (GetAsyncKeyState(scancode) >= 0);// << i;
+                    buttons |= (GetAsyncKeyState(scancode) >= 0);  // << i;
                 else
-                    buttons |= (GetAsyncKeyState(scancode) < 0);// << i;
+                    buttons |= (GetAsyncKeyState(scancode) < 0);  // << i;
             }
 
             // 0x80 == push 3
@@ -214,10 +213,8 @@ unsigned char jvs_exchange(jvs_board_t* board, unsigned char* inData, short inCo
                 int coin1 = jvsKeybindings[board->num].buttons[0];
                 int coin2 = jvsKeybindings[board->num].buttons[1];
 
-                if (coin1 && GetAsyncKeyState(coin1) & 1)
-                    board->coin_counts[0]++;
-                if (coin2 && GetAsyncKeyState(coin2) & 1)
-                    board->coin_counts[1]++;
+                if (coin1 && GetAsyncKeyState(coin1) & 1) board->coin_counts[0]++;
+                if (coin2 && GetAsyncKeyState(coin2) & 1) board->coin_counts[1]++;
 
                 for (unsigned char slot = 0; slot < coin_count; slot++) {
                     jvs_write(board->coin_counts[slot] >> 8);
@@ -333,19 +330,20 @@ void mxjvs_handle(unsigned char* paddedIn, short inCount, unsigned char* outData
 
     unsigned char destination = inData[1];
     // Not broadcast, not master-bound, and within bounds
-    if (destination != 0xff && (destination == 0 || destination > numJvsBoards)) return;
+    if (destination != 0xff && (destination == 0 || destination > MiceConfig.keys.board_count))
+        return;
 
     unsigned char* response = malloc(maxOut);
     unsigned char packetSize;
     unsigned char status;
     if (destination == 0xff) {
-        for (int i = 0; i < numJvsBoards; i++) {
-            jvs_board_t *board = &jvs_boards[i];
+        for (int i = 0; i < MiceConfig.keys.board_count; i++) {
+            jvs_board_t* board = &jvs_boards[i];
             status = board->handler(board, inData + 3, inData[2] - 1, response + 4, &packetSize);
             if (packetSize != 0) break;
         }
     } else {
-        jvs_board_t* board = &jvs_boards[numJvsBoards - destination];
+        jvs_board_t* board = &jvs_boards[MiceConfig.keys.board_count - destination];
         status = board->handler(board, inData + 3, inData[2] - 1, response + 4, &packetSize);
     }
     free(inData);

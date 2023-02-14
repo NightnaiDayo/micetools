@@ -12,6 +12,3 @@ struct {
 } jvsKeybindings[JVS_IO_MAX];
 
 int keySystemTest = 0;
-int keySystemService = 0;
-
-int numJvsBoards = 1;

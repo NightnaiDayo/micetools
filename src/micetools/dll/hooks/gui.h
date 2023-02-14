@@ -13,10 +13,12 @@ static BOOL(WINAPI* TrueSetSystemCursor)(HCURSOR hcur, DWORD id);
 static IDirect3D9*(WINAPI* TrueDirect3DCreate9)(UINT SDKVersion);
 static int(WINAPI* TrueGetSystemMetrics)(int nIndex);
 
-static void (*__cdecl True_glutFullScreen)(void);
-static void (*__cdecl True_glutSwapBuffers)(void);
-static void (*__cdecl True_glutInitDisplayMode)(unsigned int mode);
-static LONG (*WINAPI TrueChangeDisplaySettingsExW)(LPCWSTR lpszDeviceName, DEVMODEW* lpDevMode,
+static void (__stdcall* True_glutFullScreen)(void);
+static void (__stdcall* True_glutSwapBuffers)(void);
+static void (__stdcall* True_glutPositionWindow)(int x, int y);
+static void (__stdcall* True_glutReshapeWindow)(int width, int height);
+static void (__stdcall* True_glutInitDisplayMode)(unsigned int mode);
+static LONG (WINAPI* TrueChangeDisplaySettingsExW)(LPCWSTR lpszDeviceName, DEVMODEW* lpDevMode,
                                                    HWND hwnd, DWORD dwflags, LPVOID lParam);
 
 #define _GetSystemMetrics (TrueGetSystemMetrics ? TrueGetSystemMetrics : GetSystemMetrics)
