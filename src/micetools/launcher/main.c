@@ -55,7 +55,6 @@ void parse_cmdline(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
     load_mice_config();
 
-    fprintf(stderr, "Argc: %d\n", argc);
     CHAR workDir[MAX_PATH + 1];
     GetCurrentDirectory(MAX_PATH, workDir);
     fprintf(stderr, "Work dir: %s\n", workDir);

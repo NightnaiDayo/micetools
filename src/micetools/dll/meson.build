@@ -33,5 +33,8 @@ shared_library(
     include_directories: [
         openssl_inc,
     ],
-    dependencies: [cimgui.get_variable('cimgui_dep'), freeglut_lib]
+    dependencies: [
+        cimgui.get_variable('cimgui_dep'),
+        # freeglut_lib,  # forces the use of freeglut.dll!
+    ]
 )

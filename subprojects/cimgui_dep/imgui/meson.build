@@ -15,6 +15,7 @@ if get_option('opengl2').enabled()
 endif
 if get_option('glut').enabled()
     sources += 'backends/imgui_impl_glut.cpp'
+    sources += 'backends/GL/freeglut.cpp'
 endif
 if get_option('dx11').enabled()
     sources += 'backends/imgui_impl_dx11.cpp'

@@ -372,13 +372,16 @@ void hook_gui() {
     hook("User32.dll", "ChangeDisplaySettingsExW", FakeChangeDisplaySettingsExW,
          (void**)&TrueChangeDisplaySettingsExW);
     hook("D3d9.dll", "Direct3DCreate9", FakeDirect3DCreate9, (void**)&TrueDirect3DCreate9);
-    // Hooked as a way to identify use of GLUT
-    hook("FREEGLUT.DLL", "glutInitDisplayMode", Fake_glutInitDisplayMode,
-         (void**)&True_glutInitDisplayMode);
-    hook("FREEGLUT.DLL", "glutFullScreen", Fake_glutFullScreen, (void**)&True_glutFullScreen);
-    hook("FREEGLUT.DLL", "glutPositionWindow", Fake_glutPositionWindow,
-         (void**)&True_glutPositionWindow);
-    hook("FREEGLUT.DLL", "glutReshapeWindow", Fake_glutReshapeWindow,
-         (void**)&True_glutReshapeWindow);
-    hook("FREEGLUT.DLL", "glutSwapBuffers", Fake_glutSwapBuffers, (void**)&True_glutSwapBuffers);
+    if (PathFileExistsA("FREEGLUT.DLL")) {
+        // Hooked as a way to identify use of GLUT
+        hook("FREEGLUT.DLL", "glutInitDisplayMode", Fake_glutInitDisplayMode,
+             (void**)&True_glutInitDisplayMode);
+        hook("FREEGLUT.DLL", "glutFullScreen", Fake_glutFullScreen, (void**)&True_glutFullScreen);
+        hook("FREEGLUT.DLL", "glutPositionWindow", Fake_glutPositionWindow,
+             (void**)&True_glutPositionWindow);
+        hook("FREEGLUT.DLL", "glutReshapeWindow", Fake_glutReshapeWindow,
+             (void**)&True_glutReshapeWindow);
+        hook("FREEGLUT.DLL", "glutSwapBuffers", Fake_glutSwapBuffers,
+             (void**)&True_glutSwapBuffers);
+    }
 }

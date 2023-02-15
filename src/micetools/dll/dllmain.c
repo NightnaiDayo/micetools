@@ -150,7 +150,9 @@ void tea_hook_test(char* fmt, ...) {
 
 int mxkMain();
 DWORD WINAPI MxkThreadProc(LPVOID lpParameter) { mxkMain(); };
-void spawn_pcp_processes(void) { CreateThread(NULL, 0, &MxkThreadProc, NULL, 0, NULL); }
+void spawn_pcp_processes(void) {
+    // CreateThread(NULL, 0, &MxkThreadProc, NULL, 0, NULL);
+}
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
     if (ul_reason_for_call != DLL_PROCESS_ATTACH) return TRUE;

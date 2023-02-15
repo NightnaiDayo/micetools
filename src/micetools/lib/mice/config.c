@@ -214,7 +214,6 @@ void load_mice_config() {
     if (MiceConfig.keys.board_count > JVS_IO_MAX) MiceConfig.keys.board_count = JVS_IO_MAX;
 
     char *text = MiceConfig.keys.keys;
-    printf("Text: %s\n", text);
     if (text) {
         char *copy = (char *)malloc(strlen(text) + 1);
         memcpy_s(copy, strlen(text) + 1, text, strlen(text) + 1);

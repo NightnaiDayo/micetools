@@ -33,7 +33,7 @@ bool remote_call(HANDLE process, LPVOID function, LPCSTR argument, DWORD* result
 
     HANDLE remote_thread =
         CreateRemoteThread(process, NULL, 0, (LPTHREAD_START_ROUTINE)function, arg_addr, 0, NULL);
-    if (remote_thread == NULL) {
+    if (remote_thread == INVALID_HANDLE_VALUE) {
         fprintf(stderr, "Fatal: CreateRemoteThread failed: %03x\n", GetLastError());
         return false;
     }
@@ -99,16 +99,14 @@ HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL debug_wa
 
     // Start the binary
     flags |= CREATE_SUSPENDED;
-    if (!CreateProcessA(path, cmdline, NULL, NULL, FALSE, flags, NULL, NULL,
-                        &startupInfo, &processInformation)) {
+    if (!CreateProcessA(path, cmdline, NULL, NULL, FALSE, flags, NULL, NULL, &startupInfo,
+                        &processInformation)) {
         fprintf(stderr, "Fatal: CreateProcessA failed: %03x\n", GetLastError());
         goto abort;
     }
 
-    if (debug_wait) {
+    if (debug_wait)
         if (!inject_debug_wait(processInformation.hProcess)) goto abort;
-    }
-    // Sleep(5000);
     if (!inject_dll(processInformation.hProcess, inject)) goto abort;
 
     if (extra_injections != NULL && extra_injections[0] != '\0') {
@@ -140,15 +138,15 @@ HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL debug_wa
     return processInformation.hProcess;
 
 abort:
-    if (processInformation.hProcess) {
-        if (!CloseHandle(processInformation.hThread))
+    if (processInformation.hProcess && processInformation.hProcess != INVALID_HANDLE_VALUE) {
+        if (!CloseHandle(processInformation.hThread) && GetLastError() != ERROR_INVALID_HANDLE)
             fprintf(stderr, "Fatal: CloseHandle(hProcess) failed: %03x\n", GetLastError());
 
         if (!TerminateProcess(processInformation.hProcess, 1))
             fprintf(stderr, "Fatal: TerminateProcess failed: %03x\n", GetLastError());
     }
-    if (processInformation.hThread) {
-        if (!CloseHandle(processInformation.hThread))
+    if (processInformation.hThread && processInformation.hThread != INVALID_HANDLE_VALUE) {
+        if (!CloseHandle(processInformation.hThread) && GetLastError() != ERROR_INVALID_HANDLE)
             fprintf(stderr, "Fatal: CloseHandle(hThread) failed: %03x\n", GetLastError());
     }
 

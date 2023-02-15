@@ -78,7 +78,9 @@
 
             /* Link with Win32 shared freeglut lib */
 #           if FREEGLUT_LIB_PRAGMAS
-#             pragma comment (lib, "freeglut.lib")
+// Disabled! We're going to to load freeglut in at runtime!
+// #             pragma comment (lib, "freeglut.lib")
+#           define FGAPI extern
 #           endif
 
 #       endif
