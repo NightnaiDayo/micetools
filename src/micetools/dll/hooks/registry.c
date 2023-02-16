@@ -22,7 +22,11 @@ LSTATUS WINAPI FakeRegDeleteKeyValueA(HKEY hKey, LPCSTR lpSubKey, LPCSTR lpValue
 LSTATUS WINAPI FakeRegEnumKeyExA(HKEY hKey, DWORD dwIndex, LPSTR lpName, LPDWORD lpcchName,
                                  LPDWORD lpReserved, LPSTR lpClass, LPDWORD lpcchClass,
                                  PFILETIME lpftLastWriteTime) {
-    log_trace("registry", "RegEnumKeyExA %08x %s", hKey, lpName);
+    log_trace("registry", "RegEnumKeyExA %08x[%d]", hKey, dwIndex);
+    if (dwIndex == 0) {
+        strcpy(lpName, "Direct3D HAL");
+        return ERROR_SUCCESS;
+    }
     return ERROR_NO_MORE_ITEMS;
 }
 LSTATUS WINAPI FakeRegEnumValueA(HKEY hKey, DWORD dwIndex, LPSTR lpValueName,

@@ -1,25 +1,13 @@
 #include <stdio.h>
 
+#define MXM_APM2
+
 #include "appLauncher.h"
 #include "callbacks/callbacks.h"
 #include "config.h"
 #include "lib/am/amDongle.h"
 #include "lib/libpcp/libpcp.h"
 #include "mxmEventLog.h"
-
-typedef enum {
-    mxMasterStartType_0 = 0,
-    mxMasterStartType_1 = 1,  // Stores system message
-    mxMasterStartType_2 = 2,  // Stores "path" into m_nextPath
-    mxMasterStartType_3 = 3,
-    mxMasterStartType_4 = 4,
-    mxMasterStartType_5 = 5,
-
-    // Segaboot: 1, 5, 6
-    // Gameboot: 2
-    // Systemtest: 3
-
-} mxMasterStartType_t;
 
 typedef struct MX_MASTER_ {
     ushort m_controlPort;
@@ -64,3 +52,7 @@ void mxmBeforeBinaryCallback(pcpa_t* stream, MX_MASTER* mxMaster);
 void mxmAfterBinaryCallback(pcpa_t* stream, MX_MASTER* mxMaster);
 void mxmCopySystemFile(char* filename);
 int mxmBackupEventlog(int destination);
+#ifdef MXM_APM2
+void mxmCopySystemFirmwareFile(char* filename);
+appLauncherLaunch_t apmsTranslateNext(appLauncherLaunch_t which);
+#endif

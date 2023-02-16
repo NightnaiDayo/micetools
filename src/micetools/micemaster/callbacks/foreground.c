@@ -66,9 +66,12 @@ void mxmPcpNextFgprocess(pcpa_t* stream, MX_MASTER* mxMaster) {
     }
 
     if (lCommand >= 0 && lCommand <= 5) {
+#ifdef MXM_APM2
+        lCommand = apmsTranslateNext(lCommand);
+#endif
         mxMaster->m_next = lCommand;
 
-        if (lCommand == 2) {
+        if (lCommand == appLauncherLaunchGame) {
             if (path == NULL)
                 mxMaster->m_nextPath[0] = '\0';
             else {
@@ -89,7 +92,7 @@ void mxmPcpNextFgprocess(pcpa_t* stream, MX_MASTER* mxMaster) {
         sprintf_s(next, sizeof next, "%d", mxMaster->m_next);
         pcpaSetSendPacket(stream, MXM_FG_NEXT, next);
 
-        if (lCommand != 1) return;
+        if (lCommand != appLauncherLaunchSegabootR) return;
 
         if (errormsg != NULL) {
             if (!mxMaster->m_develop) {
@@ -222,22 +225,29 @@ void mxmPcpGetStartCount(pcpa_t* stream, MX_MASTER* mxMaster) {
     }
 
     long lWhich = strtol(command, NULL, 10);
+#ifdef MXM_APM2
+    lWhich = apmsTranslateNext(lWhich);
+#endif
+
     int count = 0;
     bool valid = false;
     switch (lWhich) {
-        case 1:
+        case appLauncherLaunchSegabootR:
             count = mxMaster->m_countSystemBoot;
             valid = true;
             break;
-        case 2:
+        case appLauncherLaunchGame:
+#ifdef MXM_APM2
+        case appLauncherLaunchAPM2:
+#endif
             count = mxMaster->m_countGameBoot;
             valid = true;
             break;
-        case 3:
+        case appLauncherLaunchSegabootTR:
             count = mxMaster->m_countSystemTest;
             valid = true;
             break;
-        case 4:
+        case appLauncherLaunchGameTest:
             count = mxMaster->m_countGameTest;
             valid = true;
             break;
@@ -273,23 +283,29 @@ void mxmPcpSetStartCount(pcpa_t* stream, MX_MASTER* mxMaster) {
     }
 
     long lWhich = strtol(command, NULL, 10);
+#ifdef MXM_APM2
+    lWhich = apmsTranslateNext(lWhich);
+#endif
     long lCount = strtol(sCount, NULL, 10);
 
     bool valid = false;
     switch (lWhich) {
-        case 1:
+        case appLauncherLaunchSegabootR:
             mxMaster->m_countSystemBoot = lCount;
             valid = true;
             break;
-        case 2:
+        case appLauncherLaunchGame:
+#ifdef MXM_APM2
+        case appLauncherLaunchAPM2:
+#endif
             mxMaster->m_countGameBoot = lCount;
             valid = true;
             break;
-        case 3:
+        case appLauncherLaunchSegabootTR:
             mxMaster->m_countSystemTest = lCount;
             valid = true;
             break;
-        case 4:
+        case appLauncherLaunchGameTest:
             mxMaster->m_countGameTest = lCount;
             valid = true;
             break;

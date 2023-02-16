@@ -70,6 +70,13 @@ bool mxMasterInit(MX_MASTER* mxMaster) {
     mxmCopySystemFile("d3dref9.dll");
     mxmCopySystemFile("mxsegaboot_2052.dll");
 
+#ifdef MXM_APM2
+    mxmCopySystemFile("nxAuth.exe");
+    mxmCopySystemFile("SBYG_Table.dat");
+    mxmCopySystemFirmwareFile("315-6691A.bin");
+    mxmCopySystemFirmwareFile("TN32MSEC003S_V12.hex");
+#endif
+
     return mxMasterInitPcp(mxMaster);
 }
 
@@ -180,19 +187,28 @@ bool mxMasterLoadKeychipInfo(MX_MASTER* mxMaster) {
 }
 
 void mxMasterSysProcessesStart(MX_MASTER* mxMaster) {
-    char startup[4][128];
+    char startup[
+#ifdef MXM_APM2
+        5
+#else
+        4
+#endif
+    ][128];
 
     strcpy_s(startup[0], sizeof startup[0], Config.binary.mxkeychip);
     strcpy_s(startup[1], sizeof startup[1], Config.binary.mxnetwork);
     strcpy_s(startup[2], sizeof startup[2], Config.binary.mxstorage);
     strcpy_s(startup[3], sizeof startup[3], Config.binary.mxjvs);
+#ifdef MXM_APM2
+    strcpy_s(startup[4], sizeof startup[4], Config.binary.nxMount);
+#endif
 
     STARTUPINFOA startupInfo;
     PROCESS_INFORMATION processInformation;
     DWORD dwCreationFlags;
     BOOL ret;
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < _countof(startup); i++) {
         dwCreationFlags = CREATE_NO_WINDOW | NORMAL_PRIORITY_CLASS;
         ZeroMemory(&startupInfo, sizeof startupInfo);
         startupInfo.cb = sizeof startupInfo;
@@ -291,28 +307,30 @@ void mxMasterFirstFgProcessesStart(MX_MASTER* mxMaster) {
     appLauncherAppInfo_t appInfo;
 
     appInfo.m_mode = mxMaster->m_current;
-    if (appInfo.m_mode == 1) {
-        appInfo.m_mode = 6;
-    } else if (appInfo.m_mode != 2 && appInfo.m_mode != 3 && appInfo.m_mode != 4 &&
-               appInfo.m_mode != 5) {
+    if (appInfo.m_mode == appLauncherLaunchSegabootR) {
+        appInfo.m_mode = appLauncherLaunchSegaboot;
+    } else if (appInfo.m_mode != appLauncherLaunchGame &&
+               appInfo.m_mode != appLauncherLaunchSegabootTR &&
+               appInfo.m_mode != appLauncherLaunchGameTest &&
+               appInfo.m_mode != appLauncherLaunchSegabootD) {
         amiDebugLog("Error : Not Process Mode");
         mxMaster->m_current = 1;
-        appInfo.m_mode = 6;
+        appInfo.m_mode = appLauncherLaunchSegaboot;
     }
 
     switch (appInfo.m_mode) {
-        case 1:
-        case 5:
-        case 6:
+        case appLauncherLaunchSegabootR:
+        case appLauncherLaunchSegabootD:
+        case appLauncherLaunchSegaboot:
             mxMaster->m_countSystemBoot = mxMaster->m_countSystemBoot + 1;
             break;
-        case 2:
+        case appLauncherLaunchGame:
             mxMaster->m_countGameBoot = mxMaster->m_countGameBoot + 1;
             break;
-        case 3:
+        case appLauncherLaunchSegabootTR:
             mxMaster->m_countSystemTest = mxMaster->m_countSystemTest + 1;
             break;
-        case 4:
+        case appLauncherLaunchGameTest:
             mxMaster->m_countGameTest = mxMaster->m_countGameTest + 1;
             break;
     }
@@ -391,23 +409,23 @@ void mxMasterMainLoop(MX_MASTER* mxMaster) {
             if (!mxMaster->m_develop || mxMaster->m_changeIsSpawn) {
                 appInfo[0].m_mode = mxMaster->m_current;
                 mxMaster->m_changeIsSpawn = 0;
-                if (appInfo[0].m_mode == 2) {
+                if (appInfo[0].m_mode == appLauncherLaunchGame) {
                     sprintf_s(appInfo[0].m_path, sizeof appInfo[0].m_path, "%s",
                               mxMaster->m_nextPath);
                 }
                 switch (appInfo[0].m_mode) {
-                    case 1:
-                    case 5:
-                    case 6:
+                    case appLauncherLaunchSegabootR:
+                    case appLauncherLaunchSegabootD:
+                    case appLauncherLaunchSegaboot:
                         mxMaster->m_countSystemBoot++;
                         break;
-                    case 2:
+                    case appLauncherLaunchGame:
                         mxMaster->m_countGameBoot++;
                         break;
-                    case 3:
+                    case appLauncherLaunchSegabootTR:
                         mxMaster->m_countSystemTest++;
                         break;
-                    case 4:
+                    case appLauncherLaunchGameTest:
                         mxMaster->m_countGameTest++;
                 }
                 appLauncherCreateThread(appInfo, mxMaster->m_appLauncher);

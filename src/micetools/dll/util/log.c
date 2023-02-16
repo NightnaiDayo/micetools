@@ -173,7 +173,7 @@ VOID trace_hook(char* output) {
 
 void setup_logging() {
     // Force stdio even for GUI applications
-    // AttachConsole(ATTACH_PARENT_PROCESS);
+    AttachConsole(ATTACH_PARENT_PROCESS);
 
     // Enable colour in CMD
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);

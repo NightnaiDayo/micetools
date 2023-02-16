@@ -4,6 +4,27 @@
 
 #define TICK_MS 16
 
+#ifdef MXM_APM2
+appLauncherLaunch_t apmsTranslateNext(appLauncherLaunch_t which) {
+    switch (which) {
+        case appLauncherLaunchSegabootR:
+            return appLauncherLaunchSegabootR;
+        case appLauncherLaunchGame:
+            return appLauncherLaunchGame;
+        case appLauncherLaunchSegabootTR:
+            return appLauncherLaunchSegabootTR;
+        case appLauncherLaunchGameTest:
+            return appLauncherLaunchGameTest;
+        // TODO: Inversigate this. `segaboot -d` translates to `n:\\game.bat` for APM?
+        case appLauncherLaunchSegabootD:
+            return appLauncherLaunchAPM2;
+        default:
+            return 0;
+    }
+}
+
+#endif
+
 void mxmBeforeBinaryCallback(pcpa_t *stream, MX_MASTER *mxMaster) {
     pcpaSetSendBinaryBuffer(stream, mxMaster->m_binaryMessage, mxMaster->m_binaryMessageLen);
 }
@@ -18,6 +39,20 @@ void mxmCopySystemFile(char *filename) {
 
     sprintf_s(src, sizeof src, "%s%s", Config.dir.system, filename);
     sprintf_s(dest, sizeof dest, "%s%s", Config.dir.execute, filename);
+
+    if (!PathFileExistsA(src)) {
+        amiDebugLog("Error copy %s not exist", src);
+        return;
+    }
+    if (!PathFileExistsA(dest)) CopyFileA(src, dest, 0);
+}
+
+void mxmCopySystemFirmwareFile(char *filename) {
+    char dest[256];
+    char src[256];
+
+    sprintf_s(src, sizeof src, "%s%s", Config.dir.firm, filename);
+    sprintf_s(dest, sizeof dest, "%s%s", Config.dir.execute_firm, filename);
 
     if (!PathFileExistsA(src)) {
         amiDebugLog("Error copy %s not exist", src);
@@ -42,7 +77,6 @@ int mxmBackupEventlog(int destination) {
 
     DWORD numberOfRecords = 0;
     if (!GetNumberOfEventLogRecords(hEventLog, &numberOfRecords)) {
-        printf("%d\n", hEventLog);
         amiDebugLog("Error GetNumberOf-EventLogRecords(%d). Code %d", destination, GetLastError());
         CloseEventLog(hEventLog);
         return -3;
