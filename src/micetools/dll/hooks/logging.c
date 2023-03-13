@@ -29,7 +29,7 @@ int WINAPIV Fakeprintf(const char* _Format, ...) {
     va_list args;
     va_start(args, _Format);
 
-    int ret = vlog_game("printf", _Format, args);
+    int ret = vlog_game(plfPrintf, _Format, args);
 
     va_end(args);
     return ret;
@@ -45,7 +45,7 @@ int WINAPIV Fakefprintf(FILE* _File, const char* _Format, ...) {
     va_list args;
     va_start(args, _Format);
 
-    int ret = vlog_game("fprintf", _Format, args);
+    int ret = vlog_game(plfFprintf, _Format, args);
 
     va_end(args);
     return ret;
@@ -55,13 +55,13 @@ int WINAPIV Fakefprintf_s(FILE* _Stream, const char* _Format, ...) {
     va_list args;
     va_start(args, _Format);
 
-    int ret = vlog_game("fprintf_s", _Format, args);
+    int ret = vlog_game(plfFprintf_s, _Format, args);
 
     va_end(args);
     return ret;
 }
 int WINAPIV Fakevfprintf_s(FILE* _Stream, const char* _Format, va_list _ArgList) {
-    return vlog_game("vfprintf_s", _Format, _ArgList);
+    return vlog_game(plfVfprintf_s, _Format, _ArgList);
 }
 HANDLE WINAPI FakeRegisterEventSourceA(LPCSTR lpUNCServerName, LPCSTR lpSourceName) {
     return (HANDLE)0xDEADBEEF;
@@ -74,21 +74,21 @@ BOOL WINAPI FakeReportEventA(HANDLE hEventLog, WORD wType, WORD wCategory, DWORD
         case EVENTLOG_SUCCESS:
         case EVENTLOG_AUDIT_SUCCESS:
             for (int i = 0; i < wNumStrings; i++)
-                log_misc("evtlog", trim_string((char*)lpStrings[i]));
+                log_misc(plfEvtlog, trim_string((char*)lpStrings[i]));
             break;
         case EVENTLOG_AUDIT_FAILURE:
         case EVENTLOG_ERROR_TYPE:
             for (int i = 0; i < wNumStrings; i++)
-                log_error("evtlog", trim_string((char*)lpStrings[i]));
+                log_error(plfEvtlog, trim_string((char*)lpStrings[i]));
             break;
         case EVENTLOG_WARNING_TYPE:
             for (int i = 0; i < wNumStrings; i++)
-                log_warning("evtlog", trim_string((char*)lpStrings[i]));
+                log_warning(plfEvtlog, trim_string((char*)lpStrings[i]));
             break;
         case EVENTLOG_INFORMATION_TYPE:
         default:
             for (int i = 0; i < wNumStrings; i++)
-                log_info("evtlog", trim_string((char*)lpStrings[i]));
+                log_info(plfEvtlog, trim_string((char*)lpStrings[i]));
             break;
     }
     return TRUE;

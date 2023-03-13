@@ -97,17 +97,17 @@ BOOL smbus_ds28cn01_write(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                 BYTE page = command & 3;
                 BYTE upper = command & 0xf0;
 
-                if (upper == 0xD0) {
-                    log_warning("ds28cn01", "Computing for: authentication (flag = 1)");
-                } else if (upper == 0xE0) {
-                    log_warning("ds28cn01", "Computing for: ds.compute (flag = 0)");
+                if (upper == DS28CN01_COMPUTE_1) {
+                    log_warning(plfDS28CN01, "Computing for: authentication (flag = 1)");
+                } else if (upper == DS28CN01_COMPUTE_2) {
+                    log_warning(plfDS28CN01, "Computing for: ds.compute (flag = 0)");
                 } else {
-                    log_error("ds28cn01", "Unknown A9");
+                    log_error(plfDS28CN01, "Unknown A9");
                     return FALSE;
                 }
 
                 if (dlen != 7) {
-                    log_error("ds28cn01", "Expected challenge length of 7 (saw %d)!", dlen);
+                    log_error(plfDS28CN01, "Expected challenge length of 7 (saw %d)!", dlen);
                     return FALSE;
                 }
 
@@ -132,7 +132,7 @@ BOOL smbus_ds28cn01_write(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                 // dlen++;
                 // char* challenge_s = malloc(dlen * 3 + 1);
                 // if (challenge_s == NULL) {
-                //     log_info("ds28cn01", "Challenge: (buffer failed)");
+                //     log_info(plfDS28CN01, "Challenge: (buffer failed)");
                 //     return TRUE;
                 // }
 
@@ -140,13 +140,13 @@ BOOL smbus_ds28cn01_write(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                 //     sprintf_s(challenge_s + i * 3, 4, "%02x ", data[i]);
                 // }
                 // challenge_s[dlen * 3 + 1] = '\0';
-                // log_info("ds28cn01", "Challenge: %s", challenge_s);
+                // log_info(plfDS28CN01, "Challenge: %s", challenge_s);
                 // free(challenge_s);
 
                 return TRUE;
             }
 
-            log_error("ds28cn01", "Unknown write command: %04x", code);
+            log_error(plfDS28CN01, "Unknown write command: %04x", code);
         }
         case ICH9_CMD_I2C_READ: {
             switch (code) {
@@ -159,11 +159,11 @@ BOOL smbus_ds28cn01_write(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                     for (int i = 0; i < dlen; i++) data[i] = COMPUTED_MAC[i];
                     return TRUE;
                 default:
-                    log_error("ds28cn01", "Unknown I2C read command: %04x", code);
+                    log_error(plfDS28CN01, "Unknown I2C read command: %04x", code);
             }
         }
         default:
-            log_error("ds28cn01", "Unsupported write mode: %01x (%04x)", cmd, code);
+            log_error(plfDS28CN01, "Unsupported write mode: %01x (%04x)", cmd, code);
             return FALSE;
     }
 }
@@ -191,10 +191,10 @@ BOOL smbus_ds28cn01_read(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                 return TRUE;
             }
 
-            log_error("ds28cn01", "Unknown read command: %04x", code);
+            log_error(plfDS28CN01, "Unknown read command: %04x", code);
             return FALSE;
         default:
-            log_error("ds28cn01", "Unsupported read mode: %01x (%04x)", cmd, code);
+            log_error(plfDS28CN01, "Unsupported read mode: %01x (%04x)", cmd, code);
             return FALSE;
     }
 }

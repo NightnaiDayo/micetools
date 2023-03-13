@@ -16,20 +16,20 @@ BOOL add_fake_device(const GUID* guid, const WCHAR* path) {
 }
 
 HDEVINFO WINAPI FakeSetupDiGetClassDevsA(const GUID* ClassGuid, PCWSTR Enumerator, HWND hwndParent, DWORD Flags) {
-    log_misc("setupapi", "SetupDiGetClassDevsA(%p, %s, %d, %d)", ClassGuid, Enumerator, hwndParent, Flags);
+    log_misc(plfSetupAPI, "SetupDiGetClassDevsA(%p, %s, %d, %d)", ClassGuid, Enumerator, hwndParent, Flags);
     HDEVINFO res = TrueSetupDiGetClassDevsA(ClassGuid, Enumerator, hwndParent, Flags);
 
     if (res != INVALID_HANDLE_VALUE && ClassGuid != NULL) {
         FAKE_DEVICE* device = fake_devices;
         while (device != NULL) {
             if (memcmp(device->guid, ClassGuid, sizeof(*ClassGuid)) == 0) {
-                log_misc("setupapi", "injecting %ls into class devs list", device->path);
+                log_misc(plfSetupAPI, "injecting %ls into class devs list", device->path);
                 device->handle = res;
             }
             device = device->next;
         }
     } else {
-        log_warning("setupapi", "upstream SetupDiGetClassDevsA failed: %d", GetLastError());
+        log_warning(plfSetupAPI, "upstream SetupDiGetClassDevsA failed: %d", GetLastError());
     }
 
     return res;
@@ -38,12 +38,12 @@ HDEVINFO WINAPI FakeSetupDiGetClassDevsA(const GUID* ClassGuid, PCWSTR Enumerato
 BOOL WINAPI FakeSetupDiEnumDeviceInterfaces(HDEVINFO DeviceInfoSet, PSP_DEVINFO_DATA DeviceInfoData,
                                             const GUID* InterfaceClassGuid, DWORD MemberIndex,
                                             PSP_DEVICE_INTERFACE_DATA DeviceInterfaceData) {
-    log_misc("setupapi", "SetupDiEnumDeviceInterfaces");
+    log_misc(plfSetupAPI, "SetupDiEnumDeviceInterfaces");
     FAKE_DEVICE* device = fake_devices;
     if (DeviceInterfaceData) {
         while (device != NULL) {
             if (device->handle == DeviceInfoSet) {
-                log_info("setupapi", "hooking fake device: %ls", device->path);
+                log_info(plfSetupAPI, "hooking fake device: %ls", device->path);
                 memcpy(&DeviceInterfaceData->InterfaceClassGuid, device->guid, sizeof *device->guid);
                 DeviceInterfaceData->Flags = SPINT_ACTIVE;
                 DeviceInterfaceData->Reserved = (ULONG_PTR)device->path;
@@ -55,7 +55,7 @@ BOOL WINAPI FakeSetupDiEnumDeviceInterfaces(HDEVINFO DeviceInfoSet, PSP_DEVINFO_
     }
 
     // Fallback
-    log_misc("setupapi", "device info fallthrough");
+    log_misc(plfSetupAPI, "device info fallthrough");
     return TrueSetupDiEnumDeviceInterfaces(DeviceInfoSet, DeviceInfoData, InterfaceClassGuid, MemberIndex,
                                            DeviceInterfaceData);
 }
@@ -64,11 +64,11 @@ BOOL WINAPI FakeSetupDiGetDeviceInterfaceDetailA(HDEVINFO DeviceInfoSet, PSP_DEV
                                                  PSP_DEVICE_INTERFACE_DETAIL_DATA_A DeviceInterfaceDetailData,
                                                  DWORD DeviceInterfaceDetailDataSize, PDWORD RequiredSize,
                                                  PSP_DEVINFO_DATA DeviceInfoData) {
-    log_misc("setupapi", "SetupDiGetDeviceInterfaceDetailA");
+    log_misc(plfSetupAPI, "SetupDiGetDeviceInterfaceDetailA");
     FAKE_DEVICE* device = fake_devices;
     while (device != NULL) {
         if (device->handle == DeviceInfoSet && (ULONG_PTR)device->path == DeviceInterfaceData->Reserved) {
-            log_info("setupapi", "Intercepted SetupDiGetDeviceInterfaceDetailA");
+            log_info(plfSetupAPI, "Intercepted SetupDiGetDeviceInterfaceDetailA");
 
             const WCHAR* res = (WCHAR*)DeviceInterfaceData->Reserved;
             int new_len = (wcslen(res) + 1) * (sizeof *res);
@@ -94,7 +94,7 @@ BOOL WINAPI FakeSetupDiGetDeviceInterfaceDetailA(HDEVINFO DeviceInfoSet, PSP_DEV
         device = device->next;
     }
 
-    log_misc("setupapi", "TrueSetupDiGetDeviceInterfaceDetailA fallthrough");
+    log_misc(plfSetupAPI, "TrueSetupDiGetDeviceInterfaceDetailA fallthrough");
     return TrueSetupDiGetDeviceInterfaceDetailA(DeviceInfoSet, DeviceInterfaceData, DeviceInterfaceDetailData,
                                                 DeviceInterfaceDetailDataSize, RequiredSize, DeviceInfoData);
 }

@@ -9,6 +9,7 @@ struct {
     int buttons[JVS_BUTTON_PAIR_COUNT * 2];
     bool invert[JVS_BUTTON_PAIR_COUNT * 2];
     int test;
-} jvsKeybindings[JVS_IO_MAX];
+    int notdefault;
+} jvsKeybindings[JVS_IO_MAX] = { 0 };
 
 int keySystemTest = 0;

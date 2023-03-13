@@ -3,7 +3,12 @@
 #include "hooks/com.h"
 #include "hooks/files.h"
 
-typedef struct com_device {
+#define NUM_COM_PORTS 8
+
+typedef struct com_device com_device_t;
+typedef DWORD(WINAPI FnComDeviceThread)(com_device_t* com);
+
+struct com_device {
     com_hook_t* com;
     file_hook_t* file;
 
@@ -11,7 +16,9 @@ typedef struct com_device {
     ring_buffer_t out;
     HANDLE event;
     HANDLE thread;
-} com_device_t;
+    FnComDeviceThread* thread_worker;
+};
+com_device_t* com_devices[NUM_COM_PORTS];
 
 typedef struct {
     BYTE frame_length;
@@ -36,8 +43,6 @@ typedef struct {
 #define COMIO_STATUS_OK 0
 #define COMIO_STATUS_NG 1
 
-typedef DWORD(WINAPI FnComDeviceThread)(com_device_t* com);
-
 short comdev_read_blocking(com_device_t* com, unsigned char* buffer, short bytes);
 short comdev_read(com_device_t* com, unsigned char* buffer, short bytes);
 bool comdev_write(com_device_t* com, const unsigned char* buffer, short bytes);
@@ -50,5 +55,8 @@ void comio_write(com_device_t* com, BYTE* data, BYTE len);
 unsigned char comio_next_req(com_device_t* com, comio_recv_head_t* head, BYTE* data);
 void comio_reply(com_device_t* com, comio_recv_head_t* req, BYTE status, BYTE len, BYTE* data);
 
-void com_device_thread(com_device_t* com, FnComDeviceThread* thread);
 com_device_t* new_com_device(BYTE port);
+BOOL attach_com_device(BYTE port, FnComDeviceThread* thread);
+void detach_com_device(BYTE port);
+void detach_all_com_devices(void);
+void init_com_devices(void);

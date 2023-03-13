@@ -1,3 +1,5 @@
+#include "smb_n2.h"
+
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/rand.h>
@@ -6,57 +8,10 @@
 #include "../../sysconf.h"
 #include "_devices.h"
 
-#define N2_TAG_OFFSET 0
-#define N2_PARAMSIZE_OFFSET 2
-#define N2_COMMAND_OFFSET 4
-#define N2_TAG_SIZE 2
-#define N2_PARAMSIZE_SIZE 2
-#define N2_COMMAND_SIZE 2
-#define N2_CHECKSUM_SIZE 20
-#define N2_AUTH_SIZE 20
-#define N2_HEADER_SIZE (N2_TAG_SIZE + N2_PARAMSIZE_SIZE + N2_COMMAND_SIZE)
-
-#define N2_TAG_RQU_COMMAND 0xC1
-#define N2_TAG_RQU_AUTH_COMMAND 0xC2
-#define N2_TAG_RSP_COMMAND 0xC3
-#define N2_TAG_RSP_AUTH_COMMAND 0xC4
-// TODO: Uncomment these if actually used, and adjust lazy +2 logic alongside
-// #define N2_TAG_RQU_RSA_COMMAND 0xC5
-// #define N2_TAG_RSP_RSA_COMMAND 0xC6
-
-#define N2_ORD_ENABLE_SESSION 1
-#define N2_ORD_DISABLE_SESSION 2
-#define N2_ORD_SET_AUTH_KEY 3
-#define N2_ORD_SET_ENC_KEY 4
-// GAP!
-#define N2_ORD_GET_AUTH_LEVEL 9
-// GAP!
-#define N2_ORD_GET_ERROR_CODE 11
-#define N2_ORD_GET_VERSION 12
-// GAP! (-> keychip info write?)
-#define N2_ORD_READ_KEYCHIP_ID 14
-// GAP! (-> gkey write?)
-#define N2_ORD_ENCRYPT_WITH_GKEY 16  // keychip.encrypt
-#define N2_ORD_DECRYPT_WITH_GKEY 17  // keychip.decrypt
-#define N2_ORD_ADD_PLAY_COUNT 18
-#define N2_ORD_READ_PLAY_COUNT 19
-// GAP! (-> storage? is that still on pic?)
-#define N2_ORD_GET_RANDOM_VALUE 24
-#define N2_ORD_ENCRYPT_WITH_SKEY 25  // keychip.ssd.hostproof
-#define N2_ORD_DECRYPT_WITH_SKEY 26
-
-#define N2_SUCCESS 0
-#define N2_INVALID_AUTH 1
-#define N2_AUTHFAIL 2
-#define N2_LV_ERROR 3
-#define N2_BAD_PARAMETER 4
-#define N2_EEP_WRITEFAIL 5
-#define N2_BAD_TAG 6
-#define N2_BAD_ORDINAL 7
-#define N2_SUMFAIL 8
-#define N2_EEPWRITE_DISABLE 9
-#define N2_BAD_DATASIZE 10
-#define N2_FAIL 11
+LOG_FACILITY _lf = {
+    .m_name = "smb-n2",
+};
+PLOG_FACILITY plf = &_lf;
 
 #define N2_IO_BUFFER 0x1000
 
@@ -131,12 +86,12 @@ WORD n2_enable_session(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOu
     RAND_bytes(n2_session_nonce, sizeof n2_session_nonce);
     memcpy(dataOut, n2_session_nonce, sizeof n2_session_nonce);
 
-    log_misc("smb-n2", "Session open");
+    log_misc(plf, "Session open");
     return N2_SUCCESS;
 }
 WORD n2_set_auth_key(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut) {
     *nOut = 0;
-    log_misc("smb-n2", "Auth key set");
+    log_misc(plf, "Auth key set");
 
     BYTE pt[32];
     mxkCryptDecryptAes128CBC(n2_enc_key.key, n2_enc_key.iv, dataIn, pt, sizeof pt);
@@ -146,7 +101,7 @@ WORD n2_set_auth_key(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut)
 }
 WORD n2_set_enc_key(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut) {
     *nOut = 0;
-    log_misc("smb-n2", "Enc key set");
+    log_misc(plf, "Enc key set");
 
     BYTE pt[32];
     mxkCryptDecryptAes128CBC(n2_enc_key.key, n2_enc_key.iv, dataIn, pt, sizeof pt);
@@ -158,13 +113,13 @@ WORD n2_set_enc_key(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut) 
 WORD n2_get_auth_level(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut) {
     *nOut = 1;
     dataOut[0] = 3;  // TODO: ?
-    log_misc("smb-n2", "Auth level get");
+    log_misc(plf, "Auth level get");
     return N2_SUCCESS;
 }
 WORD n2_get_error_code(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut) {
     *nOut = 2;
     ((PWORD)dataOut)[0] = fix_endian(n2_error_code);
-    log_misc("smb-n2", "Error get");
+    log_misc(plf, "Error get");
     return N2_SUCCESS;
 }
 WORD n2_read_keychip_id(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut) {
@@ -180,7 +135,7 @@ WORD n2_read_keychip_id(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nO
     mxkCryptEncryptAes128CBC(n2_enc_key.key, n2_enc_key.iv, dataOut + 2, (LPBYTE)&n2_keychip_info,
                              nbytes);
 
-    log_misc("smb-n2", "Read keychip ID: %08x", nbytes);
+    log_misc(plf, "Read keychip ID: %08x", nbytes);
     return N2_SUCCESS;
 }
 WORD n2_get_version(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut) {
@@ -288,11 +243,11 @@ void n2_install_commands() {
 void do_n2_command(WORD tag, WORD paramSize, WORD command, LPBYTE data) {
     n2_install_commands();
 
-    log_info("smb-n2", "Processing command: %04x/%04x (%d bytes)", tag, command, paramSize);
+    log_info(plf, "Processing command: %04x/%04x (%d bytes)", tag, command, paramSize);
 
     ZeroMemory(n2_out_buffer, sizeof n2_out_buffer);
 
-    // We nede to sign with the old key, so need a copy
+    // We need to sign with the old key, so need a copy
     BYTE auth_key[20];
     memcpy(auth_key, n2_auth_key, sizeof auth_key);
 
@@ -333,10 +288,13 @@ void do_n2_command(WORD tag, WORD paramSize, WORD command, LPBYTE data) {
     EVP_DigestFinal_ex(ctx, n2_out_buffer + N2_HEADER_SIZE + bodyLength, &outlen);
     EVP_MD_CTX_destroy(ctx);
 
+    // At this point: packet = header | data | SHA(header | command | data)
+
     if (tag == N2_TAG_RQU_AUTH_COMMAND) {
         BYTE crypto_buffer[N2_CHECKSUM_SIZE];
 
         // Calculate a new SHA1 of the packet, including the SHA1 we just appeneded
+        // crypto_buffer = SHA1(header | command | data)
         ctx = EVP_MD_CTX_create();
         EVP_DigestInit(ctx, EVP_sha1());
         EVP_DigestUpdate(ctx, n2_out_buffer, N2_HEADER_SIZE);
@@ -350,9 +308,9 @@ void do_n2_command(WORD tag, WORD paramSize, WORD command, LPBYTE data) {
         HMAC_CTX_init(&hmac_ctx);
         HMAC_Init_ex(&hmac_ctx, auth_key, sizeof auth_key, EVP_sha1(), NULL);
 
-        // SHA1(header | data)
+        // SHA1(header | command | data)
         HMAC_Update(&hmac_ctx, crypto_buffer, sizeof crypto_buffer);
-        // SHA1(header | auth | packet))
+        // SHA1(header | auth | data)
         HMAC_Update(&hmac_ctx, n2_out_buffer + N2_HEADER_SIZE + bodyLength, N2_CHECKSUM_SIZE);
         // Request nonce
         HMAC_Update(&hmac_ctx, n2_in_buffer + paramSize - N2_AUTH_SIZE - N2_CHECKSUM_SIZE,
@@ -398,7 +356,7 @@ BOOL smbus_N2_write(ich9_cmd_t cmd, WORD code, BYTE nbytes, LPBYTE data) {
                     return TRUE;
                 }
             }
-            log_error("smb-n2", "Unsupported command code: %04x (%d bytes)", code, nbytes);
+            log_error(plf, "Unsupported command code: %04x (%d bytes)", code, nbytes);
             return FALSE;
         }
         case ICH9_CMD_I2C_READ: {
@@ -409,15 +367,15 @@ BOOL smbus_N2_write(ich9_cmd_t cmd, WORD code, BYTE nbytes, LPBYTE data) {
                     return TRUE;
                 }
             }
-            log_error("smb-n2", "Unsupported i2c command code: %04x (%d bytes)", code, nbytes);
+            log_error(plf, "Unsupported i2c command code: %04x (%d bytes)", code, nbytes);
             return FALSE;
         }
     }
-    log_error("smb-n2", "Unsupported write mode: %01x (%02x)", cmd, code);
+    log_error(plf, "Unsupported write mode: %01x (%02x)", cmd, code);
     return FALSE;
 }
 
 BOOL smbus_N2_read(ich9_cmd_t cmd, WORD code, BYTE nbytes, BYTE* data) {
-    log_error("smb-n2", "Unsupported read mode: %01x (%02x)", cmd, code);
+    log_error(plf, "Unsupported read mode: %01x (%02x)", cmd, code);
     return FALSE;
 }

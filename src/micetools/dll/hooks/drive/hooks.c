@@ -128,7 +128,7 @@ BOOL WINAPI FakeSetVolumeLabelA(LPCSTR lpRootPathName, LPCSTR lpVolumeName) {
 }
 BOOL WINAPI FakeGetVolumeNameForVolumeMountPointA(LPCSTR lpszVolumeMountPoint, LPSTR lpszVolumeName,
                                                   DWORD cchBufferLength) {
-    log_trace("drive", "GetVolumeNameForVolumeMountPointA(%s)", lpszVolumeMountPoint);
+    log_trace(plfDrive, "GetVolumeNameForVolumeMountPointA(%s)", lpszVolumeMountPoint);
 
     disk_volume_t* volume = getVolumeByPath(lpszVolumeMountPoint, VOL_MATCH_PATH);
     if (volume == NULL) {
@@ -141,7 +141,7 @@ BOOL WINAPI FakeGetVolumeNameForVolumeMountPointA(LPCSTR lpszVolumeMountPoint, L
 }
 BOOL WINAPI FakeGetVolumePathNamesForVolumeNameA(LPCSTR lpszVolumeName, LPCH lpszVolumePathNames,
                                                  DWORD cchBufferLength, PDWORD lpcchReturnLength) {
-    log_trace("drive", "GetVolumeNameForVolumeMountPointA(%s)", lpszVolumeName);
+    log_trace(plfDrive, "GetVolumeNameForVolumeMountPointA(%s)", lpszVolumeName);
 
     disk_volume_t* volume = getVolumeByPath(lpszVolumeName, VOL_MATCH_GUID);
     if (volume == NULL) {
@@ -164,7 +164,7 @@ BOOL WINAPI FakeGetVolumePathNamesForVolumeNameA(LPCSTR lpszVolumeName, LPCH lps
     return TRUE;
 }
 BOOL WINAPI FakeDeleteVolumeMountPointA(LPCSTR lpszVolumeMountPoint) {
-    log_trace("drive", "DeleteVolumeMountPointA(%s)", lpszVolumeMountPoint);
+    log_trace(plfDrive, "DeleteVolumeMountPointA(%s)", lpszVolumeMountPoint);
     disk_volume_t* volume = getVolumeByPath(lpszVolumeMountPoint, VOL_MATCH_PATH);
     if (volume == NULL) {
         SetLastError(ERROR_FILE_NOT_FOUND);
@@ -175,7 +175,7 @@ BOOL WINAPI FakeDeleteVolumeMountPointA(LPCSTR lpszVolumeMountPoint) {
     return TRUE;
 }
 BOOL WINAPI FakeSetVolumeMountPointA(LPCSTR lpszVolumeMountPoint, LPCSTR lpszVolumeName) {
-    log_trace("drive", "SetVolumeMountPointA(%s)", lpszVolumeMountPoint);
+    log_trace(plfDrive, "SetVolumeMountPointA(%s)", lpszVolumeMountPoint);
     disk_volume_t* volume = getVolumeByPath(lpszVolumeName, VOL_MATCH_GUID);
     if (volume == NULL) {
         SetLastError(ERROR_FILE_NOT_FOUND);
@@ -186,12 +186,12 @@ BOOL WINAPI FakeSetVolumeMountPointA(LPCSTR lpszVolumeMountPoint, LPCSTR lpszVol
     DWORD nScan;
     if (sscanf_s(lpszVolumeMountPoint, "\\\\.\\%c:%n", &cMountPoint, 1, &nScan) == 1 &&
         nScan == 6) {
-        log_info("drive", "Mounting %s at %c:\\", volume->m_Name, cMountPoint);
+        log_info(plfDrive, "Mounting %s at %c:\\", volume->m_Name, cMountPoint);
         volume->m_MountPoint = cMountPoint;
         return TRUE;
     }
     if (sscanf_s(lpszVolumeMountPoint, "%c:\\%n", &cMountPoint, 1, &nScan) == 1 && nScan == 3) {
-        log_info("drive", "Mounting %s at %c:\\", volume->m_Name, cMountPoint);
+        log_info(plfDrive, "Mounting %s at %c:\\", volume->m_Name, cMountPoint);
         volume->m_MountPoint = cMountPoint;
         return TRUE;
     }
@@ -224,7 +224,7 @@ MCIERROR WINAPI Fake_mciSendStringA(LPCTSTR lpszCommand, LPTSTR lpszReturnString
         return 0;
     }
     if (strcmp(lpszCommand, "set cdaudio door open") == 0) {
-        log_game("mci", "Cupholder opened!");
+        log_game(plfDrive, "mci:Cupholder opened!");
         return 0;
     }
     if (strcmp(lpszCommand, "status cdaudio media present") == 0) {

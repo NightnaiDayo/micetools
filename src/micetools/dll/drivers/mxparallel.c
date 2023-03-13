@@ -49,7 +49,7 @@ uint32_t BILLING_PLAYCOUNT = 69420;
 BOOL WINAPI mxparallel_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer,
                                 DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
                                 LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
-    log_trace("mxparallel", "DeviceIoControl(<mxparallel>, 0x%08x, 0x%p, 0x%x, -, 0x%x, -, -)",
+    log_trace(plfMxParallel, "DeviceIoControl(<mxparallel>, 0x%08x, 0x%p, 0x%x, -, 0x%x, -, -)",
               dwIoControlCode, lpInBuffer, nInBufferSize, nOutBufferSize);
 
     switch (dwIoControlCode) {
@@ -68,7 +68,7 @@ BOOL WINAPI mxparallel_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCod
             return TRUE;
         case IOCTL_MXPARALLEL_WRITE_CTRL_PORT:
             parallel_ctrl = ((LPBYTE)lpInBuffer)[0];
-            // log_warning("mxparallel", "Write ctrl %08x", parallel_ctrl);
+            // log_warning(plfMxParallel, "Write ctrl %08x", parallel_ctrl);
             outLen(0);
             return TRUE;
 
@@ -231,37 +231,37 @@ void mxparallel_process_packet(BYTE* request) {
     switch (request[0]) {
         // We're pretending to be the keychip, so S and R are swapped for us!
         case SetKeyS:
-            log_info("mxparallel", "SetKeyS");
+            log_info(plfMxParallel, "SetKeyS");
             micexkRecvPacket(request);
             mxkSetKeyR(request);
             micexkSendPacket(response);
             break;
         case SetKeyR:
-            log_info("mxparallel", "SetKeyR");
+            log_info(plfMxParallel, "SetKeyR");
             micexkRecvPacket(request);
             mxkSetKeyS(request);
             micexkSendPacket(response);
             break;
 
         case Encrypt:
-            log_info("mxparallel", "Encrypt");
+            log_info(plfMxParallel, "Encrypt");
             micexkRecvPacket(request);
             micexkSendPacket(request);
             break;
         case Decrypt:
-            log_info("mxparallel", "Decrypt");
+            log_info(plfMxParallel, "Decrypt");
             micexkRecvPacket(request);
             micexkSendPacket(request);
             break;
         case SetIV:
-            log_info("mxparallel", "SetIV");
+            log_info(plfMxParallel, "SetIV");
             ZeroMemory(kc_aes_iv, sizeof kc_aes_iv);
             micexkSendPacket(response);
             break;
         case GetAppBootInfo:
-            log_info("mxparallel", "GetAppBootInfo");
+            log_info(plfMxParallel, "GetAppBootInfo");
             if (request[1] != 0x00) {
-                log_warning("mxparallel", "GetAppBootInfo[%d] unexpected!", request[1]);
+                log_warning(plfMxParallel, "GetAppBootInfo[%d] unexpected!", request[1]);
             }
 
             APPBOOT.crc = amiCrc32RCalc(sizeof APPBOOT - 4, (unsigned char*)&APPBOOT + 4, 0);
@@ -271,7 +271,7 @@ void mxparallel_process_packet(BYTE* request) {
             break;
 
         case KcGetVersion:
-            log_info("mxparallel", "GetVersion");
+            log_info(plfMxParallel, "GetVersion");
             response[0] = 0x01;
             response[1] = 0x04;
             micexkSendPacket(response);
@@ -280,18 +280,18 @@ void mxparallel_process_packet(BYTE* request) {
         case FlashRead: {
             uint32_t addr = request[1] | (request[2] << 8) | (request[3] << 16);
             uint32_t nbytes = request[4] | (request[5] << 8) | (request[6] << 16);
-            log_info("mxparallel", "FlashRead: %06x/%06x", addr, nbytes);
+            log_info(plfMxParallel, "FlashRead: %06x/%06x", addr, nbytes);
 
             if (addr + nbytes <= sizeof flash)
                 micexkTransportSend(&flash[addr], nbytes);
             else
-                log_error("mxparallel", "Flash read would exceed storage!");
+                log_error(plfMxParallel, "Flash read would exceed storage!");
 
             break;
         }
         case FlashErase: {
             uint32_t addr = request[1] | (request[2] << 8) | (request[3] << 16);
-            log_info("mxparallel", "FlashErase: %06x", addr);
+            log_info(plfMxParallel, "FlashErase: %06x", addr);
 
             micexkSendPacket(response);
             break;
@@ -299,12 +299,12 @@ void mxparallel_process_packet(BYTE* request) {
         case FlashWrite: {
             uint32_t addr = request[1] | (request[2] << 8) | (request[3] << 16);
             uint32_t nbytes = request[4] | (request[5] << 8) | (request[6] << 16);
-            log_info("mxparallel", "FlashWrite: %06x/%06x", addr, nbytes);
+            log_info(plfMxParallel, "FlashWrite: %06x/%06x", addr, nbytes);
 
             if (addr + nbytes <= sizeof flash)
                 micexkTransportRecv(&flash[addr], nbytes);
             else
-                log_error("mxparallel", "Flash write would exceed storage!");
+                log_error(plfMxParallel, "Flash write would exceed storage!");
 
             micexkSendPacket(response);
             dump_nv_storage();
@@ -315,12 +315,12 @@ void mxparallel_process_packet(BYTE* request) {
         case EepromWrite: {
             // TODO: What is this? Appears to be some sort of EEPROM write
             uint8_t offset = request[1];
-            log_info("mxparallel", "EepromWrite: %02x", offset);
+            log_info(plfMxParallel, "EepromWrite: %02x", offset);
 
             if (offset * 16 + 16 <= sizeof eeprom) {
                 micexkRecvPacket(&eeprom[offset * 16]);
             } else {
-                log_error("mxparallel", "EEPROM write would exceed storage!");
+                log_error(plfMxParallel, "EEPROM write would exceed storage!");
             }
             micexkSendPacket(response);
             dump_nv_storage();
@@ -329,12 +329,12 @@ void mxparallel_process_packet(BYTE* request) {
         case EepromRead: {
             // TODO: What is this? Appears to be some sort of EEPROM read
             uint8_t offset = request[1];
-            log_info("mxparallel", "EepromRead: %02x", offset);
+            log_info(plfMxParallel, "EepromRead: %02x", offset);
 
             if (offset * 16 + 16 <= sizeof eeprom) {
                 micexkSendPacket(&eeprom[offset * 16]);
             } else {
-                log_error("mxparallel", "EEPROM read would exceed storage!");
+                log_error(plfMxParallel, "EEPROM read would exceed storage!");
             }
             break;
         }
@@ -344,7 +344,7 @@ void mxparallel_process_packet(BYTE* request) {
             // TODO: What is this? Appears to be some sort of memory write
             uint16_t addr = request[1] | (request[2] << 8);
             uint8_t blocks = request[3];
-            log_info("mxparallel", "NvramWrite: %04x (%02x)", addr, blocks);
+            log_info(plfMxParallel, "NvramWrite: %04x (%02x)", addr, blocks);
 
             if (addr + blocks * 16 <= sizeof nvram) {
                 for (byte i = 0; i < blocks; i++) {
@@ -352,7 +352,7 @@ void mxparallel_process_packet(BYTE* request) {
                 }
                 micexkSendPacket(response);
             } else {
-                log_error("mxparallel", "NVRAM write would exceed storage!");
+                log_error(plfMxParallel, "NVRAM write would exceed storage!");
             }
             dump_nv_storage();
             break;
@@ -361,26 +361,26 @@ void mxparallel_process_packet(BYTE* request) {
             // TODO: What is this? Appears to be some sort of memory read
             uint16_t addr = request[1] | (request[2] << 8);
             uint8_t blocks = request[3];
-            log_info("mxparallel", "NvramRead: %04x (%02x)", addr, blocks);
+            log_info(plfMxParallel, "NvramRead: %04x (%02x)", addr, blocks);
 
             if (addr + blocks * 16 <= sizeof nvram) {
                 for (byte i = 0; i < blocks; i++) {
                     micexkSendPacket(&(nvram[addr + (i * 16)]));
                 }
             } else {
-                log_error("mxparallel", "NVRAM read would exceed storage!");
+                log_error(plfMxParallel, "NVRAM read would exceed storage!");
             }
             break;
         }
 
         case AddPlayCount:
-            log_info("mxparallel", "AddPlayCount");
+            log_info(plfMxParallel, "AddPlayCount");
             BILLING_PLAYCOUNT++;
             micexkSendPacket(response);
             break;
 
         case SetMainId:
-            log_info("mxparallel", "SetMainId");
+            log_info(plfMxParallel, "SetMainId");
 
             // micexkRecvPacket(_MAIN_ID);
             micexkRecvPacket(request);
@@ -388,27 +388,27 @@ void mxparallel_process_packet(BYTE* request) {
             micexkSendPacket(response);
             break;
         case GetMainId:
-            log_info("mxparallel", "GetMainId");
+            log_info(plfMxParallel, "GetMainId");
             micexkSendPacket(_MAIN_ID);
             break;
         case SetKeyId:
-            log_info("mxparallel", "SetKeyId");
+            log_info(plfMxParallel, "SetKeyId");
             micexkRecvPacket(KEYCHIP_ID);
             micexkSendPacket(response);
             break;
         case GetKeyId:
-            log_info("mxparallel", "GetKeyId");
+            log_info(plfMxParallel, "GetKeyId");
             micexkSendPacket(KEYCHIP_ID);
             break;
 
         case GetPlayCounter:
-            log_info("mxparallel", "GetPlayCounter");
+            log_info(plfMxParallel, "GetPlayCounter");
             ((uint32_t*)response)[0] = BILLING_PLAYCOUNT;
             micexkSendPacket(response);
             break;
 
         default:
-            log_error("mxparallel", "Unhandled opcode: %d", request[0]);
+            log_error(plfMxParallel, "Unhandled opcode: %d", request[0]);
             for (byte i = 0; i < 16; i++) {
                 printf("%02x ", request[i]);
             }
@@ -419,7 +419,7 @@ void mxparallel_process_packet(BYTE* request) {
 }
 
 DWORD WINAPI mxparallel_thread(LPVOID _) {
-    log_info("mxparallel", "Parallel device thread spawned");
+    log_info(plfMxParallel, "Parallel device thread spawned");
     clearBusy;
     clearAck;
 

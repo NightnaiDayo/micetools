@@ -1,4 +1,4 @@
-#include "smbus.h"
+#include "../smbus.h"
 
 smbus_callback_t smbus_ds2460_write;
 smbus_callback_t smbus_ds2460_read;

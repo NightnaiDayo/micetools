@@ -1,14 +1,20 @@
+#include "mxkCrypt.h"
+
 #include <openssl/evp.h>
 #include <openssl/pem.h>
+#include <openssl/hmac.h>
 
-#include "mxk.h"
-
-unsigned char KEY_R[16] = {
+// These three should be initialised to null, and populated by mxkCryptInit, but we already know
+// their values and aren't trying to hide them from anyone! mxkCryptInit is still fully implemented,
+// but is a no-op unless MXK_CRYPT_HAS_INIT is manually set to FALSE.
+static unsigned char KEY_R[16] = {
     0x75, 0x6f, 0x72, 0x61, 0x74, 0x6e, 0x65, 0x6b, 0x61, 0x6d, 0x69, 0x68, 0x73, 0x75, 0x6b, 0x75,
 };
-unsigned char KEY_S[16] = {
+static unsigned char KEY_S[16] = {
     0x66, 0x6E, 0x65, 0x6B, 0x65, 0x72, 0x61, 0x77, 0x64, 0x72, 0x61, 0x68, 0x61, 0x67, 0x65, 0x73,
 };
+static unsigned char TRACEDATA_DES_KEY[16] = { 0x4d, 0x77, 0xf1, 0x74, 0x8d, 0x6d, 0x10, 0x94 };
+BOOL MXK_CRYPT_HAS_INIT = TRUE;
 
 unsigned char BILLING_PRIVKEY[] =
     ("-----BEGIN PRIVATE KEY-----\n"
@@ -96,6 +102,48 @@ unsigned char BILLING_CACERT[] = {
     0xca,
 };
 
+MXK_STATUS mxkCryptInit(void) {
+    static unsigned char KEY_HIDDEN[4][16] = { { 0xd8, 0x4f, 0x03, 0x08, 0x48, 0x92, 0xcb, 0x4a,
+                                                 0xfc, 0x47, 0x75, 0x2b, 0xf9, 0xb1, 0x4f, 0x97 },
+                                               { 0xbe, 0x21, 0x66, 0x63, 0x2d, 0xe0, 0xaa, 0x3d,
+                                                 0x98, 0x35, 0x14, 0x43, 0x98, 0xd6, 0x2a, 0xe4 },
+                                               { 0x07, 0xca, 0x77, 0x01, 0x63, 0x2b, 0x36, 0x60,
+                                                 0xb5, 0x2d, 0x8f, 0x77, 0x41, 0x4e, 0x18, 0x5a },
+                                               { 0x72, 0xa5, 0x05, 0x60, 0x17, 0x45, 0x53, 0x0b,
+                                                 0xd4, 0x40, 0xe6, 0x1f, 0x32, 0x3b, 0x73, 0x2f } };
+
+    if (MXK_CRYPT_HAS_INIT) return 0;
+
+    /**
+     * SEGA's loose attempt at hiding the real encryption keys
+     *
+     * static unsigned char KEY_R[16] = {
+     *     0x75, 0x6f, 0x72, 0x61, 0x74, 0x6e, 0x65, 0x6b,
+     *     0x61, 0x6d, 0x69, 0x68, 0x73, 0x75, 0x6b, 0x75,
+     * };
+     * static unsigned char KEY_S[16] = {
+     *     0x66, 0x6E, 0x65, 0x6B, 0x65, 0x72, 0x61, 0x77,
+     *     0x64, 0x72, 0x61, 0x68, 0x61, 0x67, 0x65, 0x73,
+     * };
+     */
+    for (int i = 0; i < 16; i++) {
+        KEY_R[i] = KEY_HIDDEN[0][i] ^ KEY_HIDDEN[1][i];
+        KEY_S[i] = KEY_HIDDEN[2][i] ^ KEY_HIDDEN[3][i];
+    }
+
+    TRACEDATA_DES_KEY[0] = 0x4d;
+    TRACEDATA_DES_KEY[1] = 0x77;
+    TRACEDATA_DES_KEY[2] = 0xf1;
+    TRACEDATA_DES_KEY[3] = 0x74;
+    TRACEDATA_DES_KEY[4] = 0x8d;
+    TRACEDATA_DES_KEY[5] = 0x6d;
+    TRACEDATA_DES_KEY[6] = 0x10;
+    TRACEDATA_DES_KEY[7] = 0x94;
+
+    MXK_CRYPT_HAS_INIT = TRUE;
+    return 0;
+}
+
 void mxkSetKeyS(unsigned char* key_s) { memcpy(KEY_S, key_s, 16); }
 void mxkSetKeyR(unsigned char* key_r) { memcpy(KEY_R, key_r, 16); }
 void mxkSwapKeys() {
@@ -105,7 +153,13 @@ void mxkSwapKeys() {
     memcpy(KEY_S, temp, 16);
 }
 
-void mxkCryptEncryptAes128CBC(const unsigned char* key, const unsigned char* iv, unsigned char* ct, const unsigned char* pt, size_t nbytes) {
+MXK_STATUS mxkCryptEncryptAes128CBC(const unsigned char* key, const unsigned char* iv,
+                                    unsigned char* ct, const unsigned char* pt, size_t nbytes) {
+    if (key == NULL || iv == NULL || ct == NULL || pt == NULL) {
+        amiDebugLog("Error: Invalid param.");
+        return MXK_STATUS_INVALID_PARAM;
+    }
+
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     EVP_CipherInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv, 1);
 
@@ -114,9 +168,17 @@ void mxkCryptEncryptAes128CBC(const unsigned char* key, const unsigned char* iv,
     unsigned char dump[16];
     EVP_EncryptFinal_ex(ctx, dump, &outl);
     EVP_CIPHER_CTX_free(ctx);
+
+    return MXK_STATUS_OK;
 }
 
-void mxkCryptDecryptAes128CBC(const unsigned char* key, const unsigned char* iv, const unsigned char* ct, unsigned char* pt, size_t nbytes) {
+MXK_STATUS mxkCryptDecryptAes128CBC(const unsigned char* key, const unsigned char* iv,
+                                    const unsigned char* ct, unsigned char* pt, size_t nbytes) {
+    if (key == NULL || iv == NULL || ct == NULL || pt == NULL) {
+        amiDebugLog("Error: Invalid param.");
+        return MXK_STATUS_INVALID_PARAM;
+    }
+
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     EVP_CipherInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv, 0);
 
@@ -125,28 +187,52 @@ void mxkCryptDecryptAes128CBC(const unsigned char* key, const unsigned char* iv,
     unsigned char dump[16];
     EVP_EncryptFinal_ex(ctx, dump, &outl);
     EVP_CIPHER_CTX_free(ctx);
+
+    return MXK_STATUS_OK;
 }
 
-void mxkCryptEncryptData(unsigned char* ct, const unsigned char* pt) {
+MXK_STATUS mxkCryptEncryptData(unsigned char* ct, const unsigned char* pt) {
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     EVP_CipherInit_ex(ctx, EVP_aes_128_ecb(), NULL, KEY_S, NULL, 1);
+
+    if (!MXK_CRYPT_HAS_INIT) {
+        amiDebugLog("Error no init!!!");
+        return MXK_STATUS_NO_INIT;
+    }
+    if (ct == NULL || pt == NULL) {
+        amiDebugLog("Error invalid param!!!");
+        return MXK_STATUS_INVALID_PARAM;
+    }
 
     int outl;
     EVP_EncryptUpdate(ctx, ct, &outl, pt, 16);
     unsigned char dump[16];
     EVP_EncryptFinal_ex(ctx, dump, &outl);
     EVP_CIPHER_CTX_free(ctx);
+
+    return MXK_STATUS_OK;
 }
 
-void mxkCryptDecryptData(const unsigned char* ct, unsigned char* pt) {
+MXK_STATUS mxkCryptDecryptData(const unsigned char* ct, unsigned char* pt) {
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     EVP_CipherInit_ex(ctx, EVP_aes_128_ecb(), NULL, KEY_R, NULL, 0);
+
+    if (!MXK_CRYPT_HAS_INIT) {
+        amiDebugLog("Error no init!!!");
+        return MXK_STATUS_NO_INIT;
+    }
+    if (ct == NULL || pt == NULL) {
+        amiDebugLog("Error invalid param!!!");
+        return MXK_STATUS_INVALID_PARAM;
+    }
 
     int outl;
     EVP_DecryptUpdate(ctx, pt, &outl, ct, 16);
     unsigned char dump[16];
     EVP_EncryptFinal_ex(ctx, dump, &outl);
     EVP_CIPHER_CTX_free(ctx);
+
+    return MXK_STATUS_OK;
 }
 
 void mxkSign(void* buffer, size_t nbytes, unsigned char* signature) {
@@ -172,10 +258,49 @@ typedef struct {
 } sign_payload_t;
 #pragma pack(pop)
 
+// TODO: Move this all
+unsigned char KEYCHIP_ID[16];
 void mxkSignValue(unsigned int value, unsigned char* signature) {
     sign_payload_t hash_data;
     hash_data.value = value;
     memcpy(hash_data.key_low, KEYCHIP_ID, 4);
     memcpy(hash_data.key_high, &KEYCHIP_ID[5], 7);
     mxkSign(&hash_data, sizeof hash_data, signature);
+}
+
+int mxkCryptCalcHashWithHmacSha1(void* key, unsigned char* md, size_t* nbuffer,
+                                 unsigned char* buffer, size_t nin) {
+    if (key == NULL || buffer == NULL || md == NULL || nbuffer == NULL) {
+        amiDebugLog("Error: Invalid param.");
+        return 3;
+    }
+
+    if (*nbuffer < 20) {
+        amiDebugLog("Error: Datasize is too small.");
+        return 3;
+    }
+
+    // int len = 20;
+    // /* Load the openssl hasher */
+    // EVP_MD *md = FUN_00412e70();
+    // FUN_00415cd0(md, key, len, buffer, nin, md, nbuffer);
+    // return 0;
+
+    HMAC_CTX hmac_ctx;
+    HMAC_CTX_init(&hmac_ctx);
+    HMAC_Init_ex(&hmac_ctx, key, 20, EVP_sha1(), NULL);
+    HMAC_Update(&hmac_ctx, buffer, nin);
+    HMAC_Final(&hmac_ctx, md, nbuffer);
+    HMAC_CTX_cleanup(&hmac_ctx);
+
+    return 0;
+}
+
+void mxkCryptCalcHashWithSha1(unsigned char* data, size_t nbytes, unsigned char* sum) {
+    EVP_MD_CTX* ctx = EVP_MD_CTX_create();
+    EVP_DigestInit(ctx, EVP_sha1());
+    EVP_DigestUpdate(ctx, data, nbytes);
+    unsigned int outlen;
+    EVP_DigestFinal_ex(ctx, sum, &outlen);
+    EVP_MD_CTX_destroy(ctx);
 }

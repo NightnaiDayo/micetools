@@ -1,4 +1,4 @@
-#include "smbus.h"
+#include "../smbus.h"
 
 smbus_callback_t smbus_ds28cn01_write;
 smbus_callback_t smbus_ds28cn01_read;
@@ -17,6 +17,9 @@ smbus_callback_t smbus_ds28cn01_read;
 #define DS28CN01_REG_NUM_END (DS28CN01_REG_NUM + DS28CN01_UNIQUE_NUMBER_SIZE - 1)
 #define DS28CN01_REG_STATUS 0xA8
 #define DS28CN01_REG_MAC 0xB0
+
+#define DS28CN01_COMPUTE_1 0xD0
+#define DS28CN01_COMPUTE_2 0xE0
 
 // Flags
 #define DS28CN01_STATUS_FLAG_BUSY 2

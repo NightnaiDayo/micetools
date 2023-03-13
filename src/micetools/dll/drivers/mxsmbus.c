@@ -55,12 +55,12 @@ BOOL handle_smbus(BYTE command, WORD v_addr, WORD command_code, BYTE nbytes, BYT
             break;
     }
 
-    log_trace("smbus", "Making request to %02X (virtual: %04X/%04x, cmd: %01X, code: %04X)", p_addr,
+    log_trace(plfMxSmbus, "Making request to %02X (virtual: %04X/%04x, cmd: %01X, code: %04X)", p_addr,
               v_addr, command, smb_cmd, command_code);
 
     smbus_callback_t* callback = smbus_devices[p_addr];
     if (callback == NULL) {
-        log_error("smbus", "Request to unregistered address: %02x", p_addr);
+        log_error(plfMxSmbus, "Request to unregistered address: %02x", p_addr);
         return FALSE;
     }
     return (*callback)(smb_cmd, command_code, nbytes, data);
@@ -74,7 +74,7 @@ BOOL WINAPI mxsmbus_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, 
 
     switch (dwIoControlCode) {
         case IOCTL_MXSMBUS_GET_VERSION:
-            log_misc("mxsmbus",
+            log_misc(plfMxSmbus,
                      "DeviceIoControl(<mxsmbus>, <get version>, 0x%p, 0x%x, "
                      "-, 0x%x, -, -)",
                      lpInBuffer, nInBufferSize, nOutBufferSize);
@@ -115,7 +115,7 @@ BOOL WINAPI mxsmbus_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, 
             };
         }
         default:
-            log_warning("mxsmbus", "unhandled 0x%08x", dwIoControlCode);
+            log_warning(plfMxSmbus, "unhandled 0x%08x", dwIoControlCode);
             return FALSE;
     }
     return TRUE;
@@ -128,6 +128,6 @@ void setup_mxsmbus() {
     hook_file(mxsmbus);
 
     if (!add_fake_device(&MXSMBUS_GUID, L"\\\\.\\mxsmbus")) {
-        log_error("mxsmbus", "failed to install mxsmbus device");
+        log_error(plfMxSmbus, "failed to install mxsmbus device");
     }
 }

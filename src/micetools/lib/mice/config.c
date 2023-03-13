@@ -87,6 +87,8 @@ void save_current_config() {
     for (int board = 0; board < MiceConfig.keys.board_count; board++) {
         i += snprintf(keybindBuffer + i, _countof(keybindBuffer) - i, "%d,",
                       jvsKeybindings[board].test);
+        i += snprintf(keybindBuffer + i, _countof(keybindBuffer) - i, "%d,",
+                      jvsKeybindings[board].notdefault);
         for (int n = 0; n < JVS_BUTTON_PAIR_COUNT * 2; n++) {
             i += snprintf(keybindBuffer + i, _countof(keybindBuffer) - i, "%d,",
                           jvsKeybindings[board].buttons[n]);
@@ -228,13 +230,16 @@ void load_mice_config() {
             if (state == 0) {
                 jvsKeybindings[board].test = val;
                 state = 1;
+            } else if (state == 1) {
+                jvsKeybindings[board].notdefault = val;
+                state = 2;
             } else {
-                if (state == 1) {
+                if (state == 2) {
                     jvsKeybindings[board].buttons[n] = val;
-                    state = 2;
+                    state = 3;
                 } else {
                     jvsKeybindings[board].invert[n] = val;
-                    state = 1;
+                    state = 2;
                     if (n++ == JVS_BUTTON_PAIR_COUNT * 2) {
                         n = 0;
                         state = 0;

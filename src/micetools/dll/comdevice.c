@@ -119,7 +119,7 @@ unsigned char comio_next_req(com_device_t* com, comio_recv_head_t* head, BYTE* d
         }
         comdev_read(com, &one_byte, 1);
         if (one_byte != COMIO_SYNC) {
-            log_error("com", "Garbage on JVS: %02x", one_byte);
+            log_error(plfComm, "Garbage on JVS: %02x", one_byte);
             continue;
         }
         break;
@@ -158,8 +158,43 @@ void comio_reply(com_device_t* com, comio_recv_head_t* req, BYTE status, BYTE le
     comio_write(com, &one_byte, 1);
 }
 
-void com_device_thread(com_device_t* com, FnComDeviceThread* thread) {
+BOOL attach_com_device(BYTE port, FnComDeviceThread* thread) {
+    if (port < 1 || port > NUM_COM_PORTS) {
+        log_error(plfComm, "Requested COM%hhu but that is out of range!", port);
+        return FALSE;
+    }
+    com_device_t* com = com_devices[port - 1];
+    if (com->thread != INVALID_HANDLE_VALUE) {
+        // No need to change what's assigned!
+        if (com->thread_worker == thread) return TRUE;
+
+        log_warning(plfComm, "COM%hhu is already attached!", port);
+        TerminateThread(com->thread, (DWORD)-1);
+    }
+
     com->thread = CreateThread(NULL, 0, thread, com, 0, NULL);
+    com->thread_worker = thread;
+
+    return TRUE;
+}
+void detach_com_device(BYTE port) {
+    // If the port is out of range, there's guaranteeably nothing attached
+    if (port < 1 || port > NUM_COM_PORTS)
+        return;
+
+    com_device_t* com = com_devices[port - 1];
+    if (!com->thread) return;
+
+    TerminateThread(com->thread, (DWORD)-1);
+    com->thread = INVALID_HANDLE_VALUE;
+}
+void detach_all_com_devices(void) {
+    for (int i = 0; i < NUM_COM_PORTS; i++) {
+        if (com_devices[i]->thread != INVALID_HANDLE_VALUE) {
+            TerminateThread(com_devices[i]->thread, (DWORD)-1);
+            com_devices[i]->thread = INVALID_HANDLE_VALUE;
+        }
+    }
 }
 
 com_device_t* new_com_device(BYTE port) {
@@ -189,8 +224,15 @@ com_device_t* new_com_device(BYTE port) {
     ringbuf_purge(&com_device->in);
     ringbuf_purge(&com_device->out);
     com_device->event = CreateEventW(NULL, TRUE, FALSE, com_device->com->wName);
+    com_device->thread = INVALID_HANDLE_VALUE;
 
     hook_file(file);
 
     return com_device;
+}
+
+void init_com_devices(void) {
+    for (BYTE i = 0; i < NUM_COM_PORTS; i++) {
+        com_devices[i] = new_com_device(i + 1);
+    }
 }

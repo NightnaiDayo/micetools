@@ -44,11 +44,11 @@ BOOL smbus_PCA9535_write(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                     config[1] = data[0];
                     return TRUE;
                 default:
-                    log_error("pca9535", "Unknown write command: %02x", code);
+                    log_error(plfPCA9535, "Unknown write command: %02x", code);
                     return FALSE;
             }
         default:
-            log_error("pca9535", "Unsupported write mode: %01x (%02x)", cmd, code);
+            log_error(plfPCA9535, "Unsupported write mode: %01x (%02x)", cmd, code);
             return FALSE;
     }
 }
@@ -167,11 +167,11 @@ BOOL smbus_PCA9535_read(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                     return TRUE;
 
                 default:
-                    log_error("pca9535", "Unknown read command: %02x", code);
+                    log_error(plfPCA9535, "Unknown read command: %02x", code);
                     return FALSE;
             }
         default:
-            log_error("pca9535", "Unsupported read mode: %01x (%02x)", cmd, code);
+            log_error(plfPCA9535, "Unsupported read mode: %01x (%02x)", cmd, code);
             return FALSE;
     }
 }

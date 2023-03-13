@@ -2,39 +2,16 @@
 #include "../../maiBackupStructs.h"
 #include "_devices.h"
 
-#define EEPROM_DUMP L"dev/eeprom.bin"
+#define EEPROM_PATH L"dev/eeprom.bin"
 
 #include "../../sysconf.h"
 
 // 8192 x 8 (64kbit) of eeprom
-BYTE EEPROM_DATA[0x2000];
+#define EEPROM_SIZE 0x2000
 
-void eeprom_dump() {
-    HANDLE dump =
-        _CreateFileW(EEPROM_DUMP, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, 0, NULL);
-    if (dump == INVALID_HANDLE_VALUE) {
-        log_error("eeprom", "CreateFileA(EEPROM_DUMP) failed: %03x", GetLastError());
-        return;
-    } else {
-        log_info("eeprom", "Wrote eeprom to %ls", EEPROM_DUMP);
-    }
-    _WriteFile(dump, &EEPROM_DATA, sizeof EEPROM_DATA, NULL, NULL);
-    FlushFileBuffers(dump);
-    _CloseHandle(dump);
-}
-void eeprom_restore() {
-    HANDLE dump = _CreateFileW(EEPROM_DUMP, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-                               FILE_ATTRIBUTE_NORMAL, NULL);
-    if (dump == INVALID_HANDLE_VALUE) {
-        // Make the file, even though it'll probably be empty
-        eeprom_dump();
-        return;
-    }
-    DWORD read;
-    if (!_ReadFile(dump, &EEPROM_DATA, sizeof EEPROM_DATA, &read, NULL))
-        log_error("eeprom", "failed to restore (%d)", GetLastError());
-    _CloseHandle(dump);
-}
+LPBYTE EEPROM_DATA = NULL;
+HANDLE EEPROM_FILE = INVALID_HANDLE_VALUE;
+HANDLE EEPROM_FILE_MAPPING = INVALID_HANDLE_VALUE;
 
 #define fix_crc(block)                                                              \
     do {                                                                            \
@@ -72,19 +49,9 @@ void set_eeprom_static_config() {
 }
 
 void build_eeprom() {
-    if (FileExists(EEPROM_DUMP)) {
-        eeprom_restore();
-        // Our network and static config always gets priority
-        set_eeprom_static_config();
-        set_eeprom_network_config();
+    log_info(plfEeprom, "Building default EEPROM file");
 
-        eeprom_dump();
-        return;
-    }
-
-    log_info("eeprom", "Building default EEPROM file");
-
-    memset(EEPROM_DATA, 0xff, sizeof EEPROM_DATA);
+    memset(EEPROM_DATA, 0xff, EEPROM_SIZE);
 
     set_eeprom_static_config();
 
@@ -102,22 +69,10 @@ void build_eeprom() {
 
     set_eeprom_network_config();
 
-    AM_SYSDATAwH_HISTORY History = { 0 };
-    // TODO: Game ID here should be configurable.
-    History.m_GameId[0] = '-';
-    History.m_GameId[1] = '-';
-    History.m_GameId[2] = '-';
-    History.m_GameId[3] = '-';
-    History.m_Region = MiceConfig.sysconf.region & (1 | 2 | 4 | 8);
-    fix_crc(History);
-    memcpy(&EEPROM_DATA[AM_SYSDATAwH_HISTORY_REG], &History, sizeof History);
-    memcpy(&EEPROM_DATA[AM_SYSDATAwH_HISTORY_DUP], &History, sizeof History);
     AM_SYSDATAwH_ALPB_CARD_ID CardInfo = { 0 };
     fix_crc(CardInfo);
-    memcpy(&EEPROM_DATA[AM_SYSDATAwH_ALPB_CARD_ID_REG] + (sizeof History), &CardInfo,
-           sizeof CardInfo);
-    memcpy(&EEPROM_DATA[AM_SYSDATAwH_ALPB_CARD_ID_DUP] + (sizeof History), &CardInfo,
-           sizeof CardInfo);
+    memcpy(&EEPROM_DATA[AM_SYSDATAwH_ALPB_CARD_ID_REG], &CardInfo, sizeof CardInfo);
+    memcpy(&EEPROM_DATA[AM_SYSDATAwH_ALPB_CARD_ID_DUP], &CardInfo, sizeof CardInfo);
 
     AM_SYSDATAwH_ALPB_COMPUTER_NAME CompuerName = { 0 };
     fix_crc(CompuerName);
@@ -129,47 +84,81 @@ void build_eeprom() {
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_ALPB_DEV_CONFIG_REG], &DevConfig, sizeof DevConfig);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_ALPB_DEV_CONFIG_DUP], &DevConfig, sizeof DevConfig);
 
-    eeprom_dump();
+    // eeprom_dump();
+}
+
+AM_SYSDATAwH_HISTORY AmHistory = {
+    // By making the game ID "____" we ensure games overwrite this, letting us see what they write.
+    // This is currently the best way I have found to retrieve the game ID
+    .m_GameId = { '_', '_', '_', '_' },
+};
+/** Clobber EEPROM with our user settings */
+void eeprom_fixup() {
+    set_eeprom_static_config();
+    set_eeprom_network_config();
+
+    AmHistory.m_Region = MiceConfig.sysconf.region & (1 | 2 | 4 | 8);
+    fix_crc(AmHistory);
+    memcpy(&EEPROM_DATA[AM_SYSDATAwH_HISTORY_REG], &AmHistory, sizeof AmHistory);
+    memcpy(&EEPROM_DATA[AM_SYSDATAwH_HISTORY_DUP], &AmHistory, sizeof AmHistory);
 }
 
 void ensure_valid_eeprom() {
-    static BOOL built = false;
-    if (built) {
-        eeprom_restore();
-        return;
-    }
-    build_eeprom();
-    built = true;
-}
+    if (!EEPROM_DATA) {
+        BOOL isNew = !FileExists(EEPROM_PATH);
 
+        EEPROM_DATA =
+            open_mapped_file(EEPROM_PATH, EEPROM_SIZE, &EEPROM_FILE, &EEPROM_FILE_MAPPING);
+        if (EEPROM_DATA == NULL) {
+            log_error(plfEeprom, "EEPROM will be memory-backed and not syncronised!");
+            EEPROM_DATA = malloc(EEPROM_SIZE);
+        }
+
+        if (isNew) build_eeprom();
+    }
+    eeprom_fixup();
+}
 
 void eeprom_read(WORD addr, BYTE* data, BYTE length) {
     ensure_valid_eeprom();
 
-    if (addr >= sizeof EEPROM_DATA) return;
-    if (length + addr > sizeof EEPROM_DATA) length = (sizeof EEPROM_DATA - addr) & 0xff;
+    if (addr >= EEPROM_SIZE) return;
+    if (length + addr > EEPROM_SIZE) length = (EEPROM_SIZE - addr) & 0xff;
 
-    memcpy(data, &EEPROM_DATA[addr], length);
+    memcpy(data, EEPROM_DATA + addr, length);
 }
 void eeprom_write(WORD addr, BYTE* data, BYTE length) {
     ensure_valid_eeprom();
 
-    if (addr >= sizeof EEPROM_DATA) return;
-    if (length + addr > sizeof EEPROM_DATA) length = (sizeof EEPROM_DATA - addr) & 0xff;
+    if (addr >= EEPROM_SIZE) return;
+    if (length + addr > EEPROM_SIZE) length = (EEPROM_SIZE - addr) & 0xff;
 
-    memcpy(&EEPROM_DATA[addr], data, length);
-    eeprom_dump();
+    // TODO: Do any games write this as anything other than a complete block?
+    if (addr == AM_SYSDATAwH_HISTORY_REG && length == sizeof(AM_SYSDATAwH_HISTORY)) {
+        PAM_SYSDATAwH_HISTORY pHistory = (PAM_SYSDATAwH_HISTORY)data;
+
+        mice_got_game_id(pHistory->m_GameId);
+    } else if (addr >= 0x1000 && length > 8) {
+        char game_id[4];
+        game_id[0] = data[7];
+        game_id[1] = data[6];
+        game_id[2] = data[5];
+        game_id[3] = data[4];
+        mice_got_game_id(game_id);
+    }
+
+    memcpy(EEPROM_DATA + addr, data, length);
 }
 
 BOOL smbus_AT24C64AN_write(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
     switch (cmd) {
         case ICH9_CMD_BLOCK: {
-            log_misc("eeprom", "write %d bytes at 0x%03x", dlen, code);
+            log_misc(plfEeprom, "write %d bytes at 0x%03x", dlen, code);
             eeprom_write(code, data, dlen);
             return TRUE;
         }
         default:
-            log_error("eeprom", "Unsupported write mode: %01x, %02x", cmd, code);
+            log_error(plfEeprom, "Unsupported write mode: %01x, %02x", cmd, code);
             return FALSE;
     }
 }
@@ -180,12 +169,12 @@ BOOL smbus_AT24C64AN_read(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
             data[0] = 0x00;
             return TRUE;
         case ICH9_CMD_BLOCK: {
-            log_misc("eeprom", "read %d bytes at 0x%03x", dlen, code);
+            log_misc(plfEeprom, "read %d bytes at 0x%03x", dlen, code);
             eeprom_read(code, data, dlen);
             return TRUE;
         }
         default:
-            log_error("eeprom", "Unsupported read mode: %01x, %02x", cmd, code);
+            log_error(plfEeprom, "Unsupported read mode: %01x, %02x", cmd, code);
             return FALSE;
     }
 }

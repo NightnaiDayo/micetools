@@ -71,6 +71,11 @@ void ds2460_update_mac(bool gpSha, byte* secret) {
         ComputeDallasSha(INPUT_BUFFER, (long*)&COMPUTED_MAC[0], (long*)&COMPUTED_MAC[4],
                          (long*)&COMPUTED_MAC[8], (long*)&COMPUTED_MAC[12],
                          (long*)&COMPUTED_MAC[16]);
+        puts("ds2460: SHA1 out buffer:");
+        for (int i = 0; i < 20; i++) {
+            printf("%02x", COMPUTED_MAC[i]);
+        }
+        puts("");
     }
 }
 
@@ -86,7 +91,7 @@ BOOL smbus_ds2460_write(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                      * | 0x04 -> DS2460_CMD_COMPUTE_TO_MAC_BUFFER
                      */
                     if (!(data[0] & DS2460_CMD_COMPUTE)) {
-                        log_error("ds2460", "Unknown command: %02x", data[0]);
+                        log_error(plfDS2460, "Unknown command: %02x", data[0]);
                         return FALSE;
                     }
                     BYTE numSecret = (data[0] >> 3) & 3;
@@ -99,7 +104,7 @@ BOOL smbus_ds2460_write(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                     ds2460_update_mac(gpSha, SECRETS[numSecret]);
                     return TRUE;
                 default:
-                    log_error("ds2460", "Unknown write command: %02x", code);
+                    log_error(plfDS2460, "Unknown write command: %02x", code);
                     return FALSE;
             }
         case ICH9_CMD_BLOCK: {
@@ -111,12 +116,12 @@ BOOL smbus_ds2460_write(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                 memcpy_s(&INPUT_BUFFER[offset + 1], DS2460_INPUT_BUFFER_SIZE - (offset + 1), data,
                          dlen);
 
-            log_info("ds2460", "Block write, %d @ %04x: ", dlen + 1, offset);
+            log_info(plfDS2460, "Block write, %d @ %04x", dlen + 1, offset);
             return TRUE;
         }
 
         default:
-            log_error("ds2460", "Unsupported write mode: %01x (%02x)", cmd, code);
+            log_error(plfDS2460, "Unsupported write mode: %01x (%02x)", cmd, code);
             return FALSE;
     }
 }
@@ -135,10 +140,10 @@ BOOL smbus_ds2460_read(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                 return TRUE;
             }
 
-            log_error("smx-exio", "Unknown read command: %02x", code);
+            log_error(plfDS2460, "Unknown read command: %02x", code);
             return FALSE;
         default:
-            log_error("ds2460", "Unsupported read mode: %01x (%02x)", cmd, code);
+            log_error(plfDS2460, "Unsupported read mode: %01x (%02x)", cmd, code);
             return FALSE;
     }
 }

@@ -133,7 +133,7 @@ BOOL redirect_path(LPCSTR path, LPCSTR* redirected) {
     for (int i = 0; i < sizeof DRIVE_REDIRECT_TABLE / sizeof DRIVE_REDIRECT_TABLE[0]; i++) {
         drive_redirect_t row = DRIVE_REDIRECT_TABLE[i];
         if (PathPrefix(path, row.drive)) {
-            log_trace(HOOKS_LOGGER, "Redirecting '%s' to '%s'", path, row.path);
+            log_trace(plfHooks, "Redirecting '%s' to '%s'", path, row.path);
 
             size_t new_len = strlen(path) - strlen(row.drive) + strlen(row.path);
             strcpy_s(_redirected_path, new_len + 1, row.path);
@@ -144,7 +144,7 @@ BOOL redirect_path(LPCSTR path, LPCSTR* redirected) {
 
             for (; len > 0; len--) (dst++)[0] = (src++)[0];
             dst[0] = 0;
-            log_trace(HOOKS_LOGGER, "New filename: '%s'", _redirected_path);
+            log_trace(plfHooks, "New filename: '%s'", _redirected_path);
 
             make_dirs(_redirected_path);
             *redirected = _redirected_path;
@@ -184,7 +184,7 @@ HANDLE WINAPI FakeCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD d
     file_hook_t* found_fh = find_hook(lpFileName);
     if (found_fh != NULL) {
         HANDLE handle = open_hook(found_fh);
-        log_info(HOOKS_LOGGER, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
+        log_info(plfHooks, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
         return handle;
     }
 
@@ -194,11 +194,11 @@ HANDLE WINAPI FakeCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD d
     if (redirect_path_w(lpFileName, &redirected)) {
         handle = TrueCreateFileA(redirected, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                                  dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-        log_misc(HOOKS_LOGGER, "CreateFileW(%s) -> 0x%p", redirected, handle);
+        log_misc(plfHooks, "CreateFileW(%s) -> 0x%p", redirected, handle);
     } else {
         handle = TrueCreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                                  dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-        log_misc(HOOKS_LOGGER, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
+        log_misc(plfHooks, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
     }
 
     return handle;
@@ -213,25 +213,25 @@ HANDLE WINAPI FakeCreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
     file_hook_t* found_fh = find_hook(wideFileName);
     if (found_fh != NULL) {
         HANDLE handle = open_hook(found_fh);
-        log_info(HOOKS_LOGGER, "CreateFileA(%s) -> 0x%p", lpFileName, handle);
+        log_info(plfHooks, "CreateFileA(%s) -> 0x%p", lpFileName, handle);
         return handle;
     }
 
     redirect_path(lpFileName, &lpFileName);
     HANDLE handle = TrueCreateFileA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                                     dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-    log_misc(HOOKS_LOGGER, "CreateFileA(%s) -> 0x%p", lpFileName, handle);
+    log_misc(plfHooks, "CreateFileA(%s) -> 0x%p", lpFileName, handle);
     return handle;
 }
 
 BOOL WINAPI FakePathFileExistsA(LPCSTR pszPath) {
-    log_misc(HOOKS_LOGGER, "PathFileExists(%s)", pszPath);
+    log_misc(plfHooks, "PathFileExists(%s)", pszPath);
     redirect_path(pszPath, &pszPath);
     BOOL ret = TruePathFileExistsA(pszPath);
     return ret;
 }
 BOOL WINAPI FakePathFileExistsW(LPCWSTR pszPath) {
-    log_misc(HOOKS_LOGGER, "PathFileExists(%ls)", pszPath);
+    log_misc(plfHooks, "PathFileExists(%ls)", pszPath);
     LPCSTR redirected;
     if (redirect_path_w(pszPath, &redirected)) {
         return TruePathFileExistsA(redirected);
@@ -259,7 +259,7 @@ BOOL WINAPI FakeDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lp
                                 LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     open_hook_t* pHData = GetDataForHandle(hDevice, HDATA_FILE);
     if (pHData == NULL) {
-        // log_trace(HOOKS_LOGGER, "DeviceIoControl(0x%p, 0x%08x, 0x%p, 0x%x, -, 0x%x, 0, 0)", hDevice,
+        // log_trace(plfHooks, "DeviceIoControl(0x%p, 0x%08x, 0x%p, 0x%x, -, 0x%x, 0, 0)", hDevice,
         //           dwIoControlCode, lpInBuffer, nInBufferSize, nOutBufferSize);
 
         return TrueDeviceIoControl(hDevice, dwIoControlCode, lpInBuffer, nInBufferSize, lpOutBuffer,
@@ -268,7 +268,7 @@ BOOL WINAPI FakeDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lp
 
     file_hook_t* file_hook = pHData->hook;
     if (!file_hook->DeviceIoControl) {
-        log_error(HOOKS_LOGGER, "DeviceIoControl(%ls) unimplemented", file_hook->filename);
+        log_error(plfHooks, "DeviceIoControl(%ls) unimplemented", file_hook->filename);
         return FALSE;
     }
 
@@ -297,7 +297,7 @@ DWORD WINAPI FakeSetFilePointer(HANDLE hFile, LONG lDistanceToMove, PLONG lpDist
             pHData->ctx.m_Pointer.HighPart = 0;
         pHData->ctx.m_Pointer.LowPart = lDistanceToMove;
     } else if (dwMoveMethod == FILE_END) {
-        log_error("files", "FILE_END unimplemented");
+        log_error(plfFile, "FILE_END unimplemented");
         return 0xFFFFFFFF;
     } else {
         if (lpDistanceToMoveHigh) pHData->ctx.m_Pointer.HighPart += *lpDistanceToMoveHigh;
@@ -314,7 +314,7 @@ BOOL WINAPI FakeSetFilePointerEx(HANDLE hFile, LARGE_INTEGER liDistanceToMove,
         if (dwMoveMethod == FILE_BEGIN) {
             pHData->ctx.m_Pointer = liDistanceToMove;
         } else if (dwMoveMethod == FILE_END) {
-            log_error("files", "FILE_END unimplemented");
+            log_error(plfFile, "FILE_END unimplemented");
             return FALSE;
         } else {
             pHData->ctx.m_Pointer.QuadPart += liDistanceToMove.QuadPart;
@@ -334,7 +334,7 @@ DWORD WINAPI FakeGetFileSizeEx(HANDLE hFile, PLARGE_INTEGER lpFileSize) {
     }
     file_hook_t* file_hook = pHData->hook;
     if (!file_hook->GetFileSizeEx) {
-        log_error(HOOKS_LOGGER, "GetFileSizeEx(%ls) unimplemented", file_hook->filename);
+        log_error(plfHooks, "GetFileSizeEx(%ls) unimplemented", file_hook->filename);
         return FALSE;
     }
     return file_hook->GetFileSizeEx(&(pHData->ctx), lpFileSize);
@@ -355,7 +355,7 @@ DWORD WINAPI FakeWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesT
 
     file_hook_t* file_hook = pHData->hook;
     if (!file_hook->WriteFile) {
-        log_error(HOOKS_LOGGER, "WriteFile(%ls) unimplemented", file_hook->filename);
+        log_error(plfHooks, "WriteFile(%ls) unimplemented", file_hook->filename);
         return FALSE;
     }
     BOOL ret = file_hook->WriteFile(&(pHData->ctx), lpBuffer, nNumberOfBytesToWrite,
@@ -370,7 +370,7 @@ BOOL WINAPI FakeReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRe
         return TrueReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead,
                             lpOverlapped);
     }
-    // log_misc(HOOKS_LOGGER, "ReadFile(%d) %d", hFile, nNumberOfBytesToRead);
+    // log_misc(plfHooks, "ReadFile(%d) %d", hFile, nNumberOfBytesToRead);
 
     open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
     if (pHData == NULL) {
@@ -381,7 +381,7 @@ BOOL WINAPI FakeReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRe
     file_hook_t* file_hook = pHData->hook;
 
     if (!file_hook->ReadFile) {
-        log_error(HOOKS_LOGGER, "ReadFile(%ls) unimplemented", file_hook->filename);
+        log_error(plfHooks, "ReadFile(%ls) unimplemented", file_hook->filename);
         return FALSE;
     }
     BOOL ret = file_hook->ReadFile(&(pHData->ctx), lpBuffer, nNumberOfBytesToRead,

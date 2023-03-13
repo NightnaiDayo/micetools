@@ -148,7 +148,7 @@ void post_win_create(HWND hWnd) {
         }
 
         if (hWnd && !SetWindowSubclass(hWnd, WndProc, (int)&WndProc, (DWORD_PTR)NULL)) {
-            log_error("gui", "failed to SetWindowSubclass(%d)", GetLastError());
+            log_error(plfGUI, "failed to SetWindowSubclass(%d)", GetLastError());
         }
     }
 }
@@ -282,19 +282,19 @@ HRESULT STDMETHODCALLTYPE FakeCreateDevice(IDirect3D9* this, UINT Adapter, D3DDE
     if (res != S_OK) {
         switch (res) {
             case D3DERR_DEVICELOST:
-                log_error("D3D9", "CreateDevice failed: Device lost");
+                log_error(plfD3D9, "CreateDevice failed: Device lost");
                 break;
             case D3DERR_INVALIDCALL:
-                log_error("D3D9", "CreateDevice failed: Invalid call");
+                log_error(plfD3D9, "CreateDevice failed: Invalid call");
                 break;
             case D3DERR_NOTAVAILABLE:
-                log_error("D3D9", "CreateDevice failed: Requested configuration not available");
+                log_error(plfD3D9, "CreateDevice failed: Requested configuration not available");
                 break;
             case D3DERR_OUTOFVIDEOMEMORY:
-                log_error("D3D9", "CreateDevice failed: VMem exhausted");
+                log_error(plfD3D9, "CreateDevice failed: VMem exhausted");
                 break;
             default:
-                log_error("D3D9", "CreateDevice failed: %08x", res);
+                log_error(plfD3D9, "CreateDevice failed: %08x", res);
                 break;
         }
     }

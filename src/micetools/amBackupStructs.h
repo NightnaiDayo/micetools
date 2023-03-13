@@ -9,7 +9,7 @@ typedef struct {
     uint32_t m_Gateway;
     uint32_t m_PrimaryDns;
     uint32_t m_SecondaryDns;
-} AM_SYSDATA_NETWORK_IF;
+} AM_SYSDATA_NETWORK_IF, *PAM_SYSDATA_NETWORK_IF;
 
 typedef struct {
     uint64_t m_TimeStamp;
@@ -28,17 +28,17 @@ typedef struct {
     uint8_t CreditRate;
     uint8_t Cost[8];
     uint8_t Rsv0F;
-} AM_CREDIT_CONFIG;
+} AM_CREDIT_CONFIG, *PAM_CREDIT_CONFIG;
 
 typedef struct {
     uint8_t Credit;
     uint8_t Remain;
-} AM_CREDIT_PDATA;
+} AM_CREDIT_PDATA, *PAM_CREDIT_PDATA;
 
 typedef struct {
     AM_CREDIT_PDATA Player[4];
     uint8_t Rsv08[8];
-} AM_CREDIT_DATA;
+} AM_CREDIT_DATA, *PAM_CREDIT_DATA;
 
 typedef struct {
     uint32_t CoinChute[4];
@@ -46,7 +46,7 @@ typedef struct {
     uint32_t CoinCredit;
     uint32_t ServiceCredit;
     uint32_t TotalCredit;
-} AM_CREDIT_BOOKKEEPING;
+} AM_CREDIT_BOOKKEEPING, *PAM_CREDIT_BOOKKEEPING;
 
 typedef struct {
     uint8_t m_month;
@@ -61,7 +61,7 @@ typedef struct {
     uint32_t m_Crc;
     uint8_t Rsv04[4];
     AM_SYSDATA_NETWORK_IF m_Eth;
-} AM_SYSDATAwH_NETWORK;
+} AM_SYSDATAwH_NETWORK, *PAM_SYSDATAwH_NETWORK;
 
 typedef struct {
     uint32_t m_Crc;
@@ -70,14 +70,14 @@ typedef struct {
     uint8_t m_Rental;
     uint8_t Rsv0F;
     char m_strSerialId[17];
-} AM_SYSDATAwH_STATIC;
+} AM_SYSDATAwH_STATIC, *PAM_SYSDATAwH_STATIC;
 
 typedef struct {
     uint32_t m_Crc;
     uint8_t Rsv04[4];
     AM_CREDIT_CONFIG m_Config;
     uint8_t Rsv18[8];
-} AM_SYSDATAwH_CREDIT;
+} AM_SYSDATAwH_CREDIT, *PAM_SYSDATAwH_CREDIT;
 
 typedef AM_SYSDATAwH_NETWORK AM_SYSDATAwH_NETWORK_ETH0;
 typedef AM_SYSDATAwH_NETWORK AM_SYSDATAwH_NETWORK_ETH1;
@@ -88,7 +88,7 @@ typedef struct {
     char m_GameId[4];
     uint8_t m_Region;
     uint8_t Rsv0D[3];
-} AM_SYSDATAwH_HISTORY;
+} AM_SYSDATAwH_HISTORY, *PAM_SYSDATAwH_HISTORY;
 
 typedef struct {
     uint32_t m_Crc;
@@ -97,7 +97,7 @@ typedef struct {
     uint8_t m_LogNum;
     uint8_t Rsv0a[22];
     ERROR_LOG_BODY m_Body[15];
-} AM_SYSDATAwH_ERROR_LOG;
+} AM_SYSDATAwH_ERROR_LOG, *PAM_SYSDATAwH_ERROR_LOG;
 
 typedef struct {
     uint32_t m_Crc;
@@ -105,7 +105,7 @@ typedef struct {
     AM_CREDIT_DATA m_CreditData;
     AM_CREDIT_BOOKKEEPING m_Bookkeeping;
     uint8_t Rsv38[456];
-} AM_SYSDATAwH_BACKUP;
+} AM_SYSDATAwH_BACKUP, *PAM_SYSDATAwH_BACKUP;
 
 typedef struct {
     uint32_t m_Crc;
@@ -115,7 +115,7 @@ typedef struct {
     uint32_t m_Bias;
     uint32_t m_ServerBias;
     uint8_t Rsv20[480];
-} AM_SYSDATAwH_TIMEZONE;
+} AM_SYSDATAwH_TIMEZONE, *PAM_SYSDATAwH_TIMEZONE;
 
 typedef struct {
     uint32_t m_Crc;
@@ -123,21 +123,21 @@ typedef struct {
     uint32_t m_Caution;
     uint32_t m_Peak;
     uint8_t Rsv10[496];
-} AM_SYSDATAwH_HM_PEAK;
+} AM_SYSDATAwH_HM_PEAK, *PAM_SYSDATAwH_HM_PEAK;
 
 typedef struct {
     uint32_t m_Crc;
     uint8_t Rsv04[4];
     uint8_t m_MountSleepS;
     uint8_t Rsv09[55];
-} AM_SYSDATAwH_ALPB_DEV_CONFIG;
+} AM_SYSDATAwH_ALPB_DEV_CONFIG, *PAM_SYSDATAwH_ALPB_DEV_CONFIG;
 
 typedef struct {
     uint32_t m_Crc;
     uint32_t m_Uk1;
     uint32_t m_Uk2;
     uint32_t m_Uk3;
-} AM_SYSDATAwH_ALPB_CARD_ID;
+} AM_SYSDATAwH_ALPB_CARD_ID, *PAM_SYSDATAwH_ALPB_CARD_ID;
 
 typedef struct {
     uint32_t m_Crc;
@@ -148,7 +148,7 @@ typedef struct {
     uint32_t m_Uk5;
     uint32_t m_Uk6;
     uint32_t m_Uk7;
-} AM_SYSDATAwH_ALPB_COMPUTER_NAME;
+} AM_SYSDATAwH_ALPB_COMPUTER_NAME, *PAM_SYSDATAwH_ALPB_COMPUTER_NAME;
 
 #pragma pack(pop)
 

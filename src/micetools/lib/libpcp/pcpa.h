@@ -11,7 +11,8 @@ typedef enum e_pcpa {
     e_pcpa_cannot_open = -2,
     e_pcpa_generic = -3,
     e_pcpa_param_invalid = -4,
-    e_pcpa_timeout_closed = -5,  // TODO: This is wrong (see: pcpaSetCallbackFuncBuffer)
+    e_pcpa_timeout_closed = -5,
+    e_pcpa_no_table_space = -6,
     e_pcpa_cb_table_full = -9,
     e_pcpa_stream_unset = -10,
     e_pcpa_cb_table_unset = -11,

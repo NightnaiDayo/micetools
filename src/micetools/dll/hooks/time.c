@@ -9,7 +9,7 @@ BOOL WINAPI Fake_SetLocalTime(const SYSTEMTIME* lpSystemTime) {
     memcpy(&localTime, lpSystemTime, sizeof localTime);
     ltCache = TRUE;
 
-    log_info("time", "Not setting local time to: %04d-%02d-%02d %02d:%02d:%02d.%04d",
+    log_info(plfTime, "Not setting local time to: %04d-%02d-%02d %02d:%02d:%02d.%04d",
              lpSystemTime->wYear, lpSystemTime->wMonth, lpSystemTime->wDay, lpSystemTime->wHour,
              lpSystemTime->wMinute, lpSystemTime->wSecond, lpSystemTime->wMilliseconds);
     return TRUE;
@@ -18,20 +18,20 @@ BOOL WINAPI Fake_SetSystemTime(const SYSTEMTIME* lpSystemTime) {
     memcpy(&systemTime, lpSystemTime, sizeof systemTime);
     stCache = TRUE;
 
-    log_info("time", "Not setting system time to: %04d-%02d-%02d %02d:%02d:%02d.%04d",
+    log_info(plfTime, "Not setting system time to: %04d-%02d-%02d %02d:%02d:%02d.%04d",
              lpSystemTime->wYear, lpSystemTime->wMonth, lpSystemTime->wDay, lpSystemTime->wHour,
              lpSystemTime->wMinute, lpSystemTime->wSecond, lpSystemTime->wMilliseconds);
     return TRUE;
 }
 
 BOOL WINAPI Fake_SetTimeZoneInformation(const TIME_ZONE_INFORMATION* lpTimeZoneInformation) {
-    log_info("time", "Not setting timezone to: %d", lpTimeZoneInformation->Bias);
+    log_info(plfTime, "Not setting timezone to: %d", lpTimeZoneInformation->Bias);
     return TRUE;
 }
 
 // TODO: Store deltas instead
 BOOL WINAPI Fake_GetLocalTime(SYSTEMTIME* lpSystemTime) {
-    log_trace("time", "GetLocalTime");
+    log_trace(plfTime, "GetLocalTime");
     if (ltCache) {
         memcpy(lpSystemTime, &localTime, sizeof localTime);
         return TRUE;
@@ -49,7 +49,7 @@ BOOL WINAPI Fake_GetLocalTime(SYSTEMTIME* lpSystemTime) {
     return TrueGetLocalTime(lpSystemTime);
 }
 BOOL WINAPI Fake_GetSystemTime(SYSTEMTIME* lpSystemTime) {
-    log_trace("time", "GetSystemTime");
+    log_trace(plfTime, "GetSystemTime");
     if (stCache) {
         memcpy(lpSystemTime, &systemTime, sizeof systemTime);
         return TRUE;

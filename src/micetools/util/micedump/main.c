@@ -15,6 +15,8 @@ int main(int argc, char** argv) {
             miceDumpSRAM();
         else if (strcmp(argv[i], "dongle") == 0)
             miceDumpKCMxkeychip();
+        else if (strcmp(argv[i], "kcpic") == 0)
+            miceDumpKCPIC();
         else
             printf("Unknown dump type: %s\n", argv[i]);
     }

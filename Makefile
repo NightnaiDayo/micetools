@@ -34,6 +34,7 @@ clean:
 dist:
 	@-mkdir $(DIST_DIR) > NUL 2>&1
 	@-mkdir $(DIST_DIR)\util > NUL 2>&1
+	@-mkdir $(DIST_DIR)\system_dummy > NUL 2>&1
 	@-mkdir $(DIST_DIR)\Execute > NUL 2>&1
 	@-mkdir $(DIST_DIR)\Execute\Z > NUL 2>&1
 	@-mkdir $(DIST_DIR)\Execute\S > NUL 2>&1
@@ -54,11 +55,15 @@ dist:
 
 #	@copy /Y "$(BUILD_DIR)/src/micetools/micepatch\micepatch.exe" "$(DIST_DIR)/util/micepatch.exe"
 	@copy /Y "$(BUILD_DIR)/src/micetools/util\micedump.exe" "$(DIST_DIR)/util/micedump.exe"
+	@copy /Y "$(BUILD_DIR)/src/micetools/util\micedump.pdb" "$(DIST_DIR)/util/micedump.pdb"
 	@copy /Y "$(BUILD_DIR)/src/micetools/util\micetinker.exe" "$(DIST_DIR)/util/micetinker.exe"
 	@copy /Y "$(BUILD_DIR)/src/micetools/util\micemonitor.exe" "$(DIST_DIR)/util/micemonitor.exe"
 	@copy /Y "$(BUILD_DIR)/src/micetools/util\exio_test.exe" "$(DIST_DIR)/util/exio_test.exe"
 	@copy /Y "$(BUILD_DIR)/src/micetools/util\dongleDecrypt.exe" "$(DIST_DIR)/util/dongleDecrypt.exe"
 	@copy /Y "$(BUILD_DIR)/src/micetools/util\testBin.exe" "$(DIST_DIR)/util/testBin.exe"
+
+	@copy /Y "$(BUILD_DIR)/src/micetools/system_dummy\dummymaster\dummymaster.exe" "$(DIST_DIR)/system_dummy/dummymaster.exe"
+	@copy /Y "$(BUILD_DIR)/src/micetools/system_dummy\dummyinstaller\dummyinstaller.exe" "$(DIST_DIR)/system_dummy/dummyinstaller.exe"
 
 	@copy /Y "src/micetools/miceboot\TrueCrypt.cmd" "$(DIST_DIR)/Execute/TrueCrypt.cmd"
 

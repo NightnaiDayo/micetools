@@ -480,10 +480,10 @@ e_pcpt_t pcptRecv(pcpt_t *sock, unsigned char *recv_buf, size_t *recv_buf_len,
         return sock->err = e_pcpt_not_open;
     }
     // TODO: URGENT: Something in the FSM causes this condition to error out!
-    // if (sock->client_open != 0) {
-    //     PCP_LOG("error PCP already connected\n");
-    //     return sock->err = e_pcpt_already_connected;
-    // }
+    if (sock->client_open != 0) {
+        PCP_LOG("error PCP already connected\n");
+        return sock->err = e_pcpt_already_connected;
+    }
 
     sock->recv_buf = recv_buf;
     sock->recv_buf_count = recv_buf_len;

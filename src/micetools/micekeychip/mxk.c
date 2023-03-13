@@ -36,13 +36,12 @@ void log_callback(struct pcpa* stream, void* data) {
 e_pcpa_t mxkPcpStreamInit() {
     e_pcpa_t err;
 
-    PCP.before_cb = log_callback;
-
     err = pcpaInitStream(&PCP);
     if (err != e_pcpa_ok) {
         printf("pcpaInitStream Error. Code:%d\n", err);
         return err;
     }
+    PCP.before_cb = log_callback;
 
     err = pcpaSetCallbackFuncBuffer(
         &PCP, CALLBACK_FUNCTION_BUFFER,

@@ -110,6 +110,7 @@ e_pcpa_t pcpaInitStream(pcpa_t *stream) {
     stream->binary_mode_after_cb = NULL;
     stream->binary_mode_before_data = NULL;
     stream->binary_mode_after_data = NULL;
+    stream->before_cb = NULL;
     ZERO(stream->recv_data);
     ZERO(stream->send_data);
     return e_pcpa_ok;
@@ -222,7 +223,7 @@ e_pcpa_t pcpaSetCallbackFuncBuffer(pcpa_t *stream, pcpa_cb_table_t *callback_tab
         return e_pcpa_stream_unset;
     }
 
-    if (callback_table == NULL || callbacks_max == 0) return e_pcpa_timeout_closed;
+    if (callback_table == NULL || callbacks_max == 0) return e_pcpa_no_table_space;
 
     stream->callback_max = callbacks_max;
     stream->callback_table = callback_table;
@@ -276,7 +277,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
             case pcpa_state_none:
                 amiTimerGet(&time);
                 ms = _amTimeDelta(time, time_start);
-                if (timeout_ms != -1) {
+                if (timeout_ms != TIMEOUT_NONE) {
                     if (ms < (uint)timeout_ms) {
                         timeout = timeout_ms - ms;
                         local_14 = timeout;
@@ -294,9 +295,10 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                     if (eVar4 == e_pcpa_ok) {
                         stream->state = 10;
                         amiTimerGet(&time);
-                        if (timeout_ms != -1) {
-                            ms = _amTimeDelta(time, time_start);
-                            goto joined_r0x00454a58;
+                        if (timeout_ms != TIMEOUT_NONE &&
+                            _amTimeDelta(time, time_start) >= timeout_ms) {
+                            stream->err = e_pcpa_to;
+                            return stream->err;
                         }
                     } else {
                         stream->state = pcpa_state_none;
@@ -311,7 +313,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
             case 9:
                 amiTimerGet(&time);
                 ms = _amTimeDelta(time, time_start);
-                if (timeout_ms != -1) {
+                if (timeout_ms != TIMEOUT_NONE) {
                     if (ms < (uint)timeout_ms) {
                         timeout = timeout_ms - ms;
                         local_14 = timeout;
@@ -333,13 +335,10 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                         if (stream->binary_mode == binary_mode_none) {
                             stream->state = (stream->state != pcpa_state_wait_request) - 1 & 10;
                             amiTimerGet(&time);
-                            if (timeout_ms != -1) {
-                                ms = _amTimeDelta(time, time_start);
-                            joined_r0x00454a58:
-                                if ((uint)timeout_ms <= ms) {
-                                    stream->err = e_pcpa_to;
-                                    return stream->err;
-                                }
+                            if (timeout_ms != TIMEOUT_NONE &&
+                                _amTimeDelta(time, time_start) >= timeout_ms) {
+                                stream->err = e_pcpa_to;
+                                return stream->err;
                             }
                         } else {
                             pcpaCloseBinary(stream);
@@ -351,9 +350,10 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                                 stream->binary_mode_after_cb = NULL;
                             }
                             amiTimerGet(&time);
-                            if (timeout_ms != -1) {
-                                ms = _amTimeDelta(time, time_start);
-                                goto joined_r0x00454a58;
+                            if (timeout_ms != TIMEOUT_NONE &&
+                                _amTimeDelta(time, time_start) >= timeout_ms) {
+                                stream->err = e_pcpa_to;
+                                return stream->err;
                             }
                         }
                     } else {
@@ -378,9 +378,8 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                     stream->binary_mode_before_cb = NULL;
                 }
                 amiTimerGet(&time);
-                ms = _amTimeDelta(time, time_start);
-                if (timeout_ms != -1) {
-                    if (ms < (uint)timeout_ms) {
+                if (timeout_ms != TIMEOUT_NONE) {
+                    if (_amTimeDelta(time, time_start) > timeout_ms) {
                         timeout = timeout_ms - ms;
                         local_14 = timeout;
                     } else {
@@ -403,9 +402,10 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                     if (stream->err == e_pcpa_ok) {
                     LAB_00454a1a:
                         amiTimerGet(&time);
-                        if (timeout_ms != -1) {
-                            ms = _amTimeDelta(time, time_start);
-                            goto joined_r0x00454a58;
+                        if (timeout_ms != TIMEOUT_NONE &&
+                            _amTimeDelta(time, time_start) >= timeout_ms) {
+                            stream->err = e_pcpa_to;
+                            return stream->err;
                         }
                     } else {
                         PCP_LOG("error pcpaSendBinary\n");
@@ -421,7 +421,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                 }
                 amiTimerGet(&time);
                 ms = _amTimeDelta(time, time_start);
-                if (timeout_ms != -1) {
+                if (timeout_ms != TIMEOUT_NONE) {
                     if (ms < (uint)timeout_ms) {
                         timeout = timeout_ms - ms;
                         local_14 = timeout;
@@ -447,9 +447,9 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                 }
                 break;
             case 10:
-                if (stream->before_cb != NULL) {
+                // TODO: Figure out why recv_buf is empty at this point in the FSM
+                if (stream->before_cb != NULL)
                     stream->before_cb(stream, stream->pcpp.sock.recv_buf);
-                }
 
                 if (stream->callback_table == NULL) {
                     PCP_LOG("error Callback_table buffer isn\'t set\n");
@@ -492,7 +492,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
             LAB_004547f1:
                 amiTimerGet(&time);
                 ms = _amTimeDelta(time, time_start);
-                if (timeout_ms != -1) {
+                if (timeout_ms != TIMEOUT_NONE) {
                     if (ms < (uint)timeout_ms) {
                         local_14 = timeout_ms - ms;
                     } else {
@@ -514,9 +514,9 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                 }
                 amiTimerGet(&time);
                 timeout = local_14;
-                if (timeout_ms != TIMEOUT_NONE) {
-                    ms = _amTimeDelta(time, time_start);
-                    goto joined_r0x00454a58;
+                if (timeout_ms != TIMEOUT_NONE && _amTimeDelta(time, time_start) >= timeout_ms) {
+                    stream->err = e_pcpa_to;
+                    return stream->err;
                 }
         }
     } while (stream->err == e_pcpa_ok);

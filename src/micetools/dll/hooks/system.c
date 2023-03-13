@@ -13,7 +13,7 @@ OSVERSIONINFOA OS_VERSION = {
 WCHAR TEMP_PATH[] = L"C:\\DOCUME~1\\SYSTEM~1\\LOCALS~1\\Temp\\";
 
 BOOL WINAPI FakeGetVersionExA(LPOSVERSIONINFOA lpVersionInformation) {
-    log_trace("system", "GetVersionExA");
+    log_trace(plfSystem, "GetVersionExA");
     memcpy(lpVersionInformation, &OS_VERSION, sizeof OS_VERSION);
     return TRUE;
 }
@@ -21,7 +21,7 @@ BOOL WINAPI FakeGetVolumeInformationW(LPCWSTR lpRootPathName, LPWSTR lpVolumeNam
                                       DWORD nVolumeNameSize, LPDWORD lpVolumeSerialNumber,
                                       LPDWORD lpMaximumComponentLength, LPDWORD lpFileSystemFlags,
                                       LPWSTR lpFileSystemNameBuffer, DWORD nFileSystemNameSize) {
-    log_trace("system", "GetVolumeInformationW");
+    log_trace(plfSystem, "GetVolumeInformationW");
     if (lpVolumeNameBuffer && nVolumeNameSize) lpVolumeNameBuffer[0] = '\0';
     if (lpVolumeSerialNumber) *lpVolumeSerialNumber = 0x00144db0;
     if (lpMaximumComponentLength) *lpMaximumComponentLength = 0xff;
@@ -46,16 +46,16 @@ LONG WINAPI FakeChangeDisplaySettingsExA(LPCSTR lpszDeviceName, DEVMODEA* lpDevM
 }
 
 FARPROC FakeGetProcAddress(HMODULE hModule, LPCSTR lpProcName) {
-    log_trace("system", "GetProcAddress(%s)", lpProcName);
+    log_trace(plfSystem, "GetProcAddress(%s)", lpProcName);
     return TrueGetProcAddress(hModule, lpProcName);
 }
 HMODULE FakeGetModuleHandleA(LPCSTR lpModuleName) {
-    log_trace("system", "GetModuleHandleA(%s)", lpModuleName);
+    log_trace(plfSystem, "GetModuleHandleA(%s)", lpModuleName);
     return TrueGetModuleHandleA(lpModuleName);
 }
 
 LONG WINAPI FakeRtlGetVersion(PRTL_OSVERSIONINFOW lpVersionInformation) {
-    log_trace("system", "RtlGetVersion(%p)", lpVersionInformation);
+    log_trace(plfSystem, "RtlGetVersion(%p)", lpVersionInformation);
 
     if (lpVersionInformation->dwOSVersionInfoSize >= sizeof (OSVERSIONINFOW)) {
         lpVersionInformation->dwMajorVersion = OS_VERSION.dwMajorVersion;

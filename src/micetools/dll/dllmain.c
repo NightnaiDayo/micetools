@@ -1,3 +1,5 @@
+#include <signal.h>
+
 #include "common.h"
 #include "devices/_devices.h"
 #include "drivers/mx.h"
@@ -15,7 +17,7 @@ DWORD GetImageBase(void) {
     HANDLE hObject =
         _CreateFileW(sModulePath, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
     if (hObject == INVALID_HANDLE_VALUE) {
-        log_error(BOOT_LOGGER, "Failed to open %ls %03x", sModulePath, GetLastError());
+        log_error(plfBoot, "Failed to open %ls %03x", sModulePath, GetLastError());
         return 0;
     }
 
@@ -24,11 +26,11 @@ DWORD GetImageBase(void) {
     _SetFilePointer(hObject, 0, NULL, FILE_BEGIN);
     _ReadFile(hObject, &dosHeader, sizeof dosHeader, &nRead, NULL);
     if (nRead != sizeof dosHeader) {
-        log_error(BOOT_LOGGER, "Failed to read DOS header %03x", GetLastError());
+        log_error(plfBoot, "Failed to read DOS header %03x", GetLastError());
         return 0;
     }
     if (dosHeader.e_magic != IMAGE_DOS_SIGNATURE) {
-        log_error(BOOT_LOGGER, "Invalid DOS magic number: %04x", dosHeader.e_magic);
+        log_error(plfBoot, "Invalid DOS magic number: %04x", dosHeader.e_magic);
         return 0;
     }
 
@@ -36,11 +38,11 @@ DWORD GetImageBase(void) {
     _SetFilePointer(hObject, dosHeader.e_lfanew, NULL, FILE_BEGIN);
     _ReadFile(hObject, &ntHeaders32, sizeof ntHeaders32, &nRead, NULL);
     if (nRead != sizeof ntHeaders32) {
-        log_error(BOOT_LOGGER, "Failed to read NT header %03x", GetLastError());
+        log_error(plfBoot, "Failed to read NT header %03x", GetLastError());
         return 0;
     }
     if (ntHeaders32.Signature != IMAGE_NT_SIGNATURE) {
-        log_error(BOOT_LOGGER, "Invalid NT signature: %08x", ntHeaders32.Signature);
+        log_error(plfBoot, "Invalid NT signature: %08x", ntHeaders32.Signature);
         return 0;
     }
 
@@ -53,7 +55,7 @@ void apply_patches(HMODULE hModule) {
 
     DWORD imageBase = GetImageBase();
     if (imageBase == 0) {
-        log_error(BOOT_LOGGER, "Failed to locate image base. Patches will not be applied.");
+        log_error(plfBoot, "Failed to locate image base. Patches will not be applied.");
         return;
     }
     imageOffset = (DWORD)hModule - imageBase;
@@ -62,13 +64,13 @@ void apply_patches(HMODULE hModule) {
     WideCharToMultiByte(CP_ACP, 0, exeName, -1, exeNameC, sizeof exeNameC, NULL, NULL);
 
     if (!load_patches(MiceConfig.mice.patches_file, exeNameC)) {
-        log_error(BOOT_LOGGER, "Failed to load patches file %s", MiceConfig.mice.patches_file);
+        log_error(plfBoot, "Failed to load patches file %s", MiceConfig.mice.patches_file);
         return;
     }
 
     patch_t* patch = patch_list->next;
     if (patch == NULL) {
-        log_warning(BOOT_LOGGER, "No patches to apply. Did you forgot an amiDebug patch file?");
+        log_warning(plfBoot, "No patches to apply. Did you forgot an amiDebug patch file?");
     }
     while (patch) {
         DWORD oldProt;
@@ -76,7 +78,7 @@ void apply_patches(HMODULE hModule) {
                        PAGE_EXECUTE_READWRITE, &oldProt);
 
         if (memcmp(patch->match, (void*)((DWORD)patch->address + imageOffset), patch->count) != 0) {
-            log_error(BOOT_LOGGER, "Patch %s failed! from-value missmatch", patch->name);
+            log_error(plfBoot, "Patch %s failed! from-value missmatch", patch->name);
             VirtualProtect((void*)((DWORD)patch->address + imageOffset), patch->count, oldProt,
                            &oldProt);
             patch = patch->next;
@@ -84,7 +86,7 @@ void apply_patches(HMODULE hModule) {
         }
 
         memcpy((void*)((DWORD)patch->address + imageOffset), patch->replace, patch->count);
-        log_misc(BOOT_LOGGER, "Patched %d bytes at %08x (%s)", patch->count, patch->address,
+        log_misc(plfBoot, "Patched %d bytes at %08x (%s)", patch->count, patch->address,
                  patch->name);
 
         patch = patch->next;
@@ -93,10 +95,11 @@ void apply_patches(HMODULE hModule) {
 
 void prebind_hooks() {
     hook_all();
+    init_com_devices();
     install_devices();
     // TODO: Figure out why we're needing to call this manually (medium priority)
     if (wcscmp(exeName, L"ALLNetProc.exe") == 0) {
-        log_warning(BOOT_LOGGER, "Making explicit call to OPENSSL_add_all_algorithms_noconf");
+        log_warning(plfBoot, "Making explicit call to OPENSSL_add_all_algorithms_noconf");
 
         // OPENSSL_add_all_algorithms_noconf
         ((void (*)(void))(0x00459770))();
@@ -111,7 +114,7 @@ void init_injection(HMODULE hModule) {
 
     // We're in a new context now, so need to reconfigure
     setup_logging();
-    log_info(BOOT_LOGGER, "Handover complete. Now executing within %ls", exeName);
+    log_info(plfBoot, "Handover complete. Now executing within %ls", exeName);
 
     if (MiceConfig.mice.apply_patches) apply_patches(hModule);
 
@@ -132,7 +135,7 @@ void init_injection(HMODULE hModule) {
 
     if (MiceConfig.drivers.platform) {
         if (!add_fake_device(&PLATFORM_GUID, L"\\\\.\\platform")) {
-            log_error("platform", "failed to install platform device");
+            log_error(plfPlatform, "failed to install platform device");
         }
     }
 
@@ -144,14 +147,29 @@ void init_injection(HMODULE hModule) {
 void tea_hook_test(char* fmt, ...) {
     va_list argp;
     va_start(argp, fmt);
-    vlog_game("tea", fmt, argp);
+    vlog_game(plfTea, fmt, argp);
     va_end(argp);
 }
 
 int mxkMain();
-DWORD WINAPI MxkThreadProc(LPVOID lpParameter) { mxkMain(); };
+int miceDummyMaster(unsigned short textPort, unsigned short binaryPort, bool global);
+int miceDummyInstaller(unsigned short textPort, unsigned short binaryPort, bool global);
+DWORD WINAPI MxkThreadProc(LPVOID lpParameter) {
+    mxkMain();
+    return 0;
+};
+DWORD WINAPI MdMasterThreadProc(LPVOID lpParameter) {
+    miceDummyMaster(40100, 40101, false);
+    return 0;
+};
+DWORD WINAPI MdInstallerThreadProc(LPVOID lpParameter) {
+    miceDummyInstaller(40102, 40103, false);
+    return 0;
+};
 void spawn_pcp_processes(void) {
-    // CreateThread(NULL, 0, &MxkThreadProc, NULL, 0, NULL);
+    // CreateThread(NULL, 0, MxkThreadProc, NULL, 0, NULL);
+    // CreateThread(NULL, 0, MdMasterThreadProc, NULL, 0, NULL);
+    // CreateThread(NULL, 0, MdInstallerThreadProc, NULL, 0, NULL);
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
@@ -171,7 +189,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     spawn_pcp_processes();
 
     // if (wcscmp(exeName, L"RingGame.exe") == 0) {
-    //     log_warning(BOOT_LOGGER, "Bodge hook goo!");
+    //     log_warning(plfBoot, "Bodge hook goo!");
     //     CreateHook32((void*)(0x005f2580), &tea_hook_test);
     // }
 

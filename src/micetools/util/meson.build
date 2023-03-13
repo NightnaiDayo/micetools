@@ -7,7 +7,7 @@ executable(
         'micedump/eeprom.c',
         'micedump/kc_mxkeychip.c',
         # 'micedump/kc_n2.c',
-        # 'micedump/kc_pic.c',
+        'micedump/kc_pic.c',
         'micedump/platform.c',
         'micedump/sram.c',
         # 'micedump/superio.c',

@@ -122,12 +122,12 @@ void* CreateHook32(PVOID src, PVOID dst) {
         // cmd BYTE PTR ds:0x...,0x...
         len = 10;
     } else {
-        log_error(HOOKS_LOGGER, "Unable to identify gateway length! Function peek:");
+        log_error(plfHooks, "Unable to identify gateway length! Function peek:");
         for (int i = 0; i < 16; i++) {
             printf("%02x ", ((LPBYTE)src)[i]);
         }
         puts("");
-        log_error(HOOKS_LOGGER, "Unsafely defaulting to 5!");
+        log_error(plfHooks, "Unsafely defaulting to 5!");
         len = 5;
     }
 
@@ -147,10 +147,10 @@ void* CreateHook32(PVOID src, PVOID dst) {
 extern FARPROC (*TrueGetProcAddress)(HMODULE hModule, LPCSTR lpProcName);
 
 void setup_hooks() {
-    log_info(HOOKS_LOGGER, "attaching");
+    log_info(plfHooks, "attaching");
 
     if (hook_list == NULL) {
-        log_warning(HOOKS_LOGGER, "No hooks to register!");
+        log_warning(plfHooks, "No hooks to register!");
         return;
     }
     function_hook_t* hook = hook_list;
@@ -159,7 +159,7 @@ void setup_hooks() {
 
         HMODULE dll = LoadLibraryA(hook->dll);
         if (dll == NULL) {
-            log_error(HOOKS_LOGGER, "failed to load dll %s (%03x). %s skipped", hook->dll,
+            log_error(plfHooks, "failed to load dll %s (%03x). %s skipped", hook->dll,
                       GetLastError(), hook->name);
             hook = hook->next;
             continue;
@@ -169,16 +169,16 @@ void setup_hooks() {
         //     (TrueGetProcAddress ? TrueGetProcAddress : GetProcAddress)(dll, hook->name);
         void* original = GetProcAddress(dll, hook->name);
         if (original == NULL) {
-            log_warning(HOOKS_LOGGER, "failed to get original %s (%03x)", hook->name,
+            log_warning(plfHooks, "failed to get original %s (%03x)", hook->name,
                         GetLastError());
         } else {
             void* gateway = CreateHook32(original, hook->patch);
             if (hook->store != NULL) *hook->store = gateway;
-            log_misc(HOOKS_LOGGER, "hooked %s", hook->name);
+            log_misc(plfHooks, "hooked %s", hook->name);
         }
 
         hook = hook->next;
     } while (hook != NULL);
 
-    log_info(HOOKS_LOGGER, "attach complete");
+    log_info(plfHooks, "attach complete");
 }

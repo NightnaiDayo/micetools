@@ -10,27 +10,33 @@
 #define LOG_MISC 5
 #define LOG_TRACE 6
 
-#define COMM_LOGGER "comm"
-#define HOOKS_LOGGER "hooks"
-#define BOOT_LOGGER "boot"
+typedef struct {
+    char* m_name;
+} LOG_FACILITY, *PLOG_FACILITY;
+
+#define _LF(category, name, display) extern PLOG_FACILITY plf##name;
+#include "log_facilities.def"
+#undef _LF
+
+extern PLOG_FACILITY plfNetwork;
 
 extern CRITICAL_SECTION logger_lock;
 
-int _log_trace(const char* caller, const char* format, ...);
-int _log_misc(const char* caller, const char* format, ...);
-int _log_info(const char* caller, const char* format, ...);
-int _log_warning(const char* caller, const char* format, ...);
-int _log_error(const char* caller, const char* format, ...);
-int _log_game(const char* caller, const char* format, ...);
+int _log_trace(PLOG_FACILITY facility, const char* format, ...);
+int _log_misc(PLOG_FACILITY facility, const char* format, ...);
+int _log_info(PLOG_FACILITY facility, const char* format, ...);
+int _log_warning(PLOG_FACILITY facility, const char* format, ...);
+int _log_error(PLOG_FACILITY facility, const char* format, ...);
+int _log_game(PLOG_FACILITY facility, const char* format, ...);
 
-int vlog_trace(const char* caller, const char* format, va_list args);
-int vlog_misc(const char* caller, const char* format, va_list args);
-int vlog_info(const char* caller, const char* format, va_list args);
-int vlog_warning(const char* caller, const char* format, va_list args);
-int vlog_error(const char* caller, const char* format, va_list args);
-int vlog_game(const char* caller, const char* format, va_list args);
+int vlog_trace(PLOG_FACILITY facility, const char* format, va_list args);
+int vlog_misc(PLOG_FACILITY facility, const char* format, va_list args);
+int vlog_info(PLOG_FACILITY facility, const char* format, va_list args);
+int vlog_warning(PLOG_FACILITY facility, const char* format, va_list args);
+int vlog_error(PLOG_FACILITY facility, const char* format, va_list args);
+int vlog_game(PLOG_FACILITY facility, const char* format, va_list args);
 
-void log_stack(const char* caller);
+void log_stack(PLOG_FACILITY facility);
 
 void setup_logging();
 

@@ -10,10 +10,10 @@ BOOL WINAPI columba_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, 
                                     LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     switch (dwIoControlCode) {
         case IOCTL_COLUMBA_READ:
-            log_misc("columba", "DeviceIoControl(<columba>, <read>, 0x%p, 0x%x, -, 0x%x, -, -)",
+            log_misc(plfColumba, "DeviceIoControl(<columba>, <read>, 0x%p, 0x%x, -, 0x%x, -, -)",
                      lpInBuffer, nInBufferSize, nOutBufferSize);
             AM_COLUMBA_REQUEST* request = (AM_COLUMBA_REQUEST*)lpInBuffer;
-            log_info("columba", "Physical read: 0x%04x %ss at %08X", request->m_elementCount,
+            log_info(plfColumba, "Physical read: 0x%04x %ss at %08X", request->m_elementCount,
                      request->m_elementSize == 1   ? "byte"
                      : request->m_elementSize == 2 ? "short"
                      : request->m_elementSize == 4 ? "long"
@@ -41,7 +41,7 @@ BOOL WINAPI columba_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, 
                 memcpy(lpOutBuffer, dmi_table, dmi_size);
                 if (lpBytesReturned) *lpBytesReturned = 0x10000;
             } else {
-                log_error("columba", "Request to unmapped memory location: %08x",
+                log_error(plfColumba, "Request to unmapped memory location: %08x",
                           request->m_physAddr);
                 return FALSE;
             }
@@ -49,7 +49,7 @@ BOOL WINAPI columba_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, 
             break;
         default:
             // Observed: IOCTL_KSEC_RNG_REKEY
-            log_warning("columba", "unhandled 0x%08x", dwIoControlCode);
+            log_warning(plfColumba, "unhandled 0x%08x", dwIoControlCode);
             return FALSE;
     }
 

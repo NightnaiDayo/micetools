@@ -113,7 +113,7 @@ unsigned char jvs_exchange(jvs_board_t* board, unsigned char* inData, short inCo
         unsigned char cmd;
         jvs_read(cmd);
 
-        // log_info("mxjvs", "CMD: %02x", cmd);
+        // log_info(plfMxJvs, "CMD: %02x", cmd);
 
         switch (cmd) {
             case JVS_CMD_RESET:
@@ -244,12 +244,12 @@ unsigned char jvs_exchange(jvs_board_t* board, unsigned char* inData, short inCo
                     if (i == 0) {
                         if (!!(gpio_value & 0x80) != coin_solenoid) {
                             coin_solenoid = !!(gpio_value & 0x80);
-                            log_info("mxjvs", "Coin solenoid: %s",
+                            log_info(plfMxJvs, "Coin solenoid: %s",
                                      coin_solenoid ? "Locked" : "Unlocked");
                         }
                     }
 
-                    // log_warning("mxjvs", "Unhandled GPIO write: *(%d) = %02x", i, gpio_value);
+                    // log_warning(plfMxJvs, "Unhandled GPIO write: *(%d) = %02x", i, gpio_value);
                 }
                 break;
 
@@ -266,7 +266,7 @@ unsigned char jvs_exchange(jvs_board_t* board, unsigned char* inData, short inCo
                 break;
 
             default:
-                log_error("mxjvs", "Unknown command: 0x%02x", cmd);
+                log_error(plfMxJvs, "Unknown command: 0x%02x", cmd);
                 return JVS_STATUS_UKCOM;
         }
     }
@@ -304,14 +304,14 @@ void mxjvs_handle(unsigned char* paddedIn, short inCount, unsigned char* outData
 
     // JVS frame is 4 bytes in total
     if (inCount < 4) {
-        log_error("mxjvs", "inCount impossibly small: %d", inCount);
+        log_error(plfMxJvs, "inCount impossibly small: %d", inCount);
         jvs_send_status(JVS_STATUS_UNKNOWN, outData, outCount);
         free(inData);
         return;
     }
     // This isn't a JVS packet
     if (inData[0] != JVS_SYNC) {
-        log_error("mxjvs", "SYNC missing. Saw 0x%02x", inData[0]);
+        log_error(plfMxJvs, "SYNC missing. Saw 0x%02x", inData[0]);
         jvs_send_status(JVS_STATUS_UNKNOWN, outData, outCount);
         free(inData);
         return;
@@ -322,7 +322,7 @@ void mxjvs_handle(unsigned char* paddedIn, short inCount, unsigned char* outData
     bool escape = false;
     for (int i = 1; i < inCount - 1; i++) sum += inData[i];
     if (sum != inData[inCount - 1]) {
-        log_error("mxjvs", "Checksum failed. Computed 0x%02x, expected 0x%02x", sum,
+        log_error(plfMxJvs, "Checksum failed. Computed 0x%02x, expected 0x%02x", sum,
                   inData[inCount - 1]);
         jvs_send_status(JVS_STATUS_SUM, outData, outCount);
         return;
@@ -334,8 +334,8 @@ void mxjvs_handle(unsigned char* paddedIn, short inCount, unsigned char* outData
         return;
 
     unsigned char* response = malloc(maxOut);
-    unsigned char packetSize;
-    unsigned char status;
+    unsigned char packetSize = 0;
+    unsigned char status = JVS_STATUS_UNKNOWN;
     if (destination == 0xff) {
         for (int i = 0; i < MiceConfig.keys.board_count; i++) {
             jvs_board_t* board = &jvs_boards[i];
@@ -365,7 +365,7 @@ void mxjvs_handle(unsigned char* paddedIn, short inCount, unsigned char* outData
 
         free(response);
     } else {
-        log_error("mxjvs", "JVS board %d returned status %d", destination, status);
+        log_error(plfMxJvs, "JVS board %d returned status %d", destination, status);
         free(response);
         jvs_send_status(status, outData, outCount);
     }
@@ -376,7 +376,7 @@ BOOL WINAPI mxjvs_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LP
                                   LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     switch (dwIoControlCode) {
         case IOCTL_MXJVS_EXCHANGE:
-            log_trace("mxjvs",
+            log_trace(plfMxJvs,
                       "DeviceIoControl(<mxjvs>, <exchange>, 0x%p, 0x%x, -, "
                       "0x%x, -, -)",
                       lpInBuffer, nInBufferSize, nOutBufferSize);
@@ -386,7 +386,7 @@ BOOL WINAPI mxjvs_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LP
 
             break;
         default:
-            log_warning("mxjvs", "unhandled 0x%08x", dwIoControlCode);
+            log_warning(plfMxJvs, "unhandled 0x%08x", dwIoControlCode);
             return FALSE;
     }
 
@@ -406,7 +406,7 @@ BOOL mxjvs_GetCommModemStatus(void* com, LPDWORD lpModelStat) {
 BOOL mxjvs_SetCommState(void* com, LPDCB lpDCB) {
     char PARITY[] = { 'N', 'O', 'E', 'M', 'S' };
     char* STOP[] = { "1", "1.5", "2" };
-    log_info("mxjvs", "Switching to %d baud (%d%c%s)", lpDCB->BaudRate, lpDCB->ByteSize,
+    log_info(plfMxJvs, "Switching to %d baud (%d%c%s)", lpDCB->BaudRate, lpDCB->ByteSize,
              PARITY[lpDCB->Parity], STOP[lpDCB->StopBits]);
     return TRUE;
 }

@@ -1,5 +1,6 @@
 subdir('lib')
 
+subdir('system_dummy')
 subdir('micepatch')
 subdir('micekeychip')
 subdir('micemaster')

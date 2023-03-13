@@ -4,6 +4,8 @@ pcpa_callback mxkBinaryCallback;
 extern byte BINARY_DATA[4096];
 extern size_t BINARY_DATA_LEN;
 
+#define MXM_NUM_CALLBACKS 11
+
 #define MXMASTER "mxmaster."
 #define FOREGROUND MXMASTER##"foreground."
 

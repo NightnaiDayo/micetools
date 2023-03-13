@@ -49,21 +49,21 @@ BOOL ReadFunc_Original0(DWORD nOffset, LPVOID lpBuffer, DWORD nNumberOfBytesToRe
                         LPDWORD lpNumberOfBytesRead) {
     *lpNumberOfBytesRead = 0;
     if (!_PathFileExistsA(ORIGINAL0_PATH)) {
-        log_error("drive", "Failed to open %s (does not exist)", ORIGINAL0_PATH);
+        log_error(plfDrive, "Failed to open %s (does not exist)", ORIGINAL0_PATH);
         return FALSE;
     }
 
     HANDLE hFile =
         _CreateFileA(ORIGINAL0_PATH, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
     if (hFile == INVALID_HANDLE_VALUE) {
-        log_error("drive", "Failed to open %s", ORIGINAL0_PATH);
+        log_error(plfDrive, "Failed to open %s", ORIGINAL0_PATH);
         return FALSE;
     }
     LARGE_INTEGER seekTo;
     seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)SSD.m_BlockSize;
     _SetFilePointerEx(hFile, seekTo, NULL, FILE_BEGIN);
     BOOL ret = _ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, NULL);
-    if (!ret) log_error("drive", "Failed to read to %s: %03x", ORIGINAL0_PATH, GetLastError());
+    if (!ret) log_error(plfDrive, "Failed to read to %s: %03x", ORIGINAL0_PATH, GetLastError());
     _CloseHandle(hFile);
     return ret;
 }
@@ -74,14 +74,14 @@ BOOL WriteFunc_Original0(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesTo
     HANDLE hFile =
         _CreateFileA(ORIGINAL0_PATH, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, 0, NULL);
     if (hFile == INVALID_HANDLE_VALUE) {
-        log_error("drive", "Failed to open %s", ORIGINAL0_PATH);
+        log_error(plfDrive, "Failed to open %s", ORIGINAL0_PATH);
         return FALSE;
     }
     LARGE_INTEGER seekTo;
     seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)SSD.m_BlockSize;
     _SetFilePointerEx(hFile, seekTo, NULL, FILE_BEGIN);
     BOOL ret = _WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, NULL);
-    if (!ret) log_error("drive", "Failed to write to %s: %03x", ORIGINAL0_PATH, GetLastError());
+    if (!ret) log_error(plfDrive, "Failed to write to %s: %03x", ORIGINAL0_PATH, GetLastError());
     _CloseHandle(hFile);
     return ret;
 }
@@ -90,21 +90,21 @@ BOOL ReadFunc_Patch0(DWORD nOffset, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
                         LPDWORD lpNumberOfBytesRead) {
     *lpNumberOfBytesRead = 0;
     if (!_PathFileExistsA(PATCH0_PATH)) {
-        log_error("drive", "Failed to open %s (does not exist)", PATCH0_PATH);
+        log_error(plfDrive, "Failed to open %s (does not exist)", PATCH0_PATH);
         return FALSE;
     }
 
     HANDLE hFile =
         _CreateFileA(PATCH0_PATH, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
     if (hFile == INVALID_HANDLE_VALUE) {
-        log_error("drive", "Failed to open %s", PATCH0_PATH);
+        log_error(plfDrive, "Failed to open %s", PATCH0_PATH);
         return FALSE;
     }
     LARGE_INTEGER seekTo;
     seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)SSD.m_BlockSize;
     _SetFilePointerEx(hFile, seekTo, NULL, FILE_BEGIN);
     BOOL ret = _ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, NULL);
-    if (!ret) log_error("drive", "Failed to read to %s: %03x", PATCH0_PATH, GetLastError());
+    if (!ret) log_error(plfDrive, "Failed to read to %s: %03x", PATCH0_PATH, GetLastError());
     _CloseHandle(hFile);
     return ret;
 }
@@ -115,14 +115,14 @@ BOOL WriteFunc_Patch0(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesToWri
     HANDLE hFile =
         _CreateFileA(PATCH0_PATH, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, 0, NULL);
     if (hFile == INVALID_HANDLE_VALUE) {
-        log_error("drive", "Failed to open %s", PATCH0_PATH);
+        log_error(plfDrive, "Failed to open %s", PATCH0_PATH);
         return FALSE;
     }
     LARGE_INTEGER seekTo;
     seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)SSD.m_BlockSize;
     _SetFilePointerEx(hFile, seekTo, NULL, FILE_BEGIN);
     BOOL ret = _WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, NULL);
-    if (!ret) log_error("drive", "Failed to write to %s: %03x", PATCH0_PATH, GetLastError());
+    if (!ret) log_error(plfDrive, "Failed to write to %s: %03x", PATCH0_PATH, GetLastError());
     _CloseHandle(hFile);
     return ret;
 }
@@ -130,7 +130,7 @@ BOOL WriteFunc_Patch0(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesToWri
 BOOL WriteFunc_OS(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
                          LPDWORD lpNumberOfBytesWritten) {
     *lpNumberOfBytesWritten = nNumberOfBytesToWrite;
-    log_warning("drive", "%d bytes write in OS at %08x", nNumberOfBytesToWrite, nOffset);
+    log_warning(plfDrive, "%d bytes write in OS at %08x", nNumberOfBytesToWrite, nOffset);
     return TRUE;
 }
 BOOL ReadFunc_OSLogFiles(DWORD nOffset, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
@@ -165,13 +165,13 @@ BOOL ReadFunc_OSLogFiles(DWORD nOffset, LPVOID lpBuffer, DWORD nNumberOfBytesToR
         return TRUE;
     }
     if (nOffset == 2048) {
-        log_warning("drive", "Requsted %d bytes of application log file", nNumberOfBytesToRead);
+        log_warning(plfDrive, "Requsted %d bytes of application log file", nNumberOfBytesToRead);
         ZeroMemory(lpBuffer, nNumberOfBytesToRead);
         *lpNumberOfBytesRead = nNumberOfBytesToRead;
         return TRUE;
     }
     if (nOffset == 2048 + 1024) {
-        log_warning("drive", "Requsted %d bytes of system log file", nNumberOfBytesToRead);
+        log_warning(plfDrive, "Requsted %d bytes of system log file", nNumberOfBytesToRead);
         ZeroMemory(lpBuffer, nNumberOfBytesToRead);
         *lpNumberOfBytesRead = nNumberOfBytesToRead;
         return TRUE;
@@ -184,7 +184,7 @@ BOOL ReadFunc_OSLogFiles(DWORD nOffset, LPVOID lpBuffer, DWORD nNumberOfBytesToR
 BOOL WINAPI c_drive_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer,
                                     DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
                                     LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
-    log_trace("C", "DeviceIOControl %08x", dwIoControlCode);
+    log_trace(plfDrive, "C:DeviceIOControl %08x", dwIoControlCode);
     ZeroMemory(lpOutBuffer, nOutBufferSize);
     switch (dwIoControlCode) {
         case IOCTL_STORAGE_GET_DEVICE_NUMBER:
@@ -203,7 +203,7 @@ BOOL WINAPI c_drive_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, 
 BOOL WINAPI x_drive_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer,
                                     DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
                                     LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
-    log_trace("X", "DeviceIOControl %08x", dwIoControlCode);
+    log_trace(plfDrive, "X:DeviceIOControl %08x", dwIoControlCode);
     ZeroMemory(lpOutBuffer, nOutBufferSize);
     switch (dwIoControlCode) {
         case IOCTL_STORAGE_GET_DEVICE_NUMBER:
@@ -211,7 +211,7 @@ BOOL WINAPI x_drive_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, 
             ((STORAGE_DEVICE_NUMBER*)lpOutBuffer)->DeviceNumber = 0;
             return TRUE;
         default:
-            log_warning("X", "Unhandled DeviceIOControl %08x", dwIoControlCode);
+            log_warning(plfDrive, "X:Unhandled DeviceIOControl %08x", dwIoControlCode);
             return FALSE;
     }
 }
@@ -219,7 +219,7 @@ BOOL WINAPI x_drive_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, 
 BOOL WINAPI q_drive_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer,
                                     DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
                                     LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
-    log_trace("Q", "DeviceIOControl %08x", dwIoControlCode);
+    log_trace(plfDrive, "Q:DeviceIOControl %08x", dwIoControlCode);
     ZeroMemory(lpOutBuffer, nOutBufferSize);
     switch (dwIoControlCode) {
         case IOCTL_STORAGE_MEDIA_REMOVAL:
@@ -229,7 +229,7 @@ BOOL WINAPI q_drive_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, 
             ((PDISK_GEOMETRY)lpOutBuffer)->BytesPerSector = ALPHA_DVD.m_BlockSize;
             return TRUE;
         default:
-            log_warning("Q", "Unhandled DeviceIOControl %08x", dwIoControlCode);
+            log_warning(plfDrive, "Q:Unhandled DeviceIOControl %08x", dwIoControlCode);
             return FALSE;
     }
 }
@@ -380,7 +380,7 @@ inline static BOOL matchVolume(disk_volume_t* volume, LPCSTR lpRootPathName, DWO
 
 disk_volume_t* getVolumeByPath(LPCSTR lpRootPathName, DWORD match) {
     if (lpRootPathName == NULL) {
-        log_error("file", "getVolumeByPath(NULL) unimplemented!");
+        log_error(plfDrive, "getVolumeByPath(NULL) unimplemented!");
         return FALSE;
     }
 
@@ -403,7 +403,7 @@ BOOL WINAPI volume_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, L
                                    LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     disk_volume_t* volume = (disk_volume_t*)ctx->m_HookData;
     if (volume == NULL) {
-        log_error("drive", "ctx->m_HookData NULL; expected a volume!");
+        log_error(plfDrive, "ctx->m_HookData NULL; expected a volume!");
         return FALSE;
     }
 
@@ -435,7 +435,7 @@ BOOL WINAPI volume_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, L
 
             if (queryIn->PropertyId != StorageDeviceProperty ||
                 queryIn->QueryType != PropertyStandardQuery) {
-                log_error("drive", "Unimplemented storage query: %d/%d", queryIn->PropertyId,
+                log_error(plfDrive, "Unimplemented storage query: %d/%d", queryIn->PropertyId,
                           queryIn->QueryType);
                 return FALSE;
             }
@@ -467,7 +467,7 @@ BOOL WINAPI volume_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, L
             }
             return TRUE;
         default:
-            log_error("drive", "Unimplemented IOCTL: %08x", dwIoControlCode);
+            log_error(plfDrive, "Unimplemented IOCTL: %08x", dwIoControlCode);
             return FALSE;
     }
 }
@@ -481,7 +481,7 @@ void init_volume(disk_volume_t* vol) {
     StringFromGUID2(&guid, volume_name + 10, MAX_PATH + 1 - 10);
 
     file_hook_t* volume_hook = new_file_hook(volume_name);
-    log_misc("disk", "Creating fake volume: %ls", volume_name);
+    log_misc(plfDrive, "Creating fake volume: %ls", volume_name);
 
     volume_hook->DeviceIoControl = &volume_DeviceIoControl;
     volume_hook->hook_data = (void*)vol;
@@ -519,7 +519,7 @@ void init_pd(physical_disk_t* pd) {
                 pd->m_BlockSize = BLOCK_SIZE_CDROM;
                 break;
             default:
-                log_error("disk", "Unable to guess block size for drive %d", pd->m_DriveNumber);
+                log_error(plfDrive, "Unable to guess block size for drive %d", pd->m_DriveNumber);
                 break;
         }
     }
@@ -544,7 +544,7 @@ void init_pd(physical_disk_t* pd) {
                            pd->m_DriveNumber);
                 break;
             default:
-                log_error("disk", "Unable to set DeviceName for drive %d (type: %d)",
+                log_error(plfDrive, "Unable to set DeviceName for drive %d (type: %d)",
                           pd->m_DriveNumber, pd->m_DiskType);
                 break;
         }
@@ -580,7 +580,7 @@ void init_pd(physical_disk_t* pd) {
         DWORD extendedPartNo = 0;
         if (pd->m_Extended[0].m_Size) {
             if (partitionNumber == 5) {
-                log_error("drive", "Fatal: Too many paritions in drive %d!", pd->m_DriveNumber);
+                log_error(plfDrive, "Fatal: Too many paritions in drive %d!", pd->m_DriveNumber);
                 exit(1);
             }
             pd->m_Partitions[partitionNumber - 1].m_Filesystem = MBR_FS_EXT_LBA;
@@ -660,7 +660,7 @@ void init_all_pd() {
 
 BOOL q_drive_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
                       LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped) {
-    log_game("q", "CDROM read 0x%04x bytes at 0x%08x", nNumberOfBytesToRead,
+    log_game(plfDrive, "Q:CDROM read 0x%04x bytes at 0x%08x", nNumberOfBytesToRead,
              ctx->m_Pointer.QuadPart);
 
     /**
@@ -680,7 +680,7 @@ BOOL q_drive_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytes
     HANDLE hFile = _CreateFileA("H:\\Arcades\\Images\\ALLNet_Pras_Multi_Ver2\\DVR-0069A.iso", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
                                 OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile == INVALID_HANDLE_VALUE) {
-        log_error("q", "READ FAILED. FILE FALLBACK FAILED. %d", GetLastError());
+        log_error(plfDrive, "Q:READ FAILED. FILE FALLBACK FAILED. %d", GetLastError());
         return FALSE;
     }
 
@@ -688,7 +688,7 @@ BOOL q_drive_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytes
     _ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
     _CloseHandle(hFile);
 
-    log_warning("q", "READ FAILED. FILE FALLBACK (Read %d bytes).", *lpNumberOfBytesRead);
+    log_warning(plfDrive, "Q:READ FAILED. FILE FALLBACK (Read %d bytes).", *lpNumberOfBytesRead);
     return TRUE;
 }
 
@@ -744,11 +744,11 @@ void hook_drives() {
         hFile =
             _CreateFileA(SBR0_PATH, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
         if (hFile == INVALID_HANDLE_VALUE) {
-            log_error("drive", "Failed to open %s", SBR0_PATH);
+            log_error(plfDrive, "Failed to open %s", SBR0_PATH);
         } else {
             _ReadFile(hFile, &SegaBootRecord0, sizeof SegaBootRecord0, &numberOfBytesRead, NULL);
             _CloseHandle(hFile);
-            log_info("drive", "Restored SBR0 from %s", SBR0_PATH);
+            log_info(plfDrive, "Restored SBR0 from %s", SBR0_PATH);
         }
     } else {
         // memcpy(&SegaBootRecord0, &SegaBootRecordDefault, sizeof SegaBootRecord0);
@@ -758,11 +758,11 @@ void hook_drives() {
         hFile =
             _CreateFileA(SBR1_PATH, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
         if (hFile == INVALID_HANDLE_VALUE) {
-            log_error("drive", "Failed to open %s", SBR1_PATH);
+            log_error(plfDrive, "Failed to open %s", SBR1_PATH);
         } else {
             _ReadFile(hFile, &SegaBootRecord1, sizeof SegaBootRecord1, &numberOfBytesRead, NULL);
             _CloseHandle(hFile);
-            log_info("drive", "Restored SBR1 from %s", SBR0_PATH);
+            log_info(plfDrive, "Restored SBR1 from %s", SBR0_PATH);
         }
     } else {
         memcpy(&SegaBootRecord1, &SegaBootRecord0, sizeof SegaBootRecord0);

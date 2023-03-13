@@ -217,14 +217,14 @@ BYTE BANA_KEY[6];
 DWORD WINAPI aime_bd_thread(com_device_t* dev) {
     static int fwNumBytes = 0;
 
-    log_info("aime_bd", "%ls woke up", dev->com->wName);
+    log_info(plfAime, "%ls woke up", dev->com->wName);
     bool radio = false;
 
     while (1) {
         comio_recv_head_t req;
         unsigned char sum = comio_next_req(dev, &req, extra);
 
-        log_info("aime_bd", "(%d) %02x(%d) = %s", req.dst, req.op, req.length, OpcodeNames[req.op]);
+        log_info(plfAime, "(%d) %02x(%d) = %s", req.dst, req.op, req.length, OpcodeNames[req.op]);
 
         if (req.dst == 0x00 || req.dst == 0x01) {
             // Aime readers
@@ -249,7 +249,7 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
                         memcpy(AIME_KEY, extra, sizeof AIME_KEY);
                         comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
 
-                        log_info("aime_bd", "Aime key: %02x %02x %02x %02x %02x %02x", AIME_KEY[0],
+                        log_info(plfAime, "Aime key: %02x %02x %02x %02x %02x %02x", AIME_KEY[0],
                                  AIME_KEY[1], AIME_KEY[2], AIME_KEY[3], AIME_KEY[4], AIME_KEY[5]);
                     }
                     break;
@@ -260,7 +260,7 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
                         memcpy(BANA_KEY, extra, sizeof BANA_KEY);
                         comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
 
-                        log_info("aime_bd", "Bana key: %02x %02x %02x %02x %02x %02x", BANA_KEY[0],
+                        log_info(plfAime, "Bana key: %02x %02x %02x %02x %02x %02x", BANA_KEY[0],
                                  BANA_KEY[1], BANA_KEY[2], BANA_KEY[3], BANA_KEY[4], BANA_KEY[5]);
                     }
                     break;
@@ -294,7 +294,7 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
                 case TN32Op_Unknown61:
                     // null-terminated line of the firmware hex!
                     comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
-                    log_info("aime_bd", "Recv firmware: %s", extra);
+                    log_info(plfAime, "Recv firmware: %s", extra);
                     break;
                 case TN32Op_Unknown63:
                     // req.length == 0; start binary firmware update?
@@ -344,7 +344,7 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
                     comio_reply(dev, &req, COMIO_STATUS_OK, 9, (BYTE*)"15084\xff\x10\x00\x12");
                     break;
                 case LedSetColour:
-                    log_misc("nfc", "Set LED: #%02x%02x%02x", extra[0], extra[1], extra[2]);
+                    log_misc(plfAime, "Set LED: #%02x%02x%02x", extra[0], extra[1], extra[2]);
                     printf(
                         "\033[48;2;%d;%d;%dm                                 "
                         "        \033[0m",
@@ -384,17 +384,5 @@ void install_aime_bd() {
     OpcodeNames[LedGetInfo] = "LedGetInfo";
     OpcodeNames[LedSetColour] = "LedSetColour";
 
-    char* text = MiceConfig.devices.aime_bd;
-    char* copy = (char*)malloc(strlen(text) + 1);
-    memcpy_s(copy, strlen(text) + 1, text, strlen(text) + 1);
-
-    char* next_token;
-    char* token = strtok_s(copy, ",", &next_token);
-    while (token != NULL) {
-        BYTE com_port = atoi(token) & 0xFF;
-        if (com_port) com_device_thread(new_com_device(com_port), aime_bd_thread);
-        token = strtok_s(NULL, ",", &next_token);
-    }
-
-    free(copy);
+    register_device("aime_tn32msec", aime_bd_thread);
 }

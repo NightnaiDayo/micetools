@@ -8,7 +8,7 @@ BOOL WINAPI mxhwreset_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode
             if (lpBytesReturned) *lpBytesReturned = 0;
             break;
         default:
-            log_warning("mxhwreset", "unhandled 0x%08x", dwIoControlCode);
+            log_warning(plfMxHwreset, "unhandled 0x%08x", dwIoControlCode);
             return FALSE;
     }
     return TRUE;

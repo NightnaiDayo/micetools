@@ -43,7 +43,7 @@ typedef struct MX_MASTER_ {
     bool m_kcReady;
     bool m_pcpaHasInit;
     appLauncher_t* m_appLauncher;
-    pcpa_cb_table_t m_pcpCallbacks[11];
+    pcpa_cb_table_t m_pcpCallbacks[MXM_NUM_CALLBACKS];
     pcpa_t m_pcp;
 
 } MX_MASTER;

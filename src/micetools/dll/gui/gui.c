@@ -157,8 +157,9 @@ void hud_sram(ImGuiKey open_key) {
     if (igIsKeyPressed_Bool(open_key, false)) editor.Open = !editor.Open;
 
     // TODO: Less hacky :)
-    extern LPBYTE SRAM;
-    if (editor.Open) MemoryEditor_DrawWindow(&editor, "SRAM Editor", SRAM, 1024 * 1024, 0x0000);
+    extern LPBYTE SRAM_DATA;
+    if (editor.Open)
+        MemoryEditor_DrawWindow(&editor, "SRAM Editor", SRAM_DATA, 1024 * 1024, 0x0000);
 }
 
 void igHelpMarker(const char* text) {
@@ -733,6 +734,7 @@ void AddSettingButton(int board, int id) {
     if (igKeyBindPopup(name, &boundKey)) {
         if (boundKey != -1) {
             jvsKeybindings[board].buttons[id * 2 + (currentlyBinding - 1)] = boundKey;
+            jvsKeybindings[board].notdefault = 1;
             save_current_config();
         }
         currentlyBinding = 0;
@@ -890,7 +892,7 @@ void tab_main_keybinds() {
 }
 
 void hud_control(ImGuiKey open_key) {
-    static bool isOpen = true;
+    static bool isOpen = false;
     static bool oldCursor;
     if (igIsKeyPressed_Bool(open_key, false)) {
         isOpen = !isOpen;
@@ -938,7 +940,6 @@ void hud_control(ImGuiKey open_key) {
 }
 
 void __stdcall hud_gui(unsigned int hookType, IDirect3DDevice9* dev) {
-    static bool showMenu = false;
     ShowCursor(1);
 
     static bool initialized = false;

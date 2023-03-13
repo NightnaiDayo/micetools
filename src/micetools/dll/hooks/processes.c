@@ -14,7 +14,7 @@ BOOL WINAPI FakeCreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine,
                                DWORD dwCreationFlags, LPVOID lpEnvironment,
                                LPCSTR lpCurrentDirectory, LPSTARTUPINFOW lpStartupInfo,
                                LPPROCESS_INFORMATION lpProcessInformation) {
-    log_info("spawn", "CreateProcessA %s %s", lpApplicationName, lpCommandLine);
+    log_info(plfProcesses, "CreateProcessA %s %s", lpApplicationName, lpCommandLine);
 
     return TrueCreateProcessA("mxAuthDisc.bat", "", lpProcessAttributes,
                               lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment,
@@ -35,12 +35,12 @@ BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
                                LPCWSTR lpCurrentDirectory, LPSTARTUPINFOW lpStartupInfo,
                                LPPROCESS_INFORMATION lpProcessInformation) {
     // #ifdef DISABLE_PROC_SPAWNING
-    //     log_error("spawn", "CreateProcessW %ls %ls", lpApplicationName, lpCommandLine);
+    //     log_error(plfProcesses, "CreateProcessW %ls %ls", lpApplicationName, lpCommandLine);
     //     return FALSE;
     // #else
-    log_info("spawn", "CreateProcessW %ls %ls", lpApplicationName, lpCommandLine);
+    log_info(plfProcesses, "CreateProcessW %ls %ls", lpApplicationName, lpCommandLine);
 
-    // log_info("spawn", "CreateProcessW %ls", lpApplicationName);
+    // log_info(plfProcesses, "CreateProcessW %ls", lpApplicationName);
 
     // lpProcessInformation->hThread = GetDummyHandle();
     // return TRUE;
@@ -66,7 +66,7 @@ BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
     return TRUE;
 
     if (lpCommandLine != NULL) {
-        log_error("process", "!!");
+        log_error(plfProcesses, "!!");
         return FALSE;
         // WideCharToMultiByte(CP_ACP, 0, lpCommandLine, -1, commandLine, sizeof commandLine, NULL,
         //                     NULL);

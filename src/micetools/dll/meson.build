@@ -19,6 +19,7 @@ shared_library(
         gui_files,
 
         'comdevice.c',
+        'games.c',
 
         'dllmain.c',
     ],
@@ -28,7 +29,11 @@ shared_library(
         amiTimer,
         amiMd5,
         mxk,
+
+        # Madoka service emulation
         mxklib,
+        dummymaster,
+        dummyinstaller,
     ],
     include_directories: [
         openssl_inc,

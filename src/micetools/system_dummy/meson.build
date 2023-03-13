@@ -1,0 +1,2 @@
+subdir('dummymaster')
+subdir('dummyinstaller')

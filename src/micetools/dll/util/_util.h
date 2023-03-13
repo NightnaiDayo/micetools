@@ -19,3 +19,4 @@ BOOL PathEqual(LPCSTR path1, LPCSTR path2);
 BOOL PathPrefix(LPCSTR path, LPCSTR prefix);
 
 void make_dirs(const char* path);
+void* open_mapped_file(LPCWSTR path, DWORD size, HANDLE* file, HANDLE* file_mapping);

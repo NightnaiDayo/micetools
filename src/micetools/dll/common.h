@@ -24,5 +24,7 @@
 #include "../lib/mice/mice.h"
 #include "./util/_util.h"
 
+void mice_got_game_id(char game_id[4]);
+
 extern WCHAR exeName[MAX_PATH + 1];
 extern DWORD imageOffset;

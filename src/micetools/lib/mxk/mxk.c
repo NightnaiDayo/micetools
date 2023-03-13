@@ -1,131 +1,234 @@
 #include "mxk.h"
 
-BOOL mxkExchengeAesKey(HANDLE mxparallel) {
-    FILETIME filetime;
-    amtime_t now;
+unsigned int KEYCHIP_STATUS;
+unsigned char KEYCHIP_ERROR;
 
+static MXK_STATUS mxkPacketReqRandomBytes(unsigned char* packet) {
+    if (packet == NULL) return MXK_STATUS_INVALID_PARAM;
+
+    amtime_t now;
+    FILETIME filetime;
+    for (int i = 0; i < MXK_BLOCK_SIZE; i++) {
+        amiTimerGet(&now);
+        GetSystemTimeAsFileTime(&filetime);
+        packet[i] = (filetime.dwHighDateTime & 0xff) ^ (filetime.dwLowDateTime & 0xff) ^
+                    (now.microseconds & 0xff);
+    }
+    return MXK_STATUS_OK;
+}
+
+MXK_STATUS mxkExchengeAesKey(void) {
     unsigned char key_s[16];
     unsigned char key_r[16];
-
-    size_t i;
-    for (i = 0; i < 16; i++) {
-        amiTimerGet(&now);
-        GetSystemTimeAsFileTime(&filetime);
-        key_s[i] = (filetime.dwHighDateTime & 0xff) ^ (filetime.dwLowDateTime & 0xff) ^
-                   (now.microseconds & 0xff);
-    }
-
-    for (i = 0; i < 16; i++) {
-        amiTimerGet(&now);
-        GetSystemTimeAsFileTime(&filetime);
-        key_r[i] = (filetime.dwHighDateTime & 0xff) ^ (filetime.dwLowDateTime & 0xff) ^
-                   (now.microseconds & 0xff);
-    }
-
     unsigned char packet[16];
 
-    mxkPacketReqSetKeyS(packet);
-    if (!mxkSendPacket(mxparallel, packet)) return FALSE;
-    if (!mxkSendPacket(mxparallel, key_s)) return FALSE;
-    if (!mxkRecvPacket(mxparallel, packet)) return FALSE;
-    if (packet[0] != SetKeyS) return FALSE;
+    mxkPacketReqRandomBytes(key_s);
+    mxkPacketReqRandomBytes(key_r);
+
+    if (mxkPacketReqSetKeyS(packet) != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkPacketReqSetKeyS");
+        return MXK_STATUS_ERROR;
+    }
+    if (mxkSendPacket(packet) != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkSendPacket Command KeyS");
+        return MXK_STATUS_ERROR;
+    }
+    if (mxkSendPacket(key_s) != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkSendPacket KeyS");
+        return MXK_STATUS_ERROR;
+    }
+    if (mxkRecvPacket(packet) != MXK_STATUS_OK || packet[0] != SetKeyS) {
+        amiDebugLog("Error mxkRecvPacket KeyS");
+        return MXK_STATUS_ERROR;
+    }
     mxkSetKeyS(key_s);
 
-    mxkPacketReqSetKeyR(packet);
-    if (!mxkSendPacket(mxparallel, packet)) return FALSE;
-    if (!mxkSendPacket(mxparallel, key_r)) return FALSE;
+    if (mxkPacketReqSetKeyR(packet) != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkPacketReqSetKeyR");
+        return MXK_STATUS_ERROR;
+    }
+    if (mxkSendPacket(packet) != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkSendPacket Command SetKeyR");
+        return MXK_STATUS_ERROR;
+    }
+    if (mxkSendPacket(key_r) != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkSendPacket KeyR");
+        return MXK_STATUS_ERROR;
+    }
     mxkSetKeyR(key_r);
-    if (!mxkRecvPacket(mxparallel, packet)) return FALSE;
+    if (mxkRecvPacket(packet) != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkRecvPacket KeyR");
+        return MXK_STATUS_ERROR;
+    }
 
-    return TRUE;
+    return MXK_STATUS_OK;
 }
 
-BOOL mxkVersion(HANDLE mxparallel, unsigned short* version) {
+BOOL mxkVersionDirty;
+unsigned short mxkVersionCache;
+MXK_STATUS mxkVersion(unsigned short* version, MXK_CACHE cache, unsigned char* err) {
     unsigned char packet[16];
 
-    mxkPacketReqGetVersion(packet);
-    if (!mxkSendPacket(mxparallel, packet)) return FALSE;
-    if (!mxkRecvPacket(mxparallel, packet)) return FALSE;
+    if (version == NULL || err == NULL) return MXK_STATUS_INVALID_PARAM;
 
-    *version = ((unsigned short*)packet)[0];
-    return TRUE;
+    if (KEYCHIP_STATUS == 2) {
+        amiDebugLog("Error MXK_STATUS_ERROR!!");
+        *err = KEYCHIP_ERROR;
+        return MXK_STATUS_ERROR;
+    }
+
+    if (cache == MXK_CACHE_USE) {
+        if (!mxkVersionDirty) {
+            *version = mxkVersionCache;
+            return MXK_STATUS_OK;
+        }
+    } else {
+        mxkVersionDirty = true;
+    }
+
+    mxkPacketReqGetVersion(packet);
+    if (mxkSendPacket(packet) != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkSendPacket!!");
+        goto error;
+    }
+    if (mxkRecvPacket(packet) != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkRecvPacket!!");
+        goto error;
+    }
+
+    *version = mxkVersionCache = ((unsigned short*)packet)[0];
+    mxkVersionDirty = false;
+    return MXK_STATUS_OK;
+
+error:
+    KEYCHIP_ERROR = 2;
+    KEYCHIP_STATUS = 2;
+    *err = 2;
+    return MXK_STATUS_ERROR;
 }
 
-BOOL mxkSetMainId(HANDLE mxparallel, const unsigned char* main_id) {
+BOOL mxkSetMainId(const unsigned char* main_id) {
     unsigned char packet[16];
 
     mxkPacketReqSetMainId(packet);
-    if (!mxkSendPacket(mxparallel, packet)) return FALSE;
-    if (!mxkSendPacket(mxparallel, main_id)) return FALSE;
+    if (!mxkSendPacket(packet)) return FALSE;
+    if (!mxkSendPacket(main_id)) return FALSE;
 
-    mxkRecvPacket(mxparallel, packet);
+    mxkRecvPacket(packet);
 
     return packet[0] != 0xff;
 }
-BOOL mxkGetMainId(HANDLE mxparallel, unsigned char* main_id) {
+BOOL mxkGetMainId(unsigned char* main_id) {
     unsigned char packet[16];
 
     mxkPacketReqGetMainId(packet);
-    if (!mxkSendPacket(mxparallel, packet)) return FALSE;
-    if (!mxkRecvPacket(mxparallel, main_id)) return FALSE;
+    if (!mxkSendPacket(packet)) return FALSE;
+    if (!mxkRecvPacket(main_id)) return FALSE;
 
     return TRUE;
 }
-BOOL mxkGetKeyId(HANDLE mxparallel, unsigned char* key_id) {
+BOOL mxkGetKeyId(unsigned char* key_id) {
     unsigned char packet[16];
 
     mxkPacketReqGetKeyId(packet);
-    if (!mxkSendPacket(mxparallel, packet)) return FALSE;
-    if (!mxkRecvPacket(mxparallel, key_id)) return FALSE;
+    if (!mxkSendPacket(packet)) return FALSE;
+    if (!mxkRecvPacket(key_id)) return FALSE;
 
     return TRUE;
 }
-BOOL mxkGetAppBootInfo(HANDLE mxparallel, appboot_t* appboot) {
-    unsigned char packet[16];
 
-    mxkPacketReqGetAppBootInfo(packet);
-    if (!mxkSendPacket(mxparallel, packet)) return FALSE;
-    for (int i = 0; i < sizeof *appboot; i += 16) {
-        if (!mxkRecvPacket(mxparallel, (unsigned char*)appboot + i)) return FALSE;
-    }
-    return TRUE;
-}
-BOOL mxkGetPlayCounter(HANDLE mxparallel, DWORD* play_counter) {
+BOOL mxkGetPlayCounter(DWORD* play_counter) {
     unsigned char packet[16];
 
     mxkPacketReqGetPlayCounter(packet);
-    if (!mxkSendPacket(mxparallel, packet)) return FALSE;
-    if (!mxkRecvPacket(mxparallel, packet)) return FALSE;
+    if (!mxkSendPacket(packet)) return FALSE;
+    if (!mxkRecvPacket(packet)) return FALSE;
 
     *play_counter = ((DWORD*)packet)[0];
     return TRUE;
 }
-BOOL mxkFlashRead(HANDLE mxparallel, unsigned int address, unsigned int nbytes,
-                  unsigned char* buffer) {
+BOOL mxkFlashRead(unsigned int address, unsigned int nbytes, unsigned char* buffer) {
     unsigned char packet[16];
     mxkPacketReqFlashRead(packet, address, nbytes);
-    if (!mxkSendPacket(mxparallel, packet)) return FALSE;
+    if (!mxkSendPacket(packet)) return FALSE;
 
     for (size_t i = 0; i < nbytes; i += 0x100) {
         unsigned int rest = (nbytes - i) > 0x100 ? 0x100 : (nbytes - i);
-        if (!mxkTransportRecv(mxparallel, buffer + i, rest)) return FALSE;
+        if (!mxkTransportRecv(buffer + i, rest)) return FALSE;
     }
     return TRUE;
 }
-BOOL mxkEepromRead(HANDLE mxparallel, unsigned char page, unsigned char* data) {
+BOOL mxkEepromRead(unsigned char page, unsigned char* data) {
     unsigned char packet[16];
     mxkPacketReqEepromRead(packet, page);
-    if (!mxkSendPacket(mxparallel, packet)) return FALSE;
-    if (!mxkRecvPacket(mxparallel, data)) return FALSE;
+    if (!mxkSendPacket(packet)) return FALSE;
+    if (!mxkRecvPacket(data)) return FALSE;
     return TRUE;
 }
-BOOL mxkNvramRead(HANDLE mxparallel, unsigned short addr, unsigned char blocks, unsigned char* data) {
+BOOL mxkNvramRead(unsigned short addr, unsigned char blocks, unsigned char* data) {
     unsigned char packet[16];
     mxkPacketReqNvramRead(packet, addr, blocks);
-    if (!mxkSendPacket(mxparallel, packet)) return FALSE;
+    if (!mxkSendPacket(packet)) return FALSE;
 
     for (size_t i = 0; i < blocks; i++) {
-        if (!mxkRecvPacket(mxparallel, data + (i * 16))) return FALSE;
+        if (!mxkRecvPacket(data + (i * 16))) return FALSE;
     }
     return TRUE;
+}
+
+bool mxkValidString(const char* string, unsigned int length) {
+    for (int i = 0; i < length; i++) {
+        char c = string[i];
+        if (isalnum(c)) continue;
+        if (c != '.' && c != '_' && c != '-' && c != ':' && c != '@' && c != '%' && c != '/' &&
+            c != '\\')
+            return false;
+    }
+    return true;
+}
+
+MXK_STATUS mxkInit() {
+    mxkVersionDirty = true;
+    AppBoot.m_cacheDirty = true;
+
+    if (mxkTransportInit() != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkTransportInit!!");
+        return MXK_STATUS_ERROR;
+    }
+    if (mxkCryptInit() != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkCryptInit!!");
+        return MXK_STATUS_ERROR;
+    }
+    if (mxkExchengeAesKey() != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkExchengeAesKey!!");
+        return MXK_STATUS_ERROR;
+    }
+    // TODO: N2
+    if (mxkSmbusInit() != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkSmbusInit!!");
+        return MXK_STATUS_ERROR;
+    }
+    // TODO: SSD
+    // mxkSsdInit();
+    if (mxkAuthenticationDs() != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkAuthenticationDs!!");
+        return MXK_STATUS_ERROR;
+    }
+    if (mxkGetAppBootInfo() != MXK_STATUS_OK) {
+        amiDebugLog("Error mxkGetAppBootInfo!!");
+        return MXK_STATUS_ERROR;
+    }
+
+    unsigned char system_flag;
+    unsigned char err;
+    if (mxkAbSystemFlag(MXK_CACHE_USE, &system_flag, &err) == MXK_STATUS_OK && system_flag & 1) {
+        // appboot_flash();
+        // eeprom_playcount();
+    }
+
+    // TODO:
+    mxkN2CmdSetDeviceInfo();
+    mxkN2Authentication();
+
+    return MXK_STATUS_OK;
 }

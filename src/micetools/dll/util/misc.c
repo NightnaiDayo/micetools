@@ -110,7 +110,7 @@ HANDLE GetDummyHandle() {
         _CreateFileA(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
 
     if (hObject == INVALID_HANDLE_VALUE) {
-        log_error(HOOKS_LOGGER, "Failed to create dummy handle: %03x", GetLastError());
+        log_error(plfMisc, "Failed to create dummy handle: %03x", GetLastError());
     }
 
     return hObject;
@@ -152,3 +152,38 @@ void make_dirs(const char* path) {
     }
     free(temp);
 }
+
+void* open_mapped_file(LPCWSTR path, DWORD size, HANDLE* file, HANDLE* file_mapping) {
+    make_dirs(path);
+    *file = _CreateFileW(path, GENERIC_READ | GENERIC_WRITE,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+                               OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (*file == INVALID_HANDLE_VALUE) {
+        log_error(plfMisc, "Failed to CreateFileW(%ls): %d", path, GetLastError());
+        return NULL;
+    }
+
+    *file_mapping =
+        CreateFileMappingW(*file, NULL, PAGE_READWRITE, 0, size, NULL);
+
+    if (*file_mapping == INVALID_HANDLE_VALUE) {
+        CloseHandle(*file);
+        *file = INVALID_HANDLE_VALUE;
+
+        log_error(plfMisc, "Failed to CreateFileMappingW: %d", GetLastError());
+        return NULL;
+    }
+
+    SetLastError(0);
+    void* mapping = MapViewOfFile(*file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
+    if (mapping == NULL || GetLastError()) {
+        log_error(plfMisc, "Failed to MapViewOfFileEx: %d", GetLastError());
+        CloseHandle(*file);
+        CloseHandle(*file_mapping);
+        *file = INVALID_HANDLE_VALUE;
+        *file_mapping = INVALID_HANDLE_VALUE;
+        return NULL;
+    }
+    return mapping;
+}
+

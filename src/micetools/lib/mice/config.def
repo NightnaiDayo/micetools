@@ -65,12 +65,6 @@ COMMENT("Second half of system mac address. The vendor prefix D8:BB:C1: will be 
 CFG_hex(network, mac, 6, 0A2F1D, "")
 ENDSECTION(network)
 
-SECTION(devices, "Specify COM ports for devices to attach, comma seperated")
-CFG_str(devices, aime_bd, "2", "AIME reader board")
-CFG_str(devices, touch_bd, "3", "maimai touch screen")
-CFG_str(devices, led_bd, "5,6,7,8", "maimai led boards")
-ENDSECTION(devices)
-
 SECTION(drivers, "Enable or disable drivers. Disabling any is not recommended.")
 CFG_bool(drivers, columba, true, "")
 CFG_bool(drivers, mxsram, true, "")
@@ -101,6 +95,18 @@ CFG_int(keys, service, 0, "")
 CFG_int(keys, board_count, 1, "")
 CFG_str(keys, keys, 0, "")
 ENDSECTION(keys)
+
+SECTION(devices, "Register attached hardware devices")
+CFG_bool(devices, do_auto, true, "When true, if the running game is identified, the following 8 values are overwritten")
+CFG_str(devices, com1, "", "")
+CFG_str(devices, com2, "", "")
+CFG_str(devices, com3, "", "")
+CFG_str(devices, com4, "", "")
+CFG_str(devices, com5, "", "")
+CFG_str(devices, com6, "", "")
+CFG_str(devices, com7, "", "")
+CFG_str(devices, com8, "", "")
+ENDSECTION(devices)
 
 #undef CFG_str
 #undef CFG_int

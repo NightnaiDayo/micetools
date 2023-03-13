@@ -96,7 +96,7 @@ BYTE hwmon_read(superio_packet* packet) {
                     return w83791d_vbat_monitor_control;
 
                 default:
-                    log_error("mxsuperio", "Unknown HM b0 register: read 0x%02x", reg);
+                    log_error(plfMxSuperio, "Unknown HM b0 register: read 0x%02x", reg);
                     return 0xff;
             }
         } break;
@@ -124,7 +124,7 @@ BYTE hwmon_read(superio_packet* packet) {
                     return W83791D_ENTITY_SYSTEM;
 
                 default:
-                    log_error("mxsuperio", "Unknown HM b1 register: 0x%02x", reg);
+                    log_error(plfMxSuperio, "Unknown HM b1 register: 0x%02x", reg);
                     exit(1);
             }
         } break;
@@ -140,12 +140,12 @@ BYTE hwmon_read(superio_packet* packet) {
                     return 0xff;
 
                 default:
-                    log_error("mxsuperio", "Unknown HM b5 register: 0x%02x", reg);
+                    log_error(plfMxSuperio, "Unknown HM b5 register: 0x%02x", reg);
                     return 0xff;
             }
         } break;
         default:
-            log_error("mxsuperio", "Unknown HM bank: 0x%02x", w83791d_bank);
+            log_error(plfMxSuperio, "Unknown HM bank: 0x%02x", w83791d_bank);
             exit(1);
     }
 }
@@ -197,7 +197,7 @@ void hwmon_write(superio_packet* packet) {
                     w83791d_vbat_monitor_control = packet->data;
                     break;
                 default:
-                    log_error("mxsuperio", "Unknown HM b0 register: write 0x%02x", packet->reg);
+                    log_error(plfMxSuperio, "Unknown HM b0 register: write 0x%02x", packet->reg);
                     // exit(1);
             }
             break;
@@ -229,7 +229,7 @@ void hwmon_write(superio_packet* packet) {
                     break;
 
                 default:
-                    log_error("mxsuperio", "Unknown HM b1 register: 0x%02x", packet->reg);
+                    log_error(plfMxSuperio, "Unknown HM b1 register: 0x%02x", packet->reg);
                     exit(1);
             }
         } break;
@@ -246,12 +246,12 @@ void hwmon_write(superio_packet* packet) {
                     break;
 
                 default:
-                    log_error("mxsuperio", "Unknown HM b5 register: 0x%02x", packet->reg);
+                    log_error(plfMxSuperio, "Unknown HM b5 register: 0x%02x", packet->reg);
                     return;
             }
         } break;
         default:
-            log_error("mxsuperio", "Unknown HM bank: 0x%02x", w83791d_bank);
+            log_error(plfMxSuperio, "Unknown HM bank: 0x%02x", w83791d_bank);
             exit(1);
     }
 }
@@ -291,7 +291,7 @@ BOOL WINAPI mxsuperio_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode
                 //
             }
         W83627UHG_processed:
-            log_misc("mxsuperio", "read: chip:%d device:%d reg:%02x data:%02x", packet->chip,
+            log_misc(plfMxSuperio, "read: chip:%d device:%d reg:%02x data:%02x", packet->chip,
                      packet->device, packet->reg, packet->data);
             break;
         }
@@ -299,7 +299,7 @@ BOOL WINAPI mxsuperio_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode
             superio_lpc_packet* packet = (superio_lpc_packet*)(lpInBuffer);
             if (lpBytesReturned) *lpBytesReturned = sizeof *packet;
 
-            log_misc("mxsuperio", "write: chip:%d device:%d reg:%02x data:%02x", packet->chip,
+            log_misc(plfMxSuperio, "write: chip:%d device:%d reg:%02x data:%02x", packet->chip,
                      packet->device, packet->reg, packet->data);
 
             // TODO: Are there any writes we need to process?
@@ -319,13 +319,13 @@ BOOL WINAPI mxsuperio_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode
             } else {
                 lpc_out->data = 0xff;
             }
-            log_misc("mxsuperio", "amHmLpcReadByte Index=0x%02x Reg=0x%02x Data=0x%02x",
+            log_misc(plfMxSuperio, "amHmLpcReadByte Index=0x%02x Reg=0x%02x Data=0x%02x",
                      lpc_packet->index, lpc_packet->reg, lpc_out->data);
 
             if (lpBytesReturned) *lpBytesReturned = sizeof *lpc_out;
         } break;
         case IOCTL_MXSUPERIO_HWMONITOR_LPC_WRITE: {
-            log_misc("mxsuperio", "amHmLpcWriteByte Index=0x%02x Reg=0x%02x Data=0x%02b",
+            log_misc(plfMxSuperio, "amHmLpcWriteByte Index=0x%02x Reg=0x%02x Data=0x%02b",
                      lpc_packet->index, lpc_packet->reg, lpc_packet->data);
 
             if (lpc_packet->index == LPC_CONFIGURATION) {
@@ -334,7 +334,7 @@ BOOL WINAPI mxsuperio_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode
             if (lpBytesReturned) *lpBytesReturned = 0;
         } break;
         default:
-            log_warning("mxsuperio", "unhandled 0x%08x", dwIoControlCode);
+            log_warning(plfMxSuperio, "unhandled 0x%08x", dwIoControlCode);
             return FALSE;
     }
 

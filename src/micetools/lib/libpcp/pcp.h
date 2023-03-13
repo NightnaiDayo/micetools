@@ -66,7 +66,7 @@ typedef enum binary_mode {
 
 #define SOCKET_INVAL ((SOCKET)-1)
 #define HANDLE_INVAL -1
-#define TIMEOUT_NONE ((DWORD)-1)
+#define TIMEOUT_NONE ((timeout_t)-1)
 
 #define PCPT_CLOSED 0
 #define PCPT_LISTENING 1
