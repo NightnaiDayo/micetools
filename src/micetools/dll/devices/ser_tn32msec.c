@@ -15,7 +15,6 @@ BYTE extra[0xff];
  * TODO: Validate against a real board
  */
 enum TN32_Opcode {
-    TN32Op_Unknown20 = 0x20,  // where did this come from??
     TN32Op_GetFWVersion = 0x30,
     TN32Op_GetHWVersion = 0x32,
 
@@ -23,34 +22,35 @@ enum TN32_Opcode {
     TN32Op_RadioOff = 0x41,
     TN32Op_Poll = 0x42,
     TN32Op_MifareSelectTag = 0x43,
-    TN32Op_Unknown44 = 0x44,  // Present in code, not seen used
+    TN32Op_CardHalt = 0x44,
 
     TN32Op_SetKeyBana = 0x50,
     TN32Op_GetKeyBana = 0x51,
     TN32Op_ReadBlock = 0x52,
-    TN32Op_Unknown53 = 0x53,  // Present in code, not seen used
+    TN32Op_WriteBlock = 0x53,
     TN32Op_SetKeyAime = 0x54,
     TN32Op_GetKeyAime = 0x55,
 
-    // Firmware update (I think)
-    TN32Op_Unknown60 = 0x60,  // Present in code, not seen used
-    TN32Op_Unknown61 = 0x61,  // Present in code, not seen used
+    // Firmware update
+    TN32Op_EnterUpdaterMode = 0x60,
+    TN32Op_SendHex = 0x61,
     TN32Op_Reset = 0x62,
-    TN32Op_Unknown63 = 0x63,
-    TN32Op_Unknown64 = 0x64,
+    TN32Op_SendBindata = 0x63,
+    TN32Op_BindataExec = 0x64,
 
-    TN32Op_Unknown70 = 0x70,  // Present in code, not seen used
+    // Felica
+    TN32Op_FelicaPush = 0x70,
     TN32Op_FelicaEncap = 0x71,
 
     // No responses to either
-    LedUnknown80 = 0x80,
-    LedSetColour = 0x81,
+    Led_SetColour = 0x80,
+    Led_SetColourRGB = 0x81,
 
-    LedGetInfo = 0xf0,
-    LedF2 = 0xf2,
-    LedF3 = 0xf3,
-    LedF4 = 0xf4,
-    LedReset = 0xf5,
+    Led_GetInfo = 0xf0,
+    Led_FirmwareSum = 0xf2,
+    Led_SendHex = 0xf3,
+    Led_EnterBootMode = 0xf4,
+    Led_Reset = 0xf5,
 };
 
 char* OpcodeNames[256];
@@ -282,26 +282,24 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
                         //
                     }
 
-                case TN32Op_Unknown44:
+                case TN32Op_CardHalt:
                 case TN32Op_MifareSelectTag:
                     comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
                     break;
 
-                case TN32Op_Unknown60:
-                    // req.length == 0; start firmware update?
+                case TN32Op_EnterUpdaterMode:
                     comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
                     break;
-                case TN32Op_Unknown61:
+                case TN32Op_SendHex:
                     // null-terminated line of the firmware hex!
                     comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
                     log_info(plfAime, "Recv firmware: %s", extra);
                     break;
-                case TN32Op_Unknown63:
-                    // req.length == 0; start binary firmware update?
+                case TN32Op_SendBindata:
                     fwNumBytes = 0;
                     comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
                     break;
-                case TN32Op_Unknown64:
+                case TN32Op_BindataExec:
                     // Raw binary firmware data
                     // [req.length == 256 -> wraps to 00] [256 bytes]
                     if (req.length == 0) {
@@ -335,15 +333,15 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
         } else if (req.dst == 0x08 || req.dst == 0x09) {
             // LED sub-boards
             switch (req.op) {
-                case LedReset:
+                case Led_Reset:
                     comio_reply(dev, &req, COMIO_STATUS_OK, 0, NULL);
                     break;
-                case LedGetInfo:
+                case Led_GetInfo:
                     // TODO: I'm not sure what this actually means.
                     // 838-15084 is probably a part number
                     comio_reply(dev, &req, COMIO_STATUS_OK, 9, (BYTE*)"15084\xff\x10\x00\x12");
                     break;
-                case LedSetColour:
+                case Led_SetColourRGB:
                     log_misc(plfAime, "Set LED: #%02x%02x%02x", extra[0], extra[1], extra[2]);
                     printf(
                         "\033[48;2;%d;%d;%dm                                 "
@@ -360,29 +358,29 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
 
 void install_aime_bd() {
     ZeroMemory(OpcodeNames, sizeof OpcodeNames);
-    OpcodeNames[TN32Op_Unknown20] = "Unknown20";
     OpcodeNames[TN32Op_GetFWVersion] = "GetFWVersion";
     OpcodeNames[TN32Op_GetHWVersion] = "GetHWVersion";
     OpcodeNames[TN32Op_RadioOn] = "RadioOn";
     OpcodeNames[TN32Op_RadioOff] = "RadioOff";
     OpcodeNames[TN32Op_Poll] = "Poll";
     OpcodeNames[TN32Op_MifareSelectTag] = "MifareSelectTag";
-    OpcodeNames[TN32Op_Unknown44] = "Unknown44";
+    OpcodeNames[TN32Op_CardHalt] = "CardHalt";
     OpcodeNames[TN32Op_SetKeyBana] = "SetKeyBana";
     OpcodeNames[TN32Op_GetKeyBana] = "GetKeyBana";
     OpcodeNames[TN32Op_ReadBlock] = "ReadBlock";
-    OpcodeNames[TN32Op_Unknown53] = "Unknown53";
+    OpcodeNames[TN32Op_WriteBlock] = "WriteBlock";
     OpcodeNames[TN32Op_SetKeyAime] = "SetKeyAime";
     OpcodeNames[TN32Op_GetKeyAime] = "GetKeyAime";
-    OpcodeNames[TN32Op_Unknown60] = "Unknown60";
-    OpcodeNames[TN32Op_Unknown61] = "Unknown61";
+    OpcodeNames[TN32Op_EnterUpdaterMode] = "EnterUpdaterMode";
+    OpcodeNames[TN32Op_SendHex] = "SendHex";
     OpcodeNames[TN32Op_Reset] = "Reset";
-    OpcodeNames[TN32Op_Unknown70] = "Unknown70";
+    OpcodeNames[TN32Op_FelicaPush] = "FelicaPush";
     OpcodeNames[TN32Op_FelicaEncap] = "FelicaEncap";
 
-    OpcodeNames[LedReset] = "LedReset";
-    OpcodeNames[LedGetInfo] = "LedGetInfo";
-    OpcodeNames[LedSetColour] = "LedSetColour";
+    OpcodeNames[Led_Reset] = "Led_Reset";
+    OpcodeNames[Led_GetInfo] = "Led_GetInfo";
+    OpcodeNames[Led_SetColour] = "Led_SetColour";
+    OpcodeNames[Led_SetColourRGB] = "Led_SetColourRGB";
 
     register_device("aime_tn32msec", aime_bd_thread);
 }

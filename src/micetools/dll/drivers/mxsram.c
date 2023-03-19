@@ -19,10 +19,11 @@ HANDLE SRAM_FILE_MAPPING = INVALID_HANDLE_VALUE;
         (block).m_Crc = amiCrc32RCalc(sizeof(block) - 4, (BYTE*)(&(block)) + 4, 0); \
     } while (0)
 
-int build_sram() {
+void build_sram() {
     log_info(plfMxSram, "Building default SRAM file");
 
     memset(SRAM_DATA, 0xff, SRAM_SIZE);
+    return;
 
     AM_SYSDATAwH_BACKUP Backup = { 0 };
     fix_crc(Backup);
@@ -44,7 +45,7 @@ int build_sram() {
     memcpy(SRAM_DATA + ADDR_ERROR_LOG, (unsigned char*)&ErrorLog, sizeof ErrorLog);
     memcpy(SRAM_DATA + ADDR_ERROR_LOG + ADDR_DUP, (unsigned char*)&ErrorLog, sizeof ErrorLog);
 
-    return 1;
+    return;
 }
 
 void ensure_valid_sram() {

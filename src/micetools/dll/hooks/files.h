@@ -38,6 +38,7 @@ _MICE_FILES BOOL(WINAPI* TruePathFileExistsA)(LPCSTR pszPath);
 _MICE_FILES BOOL(WINAPI* TruePathFileExistsW)(LPCWSTR pszPath);
 _MICE_FILES BOOL(WINAPI* TrueDeleteFileA)(LPCSTR lpFileName);
 _MICE_FILES BOOL(WINAPI* TrueDeleteFileW)(LPCWSTR lpFileName);
+_MICE_FILES HANDLE(WINAPI* TrueFindFirstFileA)(LPCSTR lpFileName, LPWIN32_FIND_DATA lpFindFileData);
 _MICE_FILES DWORD(WINAPI* TrueGetFileAttributesA)(LPCSTR lpFileName);
 _MICE_FILES DWORD(WINAPI* TrueGetFileAttributesW)(LPCWSTR lpFileName);
 

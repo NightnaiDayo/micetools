@@ -14,45 +14,6 @@ static uint8_t inv[2] = { 0x00, 0x00 };
  */
 static uint8_t config[2] = { 0xFF, 0xFF };
 
-BOOL smbus_PCA9535_write(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
-    switch (cmd) {
-        case ICH9_CMD_BYTE_DATA:
-            switch (code) {
-                case PCA9535_REG_IN0:
-                    return FALSE;
-                case PCA9535_REG_IN1:
-                    return FALSE;
-
-                case PCA9535_REG_OUT0:
-                    out[0] = data[0];
-                    return TRUE;
-                case PCA9535_REG_OUT1:
-                    out[1] = data[0];
-                    return TRUE;
-
-                case PCA9535_REG_INV0:
-                    inv[0] = data[0];
-                    return TRUE;
-                case PCA9535_REG_INV1:
-                    inv[1] = data[0];
-                    return TRUE;
-
-                case PCA9535_REG_CONF0:
-                    config[0] = data[0];
-                    return TRUE;
-                case PCA9535_REG_CONF1:
-                    config[1] = data[0];
-                    return TRUE;
-                default:
-                    log_error(plfPCA9535, "Unknown write command: %02x", code);
-                    return FALSE;
-            }
-        default:
-            log_error(plfPCA9535, "Unsupported write mode: %01x (%02x)", cmd, code);
-            return FALSE;
-    }
-}
-
 /**
  * Supported resolutions by amPlatform:
  *  640x480: VGA
@@ -93,6 +54,45 @@ BOOL smbus_PCA9535_write(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
 #define DIPSW_RES_1360x768 0b0'110'0000
 #define DIPSW_RES_1920x1080 0b0'111'0000
 
+BOOL smbus_PCA9535_write(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
+    switch (cmd) {
+        case ICH9_CMD_BYTE_DATA:
+            switch (code) {
+                case PCA9535_REG_IN0:
+                    return FALSE;
+                case PCA9535_REG_IN1:
+                    return FALSE;
+
+                case PCA9535_REG_OUT0:
+                    out[0] = data[0];
+                    return TRUE;
+                case PCA9535_REG_OUT1:
+                    out[1] = data[0];
+                    return TRUE;
+
+                case PCA9535_REG_INV0:
+                    inv[0] = data[0];
+                    return TRUE;
+                case PCA9535_REG_INV1:
+                    inv[1] = data[0];
+                    return TRUE;
+
+                case PCA9535_REG_CONF0:
+                    config[0] = data[0];
+                    return TRUE;
+                case PCA9535_REG_CONF1:
+                    config[1] = data[0];
+                    return TRUE;
+                default:
+                    log_error(plfPCA9535, "Unknown write command: %02x", code);
+                    return FALSE;
+            }
+        default:
+            log_error(plfPCA9535, "Unsupported write mode: %01x (%02x)", cmd, code);
+            return FALSE;
+    }
+}
+
 BOOL smbus_PCA9535_read(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
     switch (cmd) {
         case ICH9_CMD_BYTE_DATA:
@@ -132,7 +132,7 @@ BOOL smbus_PCA9535_read(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
 
                     if (MiceConfig.keys.test && GetAsyncKeyState(MiceConfig.keys.test) < 0) {
                         // if (!lastSystem)
-                         dip &= ~0x04;
+                        dip &= ~0x04;
                         // lastSystem = true;
                     } else
                         lastSystem = false;
@@ -148,7 +148,7 @@ BOOL smbus_PCA9535_read(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
 
                 case PCA9535_REG_OUT0:
                     data[0] = out[0] & ~config[0];
-                    return FALSE;
+                    return TRUE;
                 case PCA9535_REG_OUT1:
                     data[0] = out[1] & ~config[1];
                     return TRUE;

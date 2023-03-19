@@ -80,6 +80,7 @@ static void dmi_append_with_strings(void* data, WORD size, int num_strings, ...)
 
 void dmi_build_default() {
     dmi_init();
+    // BIOS version
     dmi_append_with_strings(&default_dmi_bios, sizeof default_dmi_bios, 3,
                             "American Megatrends Inc.", "080015 ", "07/28/2011");
 

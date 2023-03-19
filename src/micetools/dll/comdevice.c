@@ -1,5 +1,7 @@
 #include "comdevice.h"
 
+#define RESERVED_JVS_COM_PORT 4
+
 com_device_t* GetComDevice(HANDLE hFile) {
     open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
     return pHData->hook->com_hook->com_device;
@@ -14,12 +16,15 @@ BOOL DevPurgeComm(HANDLE hFile, DWORD dwFlags) {
     if (dwFlags & PURGE_RXCLEAR) ringbuf_purge(&(GetComDevice(hFile)->out));
     return TRUE;
 }
-BOOL DevGetCommModemStatus(HANDLE hFile, LPDWORD lpModelStat) {
-    // TODO: JVS SENSE
+BOOL DevGetCommModemStatus(HANDLE hFile, LPDWORD lpModemStatus) {
+    if (!lpModemStatus) return FALSE;
+    com_device_t* dev = GetComDevice(hFile);
+    if (!dev) return false;
+    *lpModemStatus = dev->modemStatus;
     return TRUE;
 }
 BOOL DevWaitCommEvent(HANDLE hFile, LPDWORD lpEvtMask, LPOVERLAPPED lpOverlapped) {
-    WaitForSingleObject(GetComDevice(hFile)->event, INFINITE);
+    WaitForSingleObject(GetComDevice(hFile)->dataOutReady, INFINITE);
     if (lpOverlapped != NULL) SetEvent(lpOverlapped->hEvent);
     return TRUE;
 }
@@ -43,8 +48,10 @@ BOOL DevClearCommError(HANDLE hFile, LPDWORD lpErrors, LPCOMSTAT lpStat) {
 BOOL DevWriteFile(file_context_t* ctx, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
                   LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped) {
     if (nNumberOfBytesToWrite > 0xffff) return FALSE;
+    com_device_t* dev = GetComDevice(ctx->m_Handle);
     // Ignore overflow
-    ringbuf_write(&(GetComDevice(ctx->m_Handle)->in), lpBuffer, nNumberOfBytesToWrite & 0xffff);
+    ringbuf_write(&(dev->in), lpBuffer, nNumberOfBytesToWrite & 0xffff);
+    SetEvent(dev->dataInReady);
     if (lpNumberOfBytesWritten) *lpNumberOfBytesWritten = nNumberOfBytesToWrite;
     return TRUE;
 }
@@ -60,18 +67,18 @@ BOOL DevReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytesToRea
     short read = ringbuf_read(&(comdev->out), lpBuffer, nNumberOfBytesToRead & 0xffff);
     if (lpNumberOfBytesRead) *lpNumberOfBytesRead = read;
 
-    if (read != 0) {
-        // log_info("drf", "%d", read);
-        // for (int i = 0; i < read; i++) {
-        //     printf("%02x ", ((LPBYTE)lpBuffer)[i]);
-        // }
-        // puts("");
+    if (lpOverlapped) {
+        lpOverlapped->InternalHigh = read;
+        SetEvent(lpOverlapped->hEvent);
     }
     return TRUE;
 }
 
 short comdev_read_blocking(com_device_t* com, unsigned char* buffer, short bytes) {
-    while (comdev_available(com) < bytes) SwitchToThread();
+    while (comdev_available(com) < bytes) {
+        WaitForSingleObject(com->dataInReady, INFINITE);
+        SwitchToThread();
+    }
     return ringbuf_read(&com->in, buffer, bytes);
 }
 short comdev_read(com_device_t* com, unsigned char* buffer, short bytes) {
@@ -79,7 +86,7 @@ short comdev_read(com_device_t* com, unsigned char* buffer, short bytes) {
 }
 bool comdev_write(com_device_t* com, const unsigned char* buffer, short bytes) {
     bool ret = ringbuf_write(&com->out, buffer, bytes);
-    SetEvent(com->event);
+    SetEvent(com->dataOutReady);
     return ret;
 }
 short comdev_available(com_device_t* com) { return ringbuf_available(&com->in); }
@@ -164,7 +171,10 @@ BOOL attach_com_device(BYTE port, FnComDeviceThread* thread) {
         return FALSE;
     }
     com_device_t* com = com_devices[port - 1];
+
     if (com->thread != INVALID_HANDLE_VALUE) {
+        if (port == RESERVED_JVS_COM_PORT) return FALSE;
+
         // No need to change what's assigned!
         if (com->thread_worker == thread) return TRUE;
 
@@ -179,8 +189,8 @@ BOOL attach_com_device(BYTE port, FnComDeviceThread* thread) {
 }
 void detach_com_device(BYTE port) {
     // If the port is out of range, there's guaranteeably nothing attached
-    if (port < 1 || port > NUM_COM_PORTS)
-        return;
+    if (port < 1 || port > NUM_COM_PORTS) return;
+    if (port == RESERVED_JVS_COM_PORT) return;
 
     com_device_t* com = com_devices[port - 1];
     if (!com->thread) return;
@@ -190,6 +200,8 @@ void detach_com_device(BYTE port) {
 }
 void detach_all_com_devices(void) {
     for (int i = 0; i < NUM_COM_PORTS; i++) {
+        if (i == RESERVED_JVS_COM_PORT - 1) continue;
+
         if (com_devices[i]->thread != INVALID_HANDLE_VALUE) {
             TerminateThread(com_devices[i]->thread, (DWORD)-1);
             com_devices[i]->thread = INVALID_HANDLE_VALUE;
@@ -223,7 +235,7 @@ com_device_t* new_com_device(BYTE port) {
 
     ringbuf_purge(&com_device->in);
     ringbuf_purge(&com_device->out);
-    com_device->event = CreateEventW(NULL, TRUE, FALSE, com_device->com->wName);
+    com_device->dataOutReady = CreateEventW(NULL, TRUE, FALSE, com_device->com->wName);
     com_device->thread = INVALID_HANDLE_VALUE;
 
     hook_file(file);

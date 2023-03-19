@@ -200,6 +200,7 @@ BOOL WINAPI FakeSetVolumeMountPointA(LPCSTR lpszVolumeMountPoint, LPCSTR lpszVol
 }
 
 DWORD WINAPI FakeQueryDosDeviceA(LPCSTR lpDeviceName, LPSTR lpTargetPath, DWORD ucchMax) {
+    log_warning(plfDrive, "QueryDosDeviceA(%s, -, %d)", lpDeviceName, ucchMax);
     if (lpDeviceName != NULL) {
         disk_volume_t* volume = getVolumeByPath(lpDeviceName, VOL_MATCH_DOS_DEVICE);
         if (volume == NULL) {
@@ -216,6 +217,48 @@ DWORD WINAPI FakeQueryDosDeviceA(LPCSTR lpDeviceName, LPSTR lpTargetPath, DWORD 
         return ucchMax;
     }
     return 0;
+}
+
+const wchar_t* DUMMY_USB_RM = L"STORAGE#RemovableMedia#0&75ad516&0&rm#{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}";
+DWORD WINAPI FakeQueryDosDeviceW(LPCWSTR lpDeviceName, LPWSTR lpTargetPath, DWORD ucchMax) {
+    log_warning(plfDrive, "QueryDosDeviceW(%ls, -, %d)", lpDeviceName, ucchMax);
+    if (lpDeviceName != NULL) {
+        if (wcscmp(lpTargetPath, DUMMY_USB_RM) == 0) {
+            swprintf_s(lpTargetPath, ucchMax, L"\\Device\\Harddisk69");
+            return ucchMax;
+        }
+
+        char deviceName[MAX_PATH];
+        WideCharToMultiByte(CP_ACP, 0, lpDeviceName, wcslen(lpDeviceName), deviceName,
+                            _countof(deviceName), NULL, NULL);
+
+        disk_volume_t* volume = getVolumeByPath(deviceName, VOL_MATCH_DOS_DEVICE);
+        if (volume == NULL) {
+            swprintf_s(lpTargetPath, ucchMax, L"\\Device\\Ttest");
+            SetLastError(ERROR_FILE_NOT_FOUND);
+            return 0;
+        }
+
+        size_t mountLen = wcslen(volume->m_DeviceName);
+        if (ucchMax < mountLen + 1) {
+            SetLastError(ERROR_INSUFFICIENT_BUFFER);
+            return 0;
+        }
+        swprintf_s(lpTargetPath, ucchMax, L"\\Device\\%ls", volume->m_DeviceName);
+        return ucchMax;
+    } else {
+        // TODO: This, properly!!
+        ZeroMemory(lpTargetPath, ucchMax);
+        swprintf_s(lpTargetPath, ucchMax, DUMMY_USB_RM);
+    }
+    return 0;
+}
+// TODO:
+BOOL WINAPI FakeDefineDosDeviceW(DWORD dwFlags, LPCWSTR lpDeviceName, LPCWSTR lpTargetPath) {
+    return TRUE;
+}
+BOOL WINAPI FakeSetVolumeMountPointW(LPCWSTR lpszVolumeMountPoint, LPCWSTR lpszVolumeName) {
+    return TRUE;
 }
 
 MCIERROR WINAPI Fake_mciSendStringA(LPCTSTR lpszCommand, LPTSTR lpszReturnString, UINT cchReturn,

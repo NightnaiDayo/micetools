@@ -35,7 +35,12 @@ BOOL WINAPI pd_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOI
                 return TRUE;
             }
 
-            if (command != 0xC1) {
+            /**
+             * C1: Seen by mxkeychip
+             * C2: Seen by factorytest
+             */
+
+            if (command != 0xC1 && command != 0xC2) {
                 log_error(plfDrive, "PD0:Unimplemented ATA command: %02x", command);
 
                 return FALSE;
@@ -60,9 +65,11 @@ BOOL WINAPI pd_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOI
 
                     // It looks like mxkeychip never actually checks the response buffer,
                     // as long as the ioctl succeeds! Saves us a lot of work here!
+
+                    // TODO: factorytest.exe _does_ check this!
                     return TRUE;
             }
-            log_error(plfDrive, "Unimeplemented ATA C1 command: %02x", data);
+            log_error(plfDrive, "Unimeplemented ATA %02X command: %02x", command, data);
             return FALSE;
         case IOCTL_DISK_GET_LENGTH_INFO:
             PGET_LENGTH_INFORMATION pLi = (PGET_LENGTH_INFORMATION)lpOutBuffer;

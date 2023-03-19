@@ -1,5 +1,6 @@
 #include <Windows.h>
 
+#include "../comdevice.h"
 #include "../common.h"
 #include "../key_config.h"
 #include "jvs.h"
@@ -659,6 +660,36 @@ void init_jvs_boards() {
     }
 }
 
+DWORD __stdcall mxjvs_comdev_thread(com_device_t* com) {
+    BYTE inBuffer[512];
+    BYTE outBuffer[512];
+    DWORD bytesReturned;
+
+    while (1) {
+        do {
+            comdev_read_blocking(com, inBuffer, 1);
+        } while (inBuffer[0] != 0xE0);
+        comdev_read_blocking(com, inBuffer + 1, 2);
+        BYTE nbytes = inBuffer[2];
+
+        BYTE* bufferPtr = inBuffer + 3;
+        if (nbytes == 0xD0) {
+            comdev_read_blocking(com, bufferPtr++, 1);
+            nbytes = *bufferPtr;
+        }
+        while (nbytes) {
+            comdev_read_blocking(com, bufferPtr++, 1);
+            if (bufferPtr[-1] == 0xD0) comdev_read_blocking(com, bufferPtr++, 1);
+            nbytes--;
+        }
+
+        short packetSize = bufferPtr - inBuffer;
+        mxjvs_handle(inBuffer, packetSize, outBuffer, _countof(outBuffer), &bytesReturned);
+        com->modemStatus = !JVS_SENSE ? MS_DSR_ON : 0;
+        comdev_write(com, outBuffer, bytesReturned & 0xFFFF);
+    }
+}
+
 void setup_mxjvs() {
     init_jvs_boards();
 
@@ -679,6 +710,5 @@ void setup_mxjvs() {
     mxjvs->com_hook = jvscom;
 
     // TODO: Looks like some things might use JVS on COM4. We should setup a comdevice for this!
-    file_hook_t* jvscom_file = new_file_hook(jvscom->wName);
-    hook_file(jvscom_file);
+    attach_com_device(4, mxjvs_comdev_thread);
 }

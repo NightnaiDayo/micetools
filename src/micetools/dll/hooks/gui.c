@@ -192,7 +192,7 @@ void SetupWindowPosition(LPRECT lpRect, DWORD dwStyle) {
     lpRect->top = y;
     lpRect->bottom = y + h;
 
-    AdjustWindowRect(lpRect, dwStyle, FALSE);
+    // AdjustWindowRect(lpRect, dwStyle, FALSE);
 }
 
 HWND WINAPI FakeCreateWindowExA(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName,
@@ -372,6 +372,7 @@ void hook_gui() {
     hook("User32.dll", "ChangeDisplaySettingsExW", FakeChangeDisplaySettingsExW,
          (void**)&TrueChangeDisplaySettingsExW);
     hook("D3d9.dll", "Direct3DCreate9", FakeDirect3DCreate9, (void**)&TrueDirect3DCreate9);
+
     if (PathFileExistsA("FREEGLUT.DLL")) {
         // Hooked as a way to identify use of GLUT
         hook("FREEGLUT.DLL", "glutInitDisplayMode", Fake_glutInitDisplayMode,

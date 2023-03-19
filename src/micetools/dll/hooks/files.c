@@ -358,9 +358,11 @@ DWORD WINAPI FakeWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesT
         log_error(plfHooks, "WriteFile(%ls) unimplemented", file_hook->filename);
         return FALSE;
     }
-    BOOL ret = file_hook->WriteFile(&(pHData->ctx), lpBuffer, nNumberOfBytesToWrite,
-                                    lpNumberOfBytesWritten, lpOverlapped);
-    if (ret) pHData->ctx.m_Pointer.QuadPart += *lpNumberOfBytesWritten;
+    DWORD wrote;
+    BOOL ret =
+        file_hook->WriteFile(&(pHData->ctx), lpBuffer, nNumberOfBytesToWrite, &wrote, lpOverlapped);
+    if (ret) pHData->ctx.m_Pointer.QuadPart += wrote;
+    if (lpNumberOfBytesWritten) *lpNumberOfBytesWritten = wrote;
     return ret;
 }
 
@@ -384,9 +386,11 @@ BOOL WINAPI FakeReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRe
         log_error(plfHooks, "ReadFile(%ls) unimplemented", file_hook->filename);
         return FALSE;
     }
-    BOOL ret = file_hook->ReadFile(&(pHData->ctx), lpBuffer, nNumberOfBytesToRead,
-                                   lpNumberOfBytesRead, lpOverlapped);
-    if (ret) pHData->ctx.m_Pointer.QuadPart += *lpNumberOfBytesRead;
+    DWORD read;
+    BOOL ret =
+        file_hook->ReadFile(&(pHData->ctx), lpBuffer, nNumberOfBytesToRead, &read, lpOverlapped);
+    if (ret) pHData->ctx.m_Pointer.QuadPart += read;
+    if (lpNumberOfBytesRead) *lpNumberOfBytesRead = read;
     return ret;
 }
 
@@ -420,6 +424,15 @@ DWORD WINAPI FakeGetFileAttributesW(LPCWSTR lpFileName) {
     }
     return TrueGetFileAttributesW(lpFileName);
 }
+HANDLE WINAPI FakeFindFirstFileA(LPCSTR lpFileName, LPWIN32_FIND_DATA lpFindFileData) {
+    printf("FakeFindFirstFileA(%s)\n", lpFileName);
+    LPCSTR redirected;
+    if (redirect_path(lpFileName, &redirected)) {
+    printf("->FakeFindFirstFileA(%s)\n", redirected);
+        return TrueFindFirstFileA(redirected, lpFindFileData);
+    }
+    return TrueFindFirstFileA(lpFileName, lpFindFileData);
+}
 
 void hook_io() {
     hook("Kernel32.dll", "DeviceIoControl", FakeDeviceIoControl, (void**)&TrueDeviceIoControl);
@@ -438,6 +451,8 @@ void hook_io() {
     hook("Shlwapi.dll", "PathFileExistsW", FakePathFileExistsW, (void**)&TruePathFileExistsW);
     hook("Kernel32.dll", "DeleteFileA", FakeDeleteFileA, (void**)&TrueDeleteFileA);
     hook("Kernel32.dll", "DeleteFileW", FakeDeleteFileW, (void**)&TrueDeleteFileW);
+
+    hook("Kernel32.dll", "FindFirstFileA", FakeFindFirstFileA, (void**)&TrueFindFirstFileA);
 
     hook("Kernel32.dll", "GetFileAttributesA", FakeGetFileAttributesA,
          (void**)&TrueGetFileAttributesA);

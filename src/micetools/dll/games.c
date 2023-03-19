@@ -22,7 +22,6 @@ void mice_got_game_id(char game_id[4]) {
         MiceConfig.devices.com1 = "";
         MiceConfig.devices.com2 = "aime_tn32msec";
         MiceConfig.devices.com3 = "maitouch";
-        MiceConfig.devices.com4 = "";
         MiceConfig.devices.com5 = "";
         MiceConfig.devices.com6 = "mailed";
         MiceConfig.devices.com7 = "";
@@ -60,7 +59,6 @@ void mice_got_game_id(char game_id[4]) {
         MiceConfig.devices.com1 = "";
         MiceConfig.devices.com2 = "";
         MiceConfig.devices.com3 = "";
-        MiceConfig.devices.com4 = "";
         MiceConfig.devices.com5 = "";
         MiceConfig.devices.com6 = "";
         MiceConfig.devices.com7 = "";

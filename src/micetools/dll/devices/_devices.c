@@ -19,7 +19,6 @@ inline void start_device(const char* name, FnComDeviceThread* thread) {
     _start_device_n(1);
     _start_device_n(2);
     _start_device_n(3);
-    _start_device_n(4);
     _start_device_n(5);
     _start_device_n(6);
     _start_device_n(7);
@@ -33,7 +32,6 @@ inline void stop_old_devices() {
     _stop_if_unregistered(1);
     _stop_if_unregistered(2);
     _stop_if_unregistered(3);
-    _stop_if_unregistered(4);
     _stop_if_unregistered(5);
     _stop_if_unregistered(6);
     _stop_if_unregistered(7);

@@ -14,7 +14,9 @@ struct com_device {
 
     ring_buffer_t in;
     ring_buffer_t out;
-    HANDLE event;
+    DWORD modemStatus;
+    HANDLE dataInReady;
+    HANDLE dataOutReady;
     HANDLE thread;
     FnComDeviceThread* thread_worker;
 };

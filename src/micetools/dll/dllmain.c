@@ -95,7 +95,6 @@ void apply_patches(HMODULE hModule) {
 
 void prebind_hooks() {
     hook_all();
-    init_com_devices();
     install_devices();
     // TODO: Figure out why we're needing to call this manually (medium priority)
     if (wcscmp(exeName, L"ALLNetProc.exe") == 0) {
@@ -115,6 +114,8 @@ void init_injection(HMODULE hModule) {
     // We're in a new context now, so need to reconfigure
     setup_logging();
     log_info(plfBoot, "Handover complete. Now executing within %ls", exeName);
+
+    init_com_devices();
 
     if (MiceConfig.mice.apply_patches) apply_patches(hModule);
 

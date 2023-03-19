@@ -721,6 +721,9 @@ void hook_drives() {
     hook("Kernel32.dll", "SetVolumeLabelA", &FakeSetVolumeLabelA, NULL);
     hook("Kernel32.dll", "GetVolumeInformationA", &FakeGetVolumeInformationA, NULL);
     hook("Kernel32.dll", "QueryDosDeviceA", &FakeQueryDosDeviceA, NULL);
+    hook("Kernel32.dll", "QueryDosDeviceW", &FakeQueryDosDeviceW, NULL);
+    hook("Kernel32.dll", "DefineDosDeviceW", &FakeDefineDosDeviceW, NULL);
+    hook("Kernel32.dll", "SetVolumeMountPointW", &FakeSetVolumeMountPointW, NULL);
 
     hook("Kernel32.dll", "GetVolumeNameForVolumeMountPointA",
          &FakeGetVolumeNameForVolumeMountPointA, NULL);

@@ -71,7 +71,7 @@ BYTE hwmon_read(superio_packet* packet) {
 
                 // TODO: No idea how to read any of these. Pulled from real system
                 case W83791D_REG_TEMP1_0:
-                    return 0x1a;
+                    return 26;  // Chasis temp
                 case W83791D_RAM_VCOREA:
                     return 0x76;
                 case W83791D_RAM_VNIR0:
@@ -118,8 +118,11 @@ BYTE hwmon_read(superio_packet* packet) {
                 case W83791D_CRIT_TEMP_3:
                     return w83791d_crit_t3;
 
-                case W83791D_VIN0:
-                    return W83791D_ENTITY_CPU;
+                // TODO: Figure out what's going on with this discrepency!
+                case 0x50:
+                    return 35;  // CPU temp
+                // case W83791D_VIN0:
+                //     return W83791D_ENTITY_CPU;
                 case W83791D_VIN1:
                     return W83791D_ENTITY_SYSTEM;
 

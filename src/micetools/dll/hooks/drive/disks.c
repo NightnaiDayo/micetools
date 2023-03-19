@@ -128,6 +128,6 @@ physical_disk_t* PHYSICAL_DISKS[] = {
     &UPDATE_USB,
     &APM_HDD,
 
-    // &LOG_USB,
-    &ALPHA_DVD,
+    &LOG_USB,
+    // &ALPHA_DVD,
 };
