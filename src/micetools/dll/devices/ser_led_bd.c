@@ -192,7 +192,6 @@ void __stdcall led_overlay(unsigned int hookType, IDirect3DDevice9* dev) {
     // maimai is DX9, so no point handling anything else anyway
     if (hookType != UI_HOOK_DX9) return;
 
-    ShowCursor(true);
     D3DDEVICE_CREATION_PARAMETERS cparams;
     RECT rect;
 

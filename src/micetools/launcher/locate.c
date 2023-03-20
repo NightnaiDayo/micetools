@@ -6,6 +6,9 @@ const char* KNOWN_GAMES[] = {
     // Preferentially use a decrypted dump if present
     "maimai_dump_.exe",
 
+    // Specific games
+    "DOA5A.exe",
+
     // Generic
     "RingGame.exe",
 

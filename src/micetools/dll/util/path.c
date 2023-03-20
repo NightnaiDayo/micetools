@@ -1,7 +1,7 @@
 #include <Windows.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 BOOL PathEqual(LPCSTR path1, LPCSTR path2) {
     char buffer1[MAX_PATH];
@@ -20,4 +20,14 @@ BOOL PathPrefix(LPCSTR path, LPCSTR prefix) {
     GetFullPathNameA(prefix, _countof(buffer2), buffer2, NULL);
 
     return strstr(buffer1, buffer2) == buffer1;
+}
+
+static char WORKING_DIR[MAX_PATH + 1] = { 0 };
+char GetGamedataDrive(void) {
+    if (WORKING_DIR[0] == 0x00) GetCurrentDirectoryA(sizeof WORKING_DIR, WORKING_DIR);
+    return WORKING_DIR[0];
+}
+BOOL IsGamedataLocalPath(LPCSTR path) {
+    if (WORKING_DIR[0] == 0x00) GetCurrentDirectoryA(sizeof WORKING_DIR, WORKING_DIR);
+    return PathPrefix(path, WORKING_DIR);
 }

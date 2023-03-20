@@ -4,6 +4,7 @@
 #include "../../../lib/ami/amiMd5.h"
 #include "../../../micemaster/mxmEventLog.h"
 #include "../../../sysconf.h"
+#include "../../util/_util.h"
 #include "../files.h"
 
 /*
@@ -87,7 +88,7 @@ BOOL WriteFunc_Original0(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesTo
 }
 
 BOOL ReadFunc_Patch0(DWORD nOffset, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
-                        LPDWORD lpNumberOfBytesRead) {
+                     LPDWORD lpNumberOfBytesRead) {
     *lpNumberOfBytesRead = 0;
     if (!_PathFileExistsA(PATCH0_PATH)) {
         log_error(plfDrive, "Failed to open %s (does not exist)", PATCH0_PATH);
@@ -109,7 +110,7 @@ BOOL ReadFunc_Patch0(DWORD nOffset, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
     return ret;
 }
 BOOL WriteFunc_Patch0(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
-                         LPDWORD lpNumberOfBytesWritten) {
+                      LPDWORD lpNumberOfBytesWritten) {
     *lpNumberOfBytesWritten = 0;
 
     HANDLE hFile =
@@ -128,7 +129,7 @@ BOOL WriteFunc_Patch0(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesToWri
 }
 
 BOOL WriteFunc_OS(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
-                         LPDWORD lpNumberOfBytesWritten) {
+                  LPDWORD lpNumberOfBytesWritten) {
     *lpNumberOfBytesWritten = nNumberOfBytesToWrite;
     log_warning(plfDrive, "%d bytes write in OS at %08x", nNumberOfBytesToWrite, nOffset);
     return TRUE;
@@ -346,14 +347,6 @@ sbr_slot_t* get_sbr_slot(spd_slot_t slot) {
     }
 }
 
-inline char char_lower(char value) {
-    if ('A' <= value && value <= 'Z') return value - 'A' + 'a';
-    return value;
-}
-inline char char_upper(char value) {
-    if ('a' <= value && value <= 'z') return value - 'a' + 'A';
-    return value;
-}
 char matchWorkFilename[MAX_PATH + 1];
 inline static BOOL matchVolume(disk_volume_t* volume, LPCSTR lpRootPathName, DWORD match) {
     if (match & VOL_MATCH_GUID) {
@@ -675,9 +668,11 @@ BOOL q_drive_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytes
      * +512: Boot ID (128 sectors) [keychip.decrypt]
      */
 
-    // HANDLE hFile = _CreateFileA("\\\\.\\E:", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+    // HANDLE hFile = _CreateFileA("\\\\.\\E:", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+    // NULL,
     //                             OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    HANDLE hFile = _CreateFileA("H:\\Arcades\\Images\\ALLNet_Pras_Multi_Ver2\\DVR-0069A.iso", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+    HANDLE hFile = _CreateFileA("H:\\Arcades\\Images\\ALLNet_Pras_Multi_Ver2\\DVR-0069A.iso",
+                                GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
                                 OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile == INVALID_HANDLE_VALUE) {
         log_error(plfDrive, "Q:READ FAILED. FILE FALLBACK FAILED. %d", GetLastError());
@@ -731,8 +726,9 @@ void hook_drives() {
          NULL);
     hook("Kernel32.dll", "DeleteVolumeMountPointA", &FakeDeleteVolumeMountPointA, NULL);
     hook("Kernel32.dll", "SetVolumeMountPointA", &FakeSetVolumeMountPointA, NULL);
-    hook("Kernel32.dll", "GetDriveTypeA", &FakeGetDriveTypeA, NULL);
-    hook("Kernel32.dll", "GetDiskFreeSpaceExA", &FakeGetDiskFreeSpaceExA, (void**)&TrueGetDiskFreeSpaceExA);
+    hook("Kernel32.dll", "GetDriveTypeA", &FakeGetDriveTypeA, (void**)&TrueGetDriveTypeA);
+    hook("Kernel32.dll", "GetDiskFreeSpaceExA", &FakeGetDiskFreeSpaceExA,
+         (void**)&TrueGetDiskFreeSpaceExA);
 
     hook("Winmm.dll", "mciSendStringA", &Fake_mciSendStringA, NULL);
 

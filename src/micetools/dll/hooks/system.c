@@ -39,12 +39,6 @@ HCURSOR WINAPI FakeLoadCursorFromFileA(LPCSTR lpFileName) { return (HANDLE)1; }
 BOOL FakeSetSystemCursor(HCURSOR hcur, DWORD id) { return TRUE; }
 BOOL FakeDeleteObject(HGDIOBJ ho) { return TRUE; }
 
-LONG WINAPI FakeChangeDisplaySettingsA(DEVMODEA* lpDevMode, DWORD dwFlags) { return 0; }
-LONG WINAPI FakeChangeDisplaySettingsExA(LPCSTR lpszDeviceName, DEVMODEA* lpDevMode, HWND hwnd,
-                                         DWORD dwflags, LPVOID lParam) {
-    return 0;
-}
-
 FARPROC FakeGetProcAddress(HMODULE hModule, LPCSTR lpProcName) {
     log_trace(plfSystem, "GetProcAddress(%s)", lpProcName);
     return TrueGetProcAddress(hModule, lpProcName);
@@ -57,12 +51,12 @@ HMODULE FakeGetModuleHandleA(LPCSTR lpModuleName) {
 LONG WINAPI FakeRtlGetVersion(PRTL_OSVERSIONINFOW lpVersionInformation) {
     log_trace(plfSystem, "RtlGetVersion(%p)", lpVersionInformation);
 
-    if (lpVersionInformation->dwOSVersionInfoSize >= sizeof (OSVERSIONINFOW)) {
+    if (lpVersionInformation->dwOSVersionInfoSize >= sizeof(OSVERSIONINFOW)) {
         lpVersionInformation->dwMajorVersion = OS_VERSION.dwMajorVersion;
         lpVersionInformation->dwMinorVersion = OS_VERSION.dwMinorVersion;
         lpVersionInformation->dwBuildNumber = OS_VERSION.dwBuildNumber;
     }
-    if (lpVersionInformation->dwOSVersionInfoSize >= sizeof (OSVERSIONINFOEXW)) {
+    if (lpVersionInformation->dwOSVersionInfoSize >= sizeof(OSVERSIONINFOEXW)) {
         PRTL_OSVERSIONINFOEXW lpVersionInformationEx = (PRTL_OSVERSIONINFOEXW)lpVersionInformation;
         lpVersionInformationEx->wServicePackMajor = 3;
         lpVersionInformationEx->wServicePackMinor = 0;
@@ -77,9 +71,6 @@ void hook_system() {
     // hook("Kernel32.dll", "GetVersionExA", FakeGetVersionExA, NULL);
     // hook("Kernel32.dll", "GetProcAddress", FakeGetProcAddress, (void*)&TrueGetProcAddress);
     // hook("Kernel32.dll", "GetModuleHandleA", FakeGetModuleHandleA, (void*)&TrueGetModuleHandleA);
-
-    hook("User32.dll", "ChangeDisplaySettingsA", FakeChangeDisplaySettingsA, NULL);
-    hook("User32.dll", "ChangeDisplaySettingsExA", FakeChangeDisplaySettingsExA, NULL);
 
     // hook("ntdll.dll", "RtlGetVersion", FakeRtlGetVersion, NULL);
 

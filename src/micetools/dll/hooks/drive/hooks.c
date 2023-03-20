@@ -219,7 +219,8 @@ DWORD WINAPI FakeQueryDosDeviceA(LPCSTR lpDeviceName, LPSTR lpTargetPath, DWORD 
     return 0;
 }
 
-const wchar_t* DUMMY_USB_RM = L"STORAGE#RemovableMedia#0&75ad516&0&rm#{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}";
+const wchar_t* DUMMY_USB_RM =
+    L"STORAGE#RemovableMedia#0&75ad516&0&rm#{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}";
 DWORD WINAPI FakeQueryDosDeviceW(LPCWSTR lpDeviceName, LPWSTR lpTargetPath, DWORD ucchMax) {
     log_warning(plfDrive, "QueryDosDeviceW(%ls, -, %d)", lpDeviceName, ucchMax);
     if (lpDeviceName != NULL) {
@@ -286,10 +287,21 @@ MCIERROR WINAPI Fake_mciSendStringA(LPCTSTR lpszCommand, LPTSTR lpszReturnString
 }
 
 UINT WINAPI FakeGetDriveTypeA(LPCSTR lpRootPathName) {
+    log_trace(plfDrive, "GetDriveTypeA(%s)", lpRootPathName);
+
     disk_volume_t* volume = getVolumeByPath(lpRootPathName, VOL_MATCH_PATH | VOL_MATCH_DOS_DEVICE);
     if (volume == NULL) {
-        SetLastError(ERROR_FILE_NOT_FOUND);
-        return DRIVE_NO_ROOT_DIR;
+        // If we aren't faking this drive, check if we're allowing fall-through
+        // char gameDrive = char_lower(GetGamedataDrive());
+        // if (strlen(lpRootPathName) >= 2 && char_lower(lpRootPathName[0]) == gameDrive &&
+        //     lpRootPathName[1] == ':') {
+        //     return DRIVE_FIXED;
+        // }
+        // SetLastError(ERROR_FILE_NOT_FOUND);
+        // return DRIVE_NO_ROOT_DIR;
+
+        // We could do the above, but for now, we're just going to pass through to the real API.
+        return TrueGetDriveTypeA(lpRootPathName);
     }
 
     switch (volume->m_pDrive->m_DiskType) {

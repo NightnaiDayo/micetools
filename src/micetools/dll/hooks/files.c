@@ -1,5 +1,6 @@
 #define _MICE_FILES
 #include "files.h"
+#include "../util/_util.h"
 
 HANDLE open_hook(file_hook_t* file_hook) {
     open_hook_t* opened = (open_hook_t*)malloc(sizeof(open_hook_t));
@@ -116,19 +117,6 @@ file_hook_t* find_hook(LPCWSTR lpFileName) {
     return NULL;
 };
 
-char WORKING_DIR[MAX_PATH + 1] = { 0 };
-char get_gamedata_drive() {
-    if (WORKING_DIR[0] == 0x00) {
-        GetCurrentDirectoryA(sizeof WORKING_DIR, WORKING_DIR);
-    }
-    return WORKING_DIR[0];
-}
-
-inline char char_lower(char value) {
-    if ('A' <= value && value <= 'Z') return value - 'A' + 'a';
-    return value;
-}
-
 BOOL redirect_path(LPCSTR path, LPCSTR* redirected) {
     for (int i = 0; i < sizeof DRIVE_REDIRECT_TABLE / sizeof DRIVE_REDIRECT_TABLE[0]; i++) {
         drive_redirect_t row = DRIVE_REDIRECT_TABLE[i];
@@ -153,8 +141,7 @@ BOOL redirect_path(LPCSTR path, LPCSTR* redirected) {
     }
 
     // Don't redirect local paths
-    GetCurrentDirectoryA(sizeof WORKING_DIR, WORKING_DIR);
-    if (PathPrefix(path, WORKING_DIR)) return FALSE;
+    if (IsGamedataLocalPath(path)) return FALSE;
 
     if ((('a' <= path[0] && path[0] <= 'z') || ('A' <= path[0] && path[0] <= 'Z')) &&
         path[1] == ':' && (path[2] == '/' || path[2] == '\\')) {
@@ -425,10 +412,8 @@ DWORD WINAPI FakeGetFileAttributesW(LPCWSTR lpFileName) {
     return TrueGetFileAttributesW(lpFileName);
 }
 HANDLE WINAPI FakeFindFirstFileA(LPCSTR lpFileName, LPWIN32_FIND_DATA lpFindFileData) {
-    printf("FakeFindFirstFileA(%s)\n", lpFileName);
     LPCSTR redirected;
     if (redirect_path(lpFileName, &redirected)) {
-    printf("->FakeFindFirstFileA(%s)\n", redirected);
         return TrueFindFirstFileA(redirected, lpFindFileData);
     }
     return TrueFindFirstFileA(lpFileName, lpFindFileData);

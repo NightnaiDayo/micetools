@@ -179,11 +179,10 @@ void* open_mapped_file(LPCWSTR path, DWORD size, HANDLE* file, HANDLE* file_mapp
     if (mapping == NULL || GetLastError()) {
         log_error(plfMisc, "Failed to MapViewOfFileEx: %d", GetLastError());
         CloseHandle(*file);
-        CloseHandle(*file_mapping);
+    CloseHandle(*file_mapping);
         *file = INVALID_HANDLE_VALUE;
         *file_mapping = INVALID_HANDLE_VALUE;
         return NULL;
     }
     return mapping;
 }
-

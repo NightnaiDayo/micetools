@@ -71,6 +71,12 @@ extern void ImGui_ImplOpenGL3_RenderDrawData(ImDrawData* draw_data);
 // TODO: Implement log viewing
 extern CRITICAL_SECTION logger_lock;
 
+// Open flags
+static bool showFps = false;
+static bool showEeprom = false;
+static bool showSram = false;
+static bool showControl = false;
+
 void InitImGui(unsigned int hookType, IDirect3DDevice9* pDevice) {
     if (hookType == UI_HOOK_DX9) {
         D3DDEVICE_CREATION_PARAMETERS CP;
@@ -135,15 +141,16 @@ void hud_eeprom(ImGuiKey open_key) {
     static bool has_init = false;
     if (!has_init) {
         MemoryEditor_Init(&editor);
-        editor.Open = false;
+        showEeprom = false;
         has_init = true;
     }
-    if (igIsKeyPressed_Bool(open_key, false)) editor.Open = !editor.Open;
+    if (igIsKeyPressed_Bool(open_key, false)) showEeprom = !showEeprom;
 
     // TODO: Less hacky :)
     extern BYTE EEPROM_DATA[0x2000];
 
-    if (editor.Open)
+    editor.Open = showEeprom;
+    if (showEeprom)
         MemoryEditor_DrawWindow(&editor, "EEPROM Editor", EEPROM_DATA, sizeof EEPROM_DATA, 0x000);
 }
 void hud_sram(ImGuiKey open_key) {
@@ -151,15 +158,15 @@ void hud_sram(ImGuiKey open_key) {
     static bool has_init = false;
     if (!has_init) {
         MemoryEditor_Init(&editor);
-        editor.Open = false;
+        showSram = false;
         has_init = true;
     }
-    if (igIsKeyPressed_Bool(open_key, false)) editor.Open = !editor.Open;
+    if (igIsKeyPressed_Bool(open_key, false)) showSram = !showSram;
 
     // TODO: Less hacky :)
     extern LPBYTE SRAM_DATA;
-    if (editor.Open)
-        MemoryEditor_DrawWindow(&editor, "SRAM Editor", SRAM_DATA, 1024 * 1024, 0x0000);
+    editor.Open = showSram;
+    if (showSram) MemoryEditor_DrawWindow(&editor, "SRAM Editor", SRAM_DATA, 1024 * 1024, 0x0000);
 }
 
 void igHelpMarker(const char* text) {
@@ -892,21 +899,8 @@ void tab_main_keybinds() {
 }
 
 void hud_control(ImGuiKey open_key) {
-    static bool isOpen = false;
-    static bool oldCursor;
-    if (igIsKeyPressed_Bool(open_key, false)) {
-        isOpen = !isOpen;
-        if (isOpen) {
-            CURSORINFO ci;
-            GetCursorInfo(&ci);
-            oldCursor = !!(ci.flags & CURSOR_SHOWING);
-            ShowCursor(TRUE);
-        } else {
-            ShowCursor(oldCursor);
-        }
-    }
-
-    if (!isOpen) return;
+    if (igIsKeyPressed_Bool(open_key, false)) showControl = !showControl;
+    if (!showControl) return;
 
     igBegin("Micetools", NULL, 0);
     static bool haveFirstFrame = false;
@@ -940,12 +934,18 @@ void hud_control(ImGuiKey open_key) {
 }
 
 void __stdcall hud_gui(unsigned int hookType, IDirect3DDevice9* dev) {
-    ShowCursor(1);
+    static bool lastAnyOpen = false;
+    bool anyOpen = showControl || showEeprom || showSram;
+    if (anyOpen != lastAnyOpen) {
+        changeCursorState = anyOpen ? 1 : 0;
+        lastAnyOpen = anyOpen;
+    }
 
     static bool initialized = false;
     if (!initialized) {
         InitImGui(hookType, dev);
         initialized = true;
+        changeCursorState = 0;  // Hide cursor by default
     }
 
     if (hookType == UI_HOOK_DX9) {
@@ -958,7 +958,6 @@ void __stdcall hud_gui(unsigned int hookType, IDirect3DDevice9* dev) {
         ImGui_ImplGLUT_NewFrame();
     }
 
-    static bool showFps = false;
     if (igIsKeyPressed_Bool(ImGuiKey_F12, false)) showFps = !showFps;
     if (showFps) hud_fps();
 

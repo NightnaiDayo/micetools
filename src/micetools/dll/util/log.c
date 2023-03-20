@@ -222,7 +222,7 @@ void log_stack(PLOG_FACILITY facility) {
         SymGetSymFromAddr64(process, (ULONG64)stack.AddrPC.Offset, &displacement, symbol);
         UnDecorateSymbolName(symbol->Name, (PSTR)name, sizeof(name), UNDNAME_COMPLETE);
 
-        log_error(facility, "%02u called from 0x%08X STACK=0x%08X FRAME=0x%08X  %s\n", frame,
+        log_error(facility, "%02u called from 0x%08X STACK=0x%08X FRAME=0x%08X  %s", frame,
                   (ULONG64)stack.AddrPC.Offset, (ULONG64)stack.AddrStack.Offset,
                   (ULONG64)stack.AddrFrame.Offset, symbol->Name);
 

@@ -12,6 +12,8 @@ static HWND(WINAPI* TrueCreateWindowExW)(DWORD dwExStyle, LPCWSTR lpClassName, L
 static BOOL(WINAPI* TrueSetSystemCursor)(HCURSOR hcur, DWORD id);
 static IDirect3D9*(WINAPI* TrueDirect3DCreate9)(UINT SDKVersion);
 static int(WINAPI* TrueGetSystemMetrics)(int nIndex);
+HCURSOR(WINAPI* TrueSetCursor)(HCURSOR hCursor);
+#define _SetCursor (TrueSetCursor ? TrueSetCursor : SetCursor)
 
 static void (__stdcall* True_glutFullScreen)(void);
 static void (__stdcall* True_glutSwapBuffers)(void);
@@ -42,3 +44,4 @@ void hook_gui();
 void setup_hud_gui();
 
 extern HWND mainWindow;
+extern DWORD changeCursorState;

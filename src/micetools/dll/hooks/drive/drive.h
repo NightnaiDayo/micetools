@@ -87,6 +87,7 @@ BOOL WINAPI FakeSetVolumeMountPointW(LPCWSTR lpszVolumeMountPoint, LPCWSTR lpszV
 MCIERROR WINAPI Fake_mciSendStringA(LPCTSTR lpszCommand, LPTSTR lpszReturnString, UINT cchReturn,
                                     HANDLE hwndCallback);
 UINT WINAPI FakeGetDriveTypeA(LPCSTR lpRootPathName);
+UINT(WINAPI* TrueGetDriveTypeA)(LPCSTR lpRootPathName);
 BOOL WINAPI FakeGetDiskFreeSpaceExA(LPCSTR lpDirectoryName,
                                     PULARGE_INTEGER lpFreeBytesAvailableToCaller,
                                     PULARGE_INTEGER lpTotalNumberOfBytes,

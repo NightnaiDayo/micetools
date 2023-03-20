@@ -73,7 +73,8 @@ void mice_got_game_id(char game_id[4]) {
             memset(&jvsKeybindings[0].buttons[3 * 2], 0, 12 * 2);
             memset(&jvsKeybindings[0].invert[3 * 2], 0, 12 * 2);
 
-            jvsKeybindings[0].buttons[1 * 2] = VK_TAB;
+            jvsKeybindings[0].buttons[0 * 2] = VK_BACK;
+            jvsKeybindings[0].buttons[1 * 2] = VK_RETURN;
 
             jvsKeybindings[0].buttons[3 * 2] = VK_UP;
             jvsKeybindings[0].buttons[4 * 2] = VK_DOWN;

@@ -14,5 +14,5 @@ void hook_all() {
     if (MiceConfig.hooks.time) hook_time();
     if (MiceConfig.hooks.registry) hook_registry();
     if (MiceConfig.hooks.drives) hook_drives();
-    hook_system();
+    if (MiceConfig.hooks.system) hook_system();
 }

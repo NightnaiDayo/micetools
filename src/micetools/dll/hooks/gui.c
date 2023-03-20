@@ -128,9 +128,20 @@ void register_gui_hook(FnEndScene* end_scene) {
     *head = hook;
 }
 
+DWORD changeCursorState = (DWORD)-1;
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass,
                          DWORD_PTR dwRefData) {
     ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
+
+    if (changeCursorState == 1) {
+        while (ShowCursor(TRUE) < 0)
+            ;
+        changeCursorState = (DWORD)-1;
+    } else if (changeCursorState == 0) {
+        while (ShowCursor(FALSE) >= 0)
+            ;
+        changeCursorState = (DWORD)-1;
+    }
 
     return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
@@ -192,15 +203,15 @@ void SetupWindowPosition(LPRECT lpRect, DWORD dwStyle) {
     lpRect->top = y;
     lpRect->bottom = y + h;
 
-    // AdjustWindowRect(lpRect, dwStyle, FALSE);
+    AdjustWindowRect(lpRect, dwStyle, FALSE);
 }
 
 HWND WINAPI FakeCreateWindowExA(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName,
                                 DWORD dwStyle, int X, int Y, int nWidth, int nHeight,
                                 HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam) {
     // Pass-through for system stuff
-    if (lpWindowName == NULL || strcmp(lpWindowName, "OleMainThreadWndName") == 0 ||
-        strcmp(lpWindowName, "CicMarshalWnd") == 0) {
+    if (lpWindowName != NULL && (strcmp(lpWindowName, "OleMainThreadWndName") == 0 ||
+                                 strcmp(lpWindowName, "CicMarshalWnd") == 0)) {
         return TrueCreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth,
                                    nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
@@ -259,10 +270,10 @@ HRESULT STDMETHODCALLTYPE FakeCreateDevice(IDirect3D9* this, UINT Adapter, D3DDE
     } else if (pPresentationParameters->Windowed) {
         D3DDISPLAYMODE d3ddm;
         this->lpVtbl->GetAdapterDisplayMode(this, Adapter, &d3ddm);
-
         pPresentationParameters->Windowed = FALSE;
         pPresentationParameters->FullScreen_RefreshRateInHz = d3ddm.RefreshRate;
     }
+
     if (MiceConfig.window.borderless)
         UnFrameWindow(hFocusWindow);
     else
@@ -365,13 +376,28 @@ void __stdcall Fake_glutReshapeWindow(int width, int height) {
     // True_glutReshapeWindow(winRect.right - winRect.left, winRect.bottom - winRect.top);
 }
 
+LONG WINAPI FakeChangeDisplaySettingsA(DEVMODEA* lpDevMode, DWORD dwFlags) {
+    return DISP_CHANGE_SUCCESSFUL;
+}
+LONG WINAPI FakeChangeDisplaySettingsExA(LPCSTR lpszDeviceName, DEVMODEA* lpDevMode, HWND hwnd,
+                                         DWORD dwflags, LPVOID lParam) {
+    return DISP_CHANGE_SUCCESSFUL;
+}
+
+HCURSOR WINAPI FakeSetCursor(HCURSOR hCursor) { return NULL; }
+
 void hook_gui() {
     hook("User32.dll", "CreateWindowExA", FakeCreateWindowExA, (void**)&TrueCreateWindowExA);
     hook("User32.dll", "CreateWindowExW", FakeCreateWindowExW, (void**)&TrueCreateWindowExW);
+
     hook("User32.dll", "GetSystemMetrics", FakeGetSystemMetrics, (void**)&TrueGetSystemMetrics);
     hook("User32.dll", "ChangeDisplaySettingsExW", FakeChangeDisplaySettingsExW,
          (void**)&TrueChangeDisplaySettingsExW);
     hook("D3d9.dll", "Direct3DCreate9", FakeDirect3DCreate9, (void**)&TrueDirect3DCreate9);
+
+    hook("User32.dll", "ChangeDisplaySettingsA", FakeChangeDisplaySettingsA, NULL);
+    hook("User32.dll", "ChangeDisplaySettingsExA", FakeChangeDisplaySettingsExA, NULL);
+    hook("User32.dll", "SetCursor", FakeSetCursor, (void**)&TrueSetCursor);
 
     if (PathFileExistsA("FREEGLUT.DLL")) {
         // Hooked as a way to identify use of GLUT
