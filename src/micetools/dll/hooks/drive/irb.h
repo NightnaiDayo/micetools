@@ -2,6 +2,7 @@
 #include <Windows.h>
 
 // Lifted from Irb.h
+#pragma pack(push, 1)
 typedef struct _IDENTIFY_DEVICE_DATA {
     struct {
         USHORT Reserved1 : 1;
@@ -373,3 +374,4 @@ typedef struct _IDENTIFY_DEVICE_DATA {
     USHORT Signature : 8;
     USHORT CheckSum : 8;
 } IDENTIFY_DEVICE_DATA, *PIDENTIFY_DEVICE_DATA;
+#pragma pack(pop)

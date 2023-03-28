@@ -1,5 +1,6 @@
 #include "logging.h"
 
+#include "../../lib/mice/mice.h"
 #include "../util/_util.h"
 
 char* trim_string(char* string) {

@@ -152,27 +152,6 @@ void tea_hook_test(char* fmt, ...) {
     va_end(argp);
 }
 
-int mxkMain();
-int miceDummyMaster(unsigned short textPort, unsigned short binaryPort, bool global);
-int miceDummyInstaller(unsigned short textPort, unsigned short binaryPort, bool global);
-DWORD WINAPI MxkThreadProc(LPVOID lpParameter) {
-    mxkMain();
-    return 0;
-};
-DWORD WINAPI MdMasterThreadProc(LPVOID lpParameter) {
-    miceDummyMaster(40100, 40101, false);
-    return 0;
-};
-DWORD WINAPI MdInstallerThreadProc(LPVOID lpParameter) {
-    miceDummyInstaller(40102, 40103, false);
-    return 0;
-};
-void spawn_pcp_processes(void) {
-    // CreateThread(NULL, 0, MxkThreadProc, NULL, 0, NULL);
-    // CreateThread(NULL, 0, MdMasterThreadProc, NULL, 0, NULL);
-    // CreateThread(NULL, 0, MdInstallerThreadProc, NULL, 0, NULL);
-}
-
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
     if (ul_reason_for_call != DLL_PROCESS_ATTACH) return TRUE;
 
@@ -186,8 +165,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         CreateHook32((void*)(0x00407850), &tea_hook_test);
         // *((DWORD*)(0x00407850)) = (DWORD)(&logcb);
     }
-
-    spawn_pcp_processes();
 
     // if (wcscmp(exeName, L"RingGame.exe") == 0) {
     //     log_warning(plfBoot, "Bodge hook goo!");

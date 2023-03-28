@@ -10,10 +10,10 @@ BOOL WINAPI columba_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, 
                                     LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     switch (dwIoControlCode) {
         case IOCTL_COLUMBA_READ:
-            log_misc(plfColumba, "DeviceIoControl(<columba>, <read>, 0x%p, 0x%x, -, 0x%x, -, -)",
-                     lpInBuffer, nInBufferSize, nOutBufferSize);
+            log_trace(plfColumba, "DeviceIoControl(<columba>, <read>, 0x%p, 0x%x, -, 0x%x, -, -)",
+                      lpInBuffer, nInBufferSize, nOutBufferSize);
             AM_COLUMBA_REQUEST* request = (AM_COLUMBA_REQUEST*)lpInBuffer;
-            log_info(plfColumba, "Physical read: 0x%04x %ss at %08X", request->m_elementCount,
+            log_misc(plfColumba, "Physical read: 0x%04x %ss at %08X", request->m_elementCount,
                      request->m_elementSize == 1   ? "byte"
                      : request->m_elementSize == 2 ? "short"
                      : request->m_elementSize == 4 ? "long"

@@ -91,7 +91,7 @@ e_pcpa_t pcpaSetBinaryMode(pcpa_t* stream, binary_mode_t binary_mode);
 e_pcpa_t pcpaSetCallbackFunc(pcpa_t* stream, char* keyword, pcpa_callback* callback, void* data);
 e_pcpa_t pcpaSetCallbackFuncBuffer(pcpa_t* stream, pcpa_cb_table_t* callback_table, uint callbacks_max);
 e_pcpa_t pcpaSetRecvBinaryBuffer(pcpa_t* stream, unsigned char* recv_buffer, size_t len);
-e_pcpa_t pcpaSetSendBinaryBuffer(pcpa_t* stream, unsigned char* send_buffer, size_t len);
+e_pcpa_t pcpaSetSendBinaryBuffer(pcpa_t* stream, const unsigned char* send_buffer, size_t len);
 pcp_send_data_t* pcpaSetSendPacket(pcpa_t* stream, char* keyword, char* value);
 pcp_send_data_t *pcpaAddSendPacket(pcpa_t *stream, char *keyword, char *value);
 char* pcpaGetCommand(pcpa_t* pcpa, char* command);

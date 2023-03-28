@@ -25,7 +25,7 @@ pcpa_callback mxkPcpStatus;
 pcpa_callback mxkPcpDsCompute;
 pcpa_callback mxkPcpSsdProof;
 pcpa_callback mxkPcpSsdHostProof;
-pcpa_callback mkxPcpEncrypt;
+pcpa_callback mxkPcpEncrypt;
 pcpa_callback mxkPcpDecrypt;
 pcpa_callback mxkPcpSetIv;
 

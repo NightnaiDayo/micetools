@@ -49,7 +49,7 @@ e_pcpa_t _pcpaGetErrorFromPcpp(e_pcpp_t err) {
 
 void pcpaCloseBinary(pcpa_t *stream) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn't set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return;
     }
     stream->binary_mode = binary_mode_none;
@@ -59,7 +59,7 @@ void pcpaCloseBinary(pcpa_t *stream) {
 
 void pcpaClose(pcpa_t *stream) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return;
     }
     pcppClose(&stream->pcpp);
@@ -83,11 +83,11 @@ void pcpaClose(pcpa_t *stream) {
 
 e_pcpa_t pcpaInitStream(pcpa_t *stream) {
     if (LIBPCP_VERSION == NULL) {
-        PCP_LOG("error PCPA version isn\'t set\n");
+        amiDebugLog("error PCPA version isn't set");
         return e_pcpa_generic;
     }
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
 
@@ -119,11 +119,11 @@ e_pcpa_t pcpaInitStream(pcpa_t *stream) {
 e_pcpa_t pcpaOpenClient(pcpa_t *stream, char *ipAddr, ushort port, uint param_4,
                         timeout_t timeout) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
     if (ipAddr == 0) {
-        PCP_LOG("error PCPA IpAddr isn\'t set\n");
+        amiDebugLog("error PCPA IpAddr isn't set");
         return e_pcpa_param_invalid;
     }
 
@@ -141,7 +141,7 @@ e_pcpa_t pcpaOpenServerWithBinary(pcpa_t *stream, int open_mode, u_short port, u
     e_pcpa_t err;
 
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
 
@@ -149,29 +149,29 @@ e_pcpa_t pcpaOpenServerWithBinary(pcpa_t *stream, int open_mode, u_short port, u
         case 0:
             stream->err = err = _errP2A(pcppOpenServer(&stream->pcpp, 0, port, param_5));
             if (err != e_pcpa_ok) {
-                PCP_LOG("error pcppOpenServer\n");
+                amiDebugLog("error pcppOpenServer");
                 return err;
             }
             stream->err = err = _errP2A(pcppOpenBinaryServer(&stream->pcpp, 0, binary_port));
             if (err != e_pcpa_ok) {
-                PCP_LOG("error pcppOpenBinaryServer\n");
+                amiDebugLog("error pcppOpenBinaryServer");
                 return err;
             }
             break;
         case 1:
             stream->err = err = _errP2A(pcppOpenServer(&stream->pcpp, 1, port, param_5));
             if (err != e_pcpa_ok) {
-                PCP_LOG("error pcppOpenServer\n");
+                amiDebugLog("error pcppOpenServer");
                 return err;
             }
             stream->err = err = _errP2A(pcppOpenBinaryServer(&stream->pcpp, 1, binary_port));
             if (err != e_pcpa_ok) {
-                PCP_LOG("error pcppOpenBinaryServer\n");
+                amiDebugLog("error pcppOpenBinaryServer");
                 return err;
             }
             break;
         default:
-            PCP_LOG("error Open Mode isn\'t set\n");
+            amiDebugLog("error Open Mode isn't set");
             return stream->err = e_pcpa_generic;
     }
 
@@ -181,27 +181,27 @@ e_pcpa_t pcpaOpenServerWithBinary(pcpa_t *stream, int open_mode, u_short port, u
 
 e_pcpa_t pcpaSetCallbackFunc(pcpa_t *stream, char *keyword, pcpa_callback *callback, void *data) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
 
     if (keyword == NULL) {
-        PCP_LOG("error keyword isn\'t set\n");
+        amiDebugLog("error keyword isn't set");
         return e_pcpa_generic;
     }
 
     if (callback == NULL) {
-        PCP_LOG("error Callback func isn\'t set\n");
+        amiDebugLog("error Callback func isn't set");
         return e_pcpa_generic;
     }
 
     if (stream->callback_table == NULL) {
-        PCP_LOG("error Callback_table buffer isn\'t set\n");
+        amiDebugLog("error Callback_table buffer isn't set");
         return e_pcpa_cb_table_unset;
     }
 
     if (strnlen(keyword, PCP_KEYWORD_MAX + 1) > PCP_KEYWORD_MAX) {
-        PCP_LOG("error a keyword is too long\n");
+        amiDebugLog("error a keyword is too long");
         return e_pcpa_generic;
     }
 
@@ -219,7 +219,7 @@ e_pcpa_t pcpaSetCallbackFunc(pcpa_t *stream, char *keyword, pcpa_callback *callb
 e_pcpa_t pcpaSetCallbackFuncBuffer(pcpa_t *stream, pcpa_cb_table_t *callback_table,
                                    uint callbacks_max) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
 
@@ -234,7 +234,7 @@ e_pcpa_t pcpaSetCallbackFuncBuffer(pcpa_t *stream, pcpa_cb_table_t *callback_tab
 
 pcp_send_data_t *pcpaSetSendPacket(pcpa_t *stream, char *keyword, char *value) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return NULL;
     }
     return pcppSetSendPacket(&stream->send_data, keyword, value);
@@ -242,7 +242,7 @@ pcp_send_data_t *pcpaSetSendPacket(pcpa_t *stream, char *keyword, char *value) {
 
 char *pcpaGetCommand(pcpa_t *pcpa, char *command) {
     if (pcpa == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return NULL;
     }
 
@@ -266,7 +266,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
 
     local_14 = timeout_ms;
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
     amiTimerGet(&time_start);
@@ -408,7 +408,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                             return stream->err;
                         }
                     } else {
-                        PCP_LOG("error pcpaSendBinary\n");
+                        amiDebugLog("error pcpaSendBinary");
                     }
                 }
                 break;
@@ -443,7 +443,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                     stream->binary_mode = binary_mode_none;
                     stream->state = pcpa_state_none;
                     if (stream->err == e_pcpa_ok) goto LAB_00454a1a;
-                    PCP_LOG("error pcpaRecvBinary\n");
+                    amiDebugLog("error pcpaRecvBinary");
                 }
                 break;
             case 10:
@@ -452,7 +452,7 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
                     stream->before_cb(stream, stream->pcpp.sock.recv_buf);
 
                 if (stream->callback_table == NULL) {
-                    PCP_LOG("error Callback_table buffer isn\'t set\n");
+                    amiDebugLog("error Callback_table buffer isn't set");
 
                     stream->err = e_pcpa_cb_table_unset;
                     return stream->err;
@@ -526,11 +526,11 @@ LAB_00454d84:
 
 e_pcpa_t pcpaRecvBinary(pcpa_t *stream, uint something) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
     if (stream->recv_buffer == NULL) {
-        PCP_LOG("error Recv buffer isn\'t set\n");
+        amiDebugLog("error Recv buffer isn't set");
         pcpaCloseBinary(stream);
         pcpaClose(stream);
         return stream->err = e_pcpa_cb_table_full;
@@ -547,11 +547,11 @@ e_pcpa_t pcpaRecvBinary(pcpa_t *stream, uint something) {
 
 e_pcpa_t pcpaSendBinary(pcpa_t *stream, uint param_2) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
     if (stream->send_buffer == NULL) {
-        PCP_LOG("error Send buffer isn\'t set\n");
+        amiDebugLog("error Send buffer isn't set");
         stream->err = e_pcpa_cb_table_full;
         pcpaCloseBinary(stream);
         pcpaClose(stream);
@@ -567,13 +567,13 @@ e_pcpa_t pcpaSendBinary(pcpa_t *stream, uint param_2) {
     return err;
 }
 
-e_pcpa_t pcpaSetSendBinaryBuffer(pcpa_t *stream, unsigned char *send_buffer, size_t len) {
+e_pcpa_t pcpaSetSendBinaryBuffer(pcpa_t *stream, const unsigned char *send_buffer, size_t len) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
     if (send_buffer == NULL) {
-        PCP_LOG("error Send Buffer isn\'t set\n");
+        amiDebugLog("error Send Buffer isn't set");
         return e_pcpa_timeout_closed;
     }
     stream->send_buffer = send_buffer;
@@ -584,11 +584,11 @@ e_pcpa_t pcpaSetSendBinaryBuffer(pcpa_t *stream, unsigned char *send_buffer, siz
 
 e_pcpa_t pcpaSetBeforeBinaryModeCallBackFunc(pcpa_t *stream, pcpa_callback *callback, void *data) {
     if (stream == NULL) {
-        PCP_LOG("error don\'t set stream\n");
+        amiDebugLog("error don't set stream");
         return e_pcpa_stream_unset;
     }
     if (callback == NULL) {
-        PCP_LOG("error Binary mode callback func isn\'t set\n");
+        amiDebugLog("error Binary mode callback func isn't set");
         return e_pcpa_generic;
     }
     stream->binary_mode_before_cb = callback;
@@ -599,11 +599,11 @@ e_pcpa_t pcpaSetBeforeBinaryModeCallBackFunc(pcpa_t *stream, pcpa_callback *call
 
 e_pcpa_t pcpaSetAfterBinaryModeCallBackFunc(pcpa_t *stream, pcpa_callback *callback, void *data) {
     if (stream == NULL) {
-        PCP_LOG("error don\'t set stream\n");
+        amiDebugLog("error don't set stream");
         return e_pcpa_stream_unset;
     }
     if (callback == NULL) {
-        PCP_LOG("error Binary mode callback func isn\'t set\n");
+        amiDebugLog("error Binary mode callback func isn't set");
         return e_pcpa_generic;
     }
     stream->binary_mode_after_cb = callback;
@@ -614,7 +614,7 @@ e_pcpa_t pcpaSetAfterBinaryModeCallBackFunc(pcpa_t *stream, pcpa_callback *callb
 
 e_pcpa_t pcpaSetBinaryMode(pcpa_t *stream, binary_mode_t binary_mode) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
     if (pcppGetServerSocket(&stream->pcpp, 1) == HANDLE_INVAL) {
@@ -627,11 +627,11 @@ e_pcpa_t pcpaSetBinaryMode(pcpa_t *stream, binary_mode_t binary_mode) {
 
 e_pcpa_t pcpaSetRecvBinaryBuffer(pcpa_t *stream, unsigned char *recv_buffer, size_t len) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
     if (recv_buffer == NULL) {
-        PCP_LOG("error Recv Buffer isn\'t set\n");
+        amiDebugLog("error Recv Buffer isn't set");
         return e_pcpa_timeout_closed;
     }
     stream->recv_buffer = recv_buffer;
@@ -642,7 +642,7 @@ e_pcpa_t pcpaSetRecvBinaryBuffer(pcpa_t *stream, unsigned char *recv_buffer, siz
 
 pcp_send_data_t *pcpaAddSendPacket(pcpa_t *stream, char *keyword, char *value) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return NULL;
     }
     return pcppAddSendPacket(&stream->send_data, keyword, value);
@@ -650,7 +650,7 @@ pcp_send_data_t *pcpaAddSendPacket(pcpa_t *stream, char *keyword, char *value) {
 
 char *pcpaGetKeyword(pcpa_t *stream, uint keyword_num) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return NULL;
     }
     return pcppGetKeyword(&stream->recv_data, keyword_num);
@@ -661,7 +661,7 @@ e_pcpa_t pcpaIsBusy(pcpa_t *pcpa, timeout_t timeout) {
     amtime_t start;
 
     if (pcpa == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
 
@@ -723,7 +723,7 @@ e_pcpa_t pcpaIsBusy(pcpa_t *pcpa, timeout_t timeout) {
 
 e_pcpa_t pcpaSendRequest(pcpa_t *stream, timeout_t timeout) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
 
@@ -732,7 +732,7 @@ e_pcpa_t pcpaSendRequest(pcpa_t *stream, timeout_t timeout) {
         _pcpaGetErrorFromPcpp(pcppSendRequestTable(&stream->pcpp, &stream->send_data, timeout));
     stream->err = err;
     if (err != e_pcpa_to) {
-        if (err != e_pcpa_ok) PCP_LOG("Error : pcppSendRequestTable(%d)\n", err);
+        if (err != e_pcpa_ok) amiDebugLog("Error : pcppSendRequestTable(%d)", err);
         memset(&stream->send_data, 0, sizeof stream->send_data);
         stream->state = pcpa_state_none;
     }
@@ -741,7 +741,7 @@ e_pcpa_t pcpaSendRequest(pcpa_t *stream, timeout_t timeout) {
 
 e_pcpa_t pcpaRecvResponse(pcpa_t *stream, timeout_t timeout) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
 
@@ -750,7 +750,7 @@ e_pcpa_t pcpaRecvResponse(pcpa_t *stream, timeout_t timeout) {
         _pcpaGetErrorFromPcpp(pcppRecvResponse(&stream->pcpp, &stream->recv_data, timeout));
     stream->err = err;
     if (err != e_pcpa_to) {
-        if (err != e_pcpa_ok) PCP_LOG("Error : pcppRecvResponse(%d)\n", err);
+        if (err != e_pcpa_ok) amiDebugLog("Error : pcppRecvResponse(%d)", err);
         stream->state = pcpa_state_none;
     }
     return err;
@@ -758,7 +758,7 @@ e_pcpa_t pcpaRecvResponse(pcpa_t *stream, timeout_t timeout) {
 
 e_pcpa_t pcpaOpenBinaryClient(pcpa_t *stream, ushort port, timeout_t timeout) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
 
@@ -777,7 +777,7 @@ e_pcpa_t pcpaOpenBinaryClient(pcpa_t *stream, ushort port, timeout_t timeout) {
 
 e_pcpa_t pcpaAccessClient(pcpa_t *stream, timeout_t timeout) {
     if (stream == NULL) {
-        PCP_LOG("error PCPA stream isn\'t set\n");
+        amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
     }
 

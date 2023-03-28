@@ -6,6 +6,7 @@
 void install_led_bd();
 void install_touch_bd();
 void install_aime_bd();
+void install_servo_15069();
 
 smbus_callback_t smbus_N2_write;
 smbus_callback_t smbus_N2_read;

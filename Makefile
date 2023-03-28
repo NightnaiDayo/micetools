@@ -61,9 +61,11 @@ dist:
 	@copy /Y "$(BUILD_DIR)/src/micetools/util\exio_test.exe" "$(DIST_DIR)/util/exio_test.exe"
 	@copy /Y "$(BUILD_DIR)/src/micetools/util\dongleDecrypt.exe" "$(DIST_DIR)/util/dongleDecrypt.exe"
 	@copy /Y "$(BUILD_DIR)/src/micetools/util\testBin.exe" "$(DIST_DIR)/util/testBin.exe"
+	@copy /Y "$(BUILD_DIR)/src/micetools/util\micegbdisk.exe" "$(DIST_DIR)/util/micegbdisk.exe"
 
 	@copy /Y "$(BUILD_DIR)/src/micetools/system_dummy\dummymaster\dummymaster.exe" "$(DIST_DIR)/system_dummy/dummymaster.exe"
 	@copy /Y "$(BUILD_DIR)/src/micetools/system_dummy\dummyinstaller\dummyinstaller.exe" "$(DIST_DIR)/system_dummy/dummyinstaller.exe"
+	@copy /Y "$(BUILD_DIR)/src/micetools/system_dummy\dummykeychip\dummykeychip.exe" "$(DIST_DIR)/system_dummy/dummykeychip.exe"
 
 	@copy /Y "src/micetools/miceboot\TrueCrypt.cmd" "$(DIST_DIR)/Execute/TrueCrypt.cmd"
 

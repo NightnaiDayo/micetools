@@ -30,7 +30,7 @@ e_pcpt_t pcptInitStream(pcpt_t *sock) {
     SOCKET s;
 
     if (sock == NULL) {
-        PCP_LOG("error PCP stream isn\'t set\n");
+        amiDebugLog("error PCP stream isn't set");
         return e_pcpt_pointer_unset;
     }
 
@@ -61,7 +61,7 @@ e_pcpt_t pcptInitStream(pcpt_t *sock) {
 
 void pcptClose(pcpt_t *sock) {
     if (sock == NULL) {
-        PCP_LOG("error PCP stream isn\'t set\n");
+        amiDebugLog("error PCP stream isn't set");
         return;
     }
 
@@ -100,7 +100,7 @@ void pcptClose(pcpt_t *sock) {
 
 void pcptCloseDataSock(pcpt_t *sock) {
     if (sock == NULL) {
-        PCP_LOG("error PCP stream isn\'t set\n");
+        amiDebugLog("error PCP stream isn't set");
         return;
     }
     if (sock->field_0x58 != 0) {
@@ -118,7 +118,7 @@ void pcptCloseDataSock(pcpt_t *sock) {
 
 e_pcpt_t pcptAcceptServer(pcpt_t *stream, timeout_t timeout_ms) {
     if (stream == NULL) {
-        PCP_LOG("error PCP stream isn\'t set\n");
+        amiDebugLog("error PCP stream isn't set");
         return e_pcpt_pointer_unset;
     }
 
@@ -158,7 +158,7 @@ e_pcpt_t pcptCheckConnectAble(pcpt_t *stream, timeout_t timeout_ms) {
     amtime_t start;
 
     if (stream == NULL) {
-        PCP_LOG("error PCP stream isn\'t set\n");
+        amiDebugLog("error PCP stream isn't set");
         return e_pcpt_pointer_unset;
     }
     amiTimerGet(&start);
@@ -228,7 +228,7 @@ e_pcpt_t pcptCheckEvent(HANDLE event, timeout_t timeout_ms, SOCKET socket, uint 
     if (timeout_ms == TIMEOUT_NONE) wait_timeout = TIMEOUT_NONE;
 
     if (event == NULL) {
-        PCP_LOG("Error : EVENT HANDLE error\n");
+        amiDebugLog("Error : EVENT HANDLE error");
         return e_pcpt_pointer_unset;
     }
 
@@ -261,7 +261,7 @@ e_pcpt_t pcptCheckEvent(HANDLE event, timeout_t timeout_ms, SOCKET socket, uint 
 
 e_pcpt_t pcptOpenDataSockServer(pcpt_t *sock, timeout_t timeout_ms) {
     if (sock == NULL) {
-        PCP_LOG("error PCP stream isn\'t set\n");
+        amiDebugLog("error PCP stream isn't set");
         return e_pcpt_pointer_unset;
     }
     if (sock->open == PCPT_CONNECTED) return e_pcpt_already_open;
@@ -280,7 +280,7 @@ e_pcpt_t pcptOpenServer(pcpt_t *stream, int open_mode, ushort port) {
     e_pcpt_t err;
 
     if (stream == NULL) {
-        PCP_LOG("error PCP stream isn\'t set\n");
+        amiDebugLog("error PCP stream isn't set");
         return e_pcpt_pointer_unset;
     }
 
@@ -296,8 +296,10 @@ e_pcpt_t pcptOpenServer(pcpt_t *stream, int open_mode, ushort port) {
 
     if (s == SOCKET_INVAL) return stream->err = _errW2T(GetLastError());
 
-    uint reuseaddr = 1;
-    if (FAILED(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&reuseaddr, 4))) {
+    uint exclusiveAddr = 1;
+    // ! Note: The real libpcp uses SO_REUSEADDR here.
+    // ! We deviate from this, and instead use SO_EXCLUSIVEADDRUSE, as this is the correct flag.
+    if (FAILED(setsockopt(s, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (void *)&exclusiveAddr, 4))) {
         err = _errW2T(GetLastError());
         closesocket(stream->server_sock);
         stream->server_sock = SOCKET_INVAL;
@@ -349,7 +351,7 @@ e_pcpt_t pcptOpenClient(pcpt_t *stream, char *ipAddr, ushort port, timeout_t tim
 
     pcpt = stream;
     if ((stream == NULL) || (ipAddr == NULL)) {
-        PCP_LOG("error PCP stream isn\'t set\n");
+        amiDebugLog("error PCP stream isn't set");
         return e_pcpt_pointer_unset;
     }
     if (stream->client_sock != 0xffffffff) {
@@ -471,17 +473,17 @@ e_pcpt_t pcptRecv(pcpt_t *sock, unsigned char *recv_buf, size_t *recv_buf_len,
     amtime_t start;
 
     if (sock == NULL || recv_buf == NULL || recv_buf_len == NULL) {
-        PCP_LOG("error PCP stream isn\'t set\n");
+        amiDebugLog("error PCP stream isn't set");
         return e_pcpt_pointer_unset;
     }
 
     if (sock->open == PCPT_CLOSED) {
-        PCP_LOG("error PCP not open\n");
+        amiDebugLog("error PCP not open");
         return sock->err = e_pcpt_not_open;
     }
     // TODO: URGENT: Something in the FSM causes this condition to error out!
     if (sock->client_open != 0) {
-        PCP_LOG("error PCP already connected\n");
+        amiDebugLog("error PCP already connected");
         return sock->err = e_pcpt_already_connected;
     }
 
@@ -540,16 +542,16 @@ e_pcpt_t pcptSend(pcpt_t *sock, unsigned char *send_buf, size_t *send_len, uint 
     amtime_t start_time;
 
     if (sock == NULL || send_buf == NULL || send_len == NULL) {
-        PCP_LOG("error PCP stream isn\'t set\n");
+        amiDebugLog("error PCP stream isn't set");
         return e_pcpt_pointer_unset;
     }
 
     if (sock->open == PCPT_CLOSED) {
-        PCP_LOG("error PCP not open\n");
+        amiDebugLog("error PCP not open");
         return sock->err = e_pcpt_not_open;
     }
     if (sock->client_open != 0) {
-        PCP_LOG("error PCP already connected\n");
+        amiDebugLog("error PCP already connected");
         return sock->err = e_pcpt_already_connected;
     }
 
@@ -600,12 +602,12 @@ e_pcpt_t pcptSendAllMsg(pcpt_t *sock, timeout_t timeout_ms) {
     amtime_t start;
 
     if (sock == NULL) {
-        PCP_LOG("error PCP stream isn\'t set\n");
+        amiDebugLog("error PCP stream isn't set");
         return e_pcpt_pointer_unset;
     }
 
     if (sock->send_buf == NULL || sock->send_buf_count == NULL) {
-        PCP_LOG("error send buffer isn\'t set\n");
+        amiDebugLog("error send buffer isn't set");
         return e_pcpt_pointer_unset;
     }
 
@@ -662,7 +664,7 @@ e_pcpt_t pcptSendAllMsg(pcpt_t *sock, timeout_t timeout_ms) {
 
 void pcptSetConfig(pcpt_t *stream, uint config, uint value) {
     if (stream == NULL) {
-        PCP_LOG("error don\'t set stream\n");
+        amiDebugLog("error don't set stream");
         return;
     }
 
@@ -701,7 +703,7 @@ e_pcpt_t pcptIsBusy(pcpt_t *sock, timeout_t timeout_ms) {
 
     timeout_ms_00 = timeout_ms;
     if (sock == NULL) {
-        PCP_LOG("error PCP stream isn\'t set\n");
+        amiDebugLog("error PCP stream isn't set");
         return e_pcpt_pointer_unset;
     }
     switch (sock->client_open) {
@@ -872,7 +874,7 @@ e_pcpt_t pcptIsBusy(pcpt_t *sock, timeout_t timeout_ms) {
             sock->client_open = 0;
             if (eVar8 != e_pcpt_ok) goto LAB_0045997d;
             if (sock->recv_buf == NULL || sock->recv_buf_count == NULL) {
-                PCP_LOG("error Recv buffer isn\'t set\n");
+                amiDebugLog("error Recv buffer isn't set");
                 return sock->err = e_pcpt_recv_unset;
             }
             size_t received =

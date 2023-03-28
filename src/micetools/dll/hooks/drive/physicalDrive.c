@@ -36,8 +36,8 @@ BOOL WINAPI pd_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOI
             }
 
             /**
-             * C1: Seen by mxkeychip
-             * C2: Seen by factorytest
+             * C1: ssd.hostproof; Used by mxkeychip
+             * C2: ssh.proof; Used by mxkeychip and factorytest
              */
 
             if (command != 0xC1 && command != 0xC2) {

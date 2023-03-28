@@ -43,7 +43,7 @@ BOOL WINAPI FakeSetupDiEnumDeviceInterfaces(HDEVINFO DeviceInfoSet, PSP_DEVINFO_
     if (DeviceInterfaceData) {
         while (device != NULL) {
             if (device->handle == DeviceInfoSet) {
-                log_info(plfSetupAPI, "hooking fake device: %ls", device->path);
+                log_misc(plfSetupAPI, "hooking fake device: %ls", device->path);
                 memcpy(&DeviceInterfaceData->InterfaceClassGuid, device->guid, sizeof *device->guid);
                 DeviceInterfaceData->Flags = SPINT_ACTIVE;
                 DeviceInterfaceData->Reserved = (ULONG_PTR)device->path;
@@ -68,7 +68,7 @@ BOOL WINAPI FakeSetupDiGetDeviceInterfaceDetailA(HDEVINFO DeviceInfoSet, PSP_DEV
     FAKE_DEVICE* device = fake_devices;
     while (device != NULL) {
         if (device->handle == DeviceInfoSet && (ULONG_PTR)device->path == DeviceInterfaceData->Reserved) {
-            log_info(plfSetupAPI, "Intercepted SetupDiGetDeviceInterfaceDetailA");
+            log_misc(plfSetupAPI, "Intercepted SetupDiGetDeviceInterfaceDetailA");
 
             const WCHAR* res = (WCHAR*)DeviceInterfaceData->Reserved;
             int new_len = (wcslen(res) + 1) * (sizeof *res);

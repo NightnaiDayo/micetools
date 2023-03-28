@@ -71,3 +71,13 @@ executable(
         'test.c',
     ],
 )
+executable(
+    'micegbdisk',
+    win_subsystem: subsystem,
+    sources: [
+        'micegbdisk.c',
+    ],
+    link_with: [
+        amiDebug,
+    ],
+)

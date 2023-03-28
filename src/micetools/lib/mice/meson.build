@@ -2,6 +2,7 @@ mice_lib = static_library(
     'mice',
     sources: [
         'exe.c',
+        'log.c',
         'patch.c',
         'ringbuf.c',
         'config.c',

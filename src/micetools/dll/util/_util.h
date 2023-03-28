@@ -1,7 +1,6 @@
 #pragma once
 
 #include "hook.h"
-#include "log.h"
 
 #define HDATA_FILE 0
 #define HDATA_FIND_VOLUME 1

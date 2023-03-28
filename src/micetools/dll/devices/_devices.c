@@ -63,6 +63,7 @@ void install_devices() {
     install_led_bd();
     install_touch_bd();
     install_aime_bd();
+    install_servo_15069();
 
     start_devices();
 

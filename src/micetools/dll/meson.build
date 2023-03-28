@@ -9,7 +9,6 @@ shared_library(
     vs_module_defs: 'mice.def',
     sources: [
         'util/misc.c',
-        'util/log.c',
         'util/hook.c',
         'util/path.c',
 
@@ -29,11 +28,7 @@ shared_library(
         amiTimer,
         amiMd5,
         mxk,
-
-        # Madoka service emulation
         mxklib,
-        dummymaster,
-        dummyinstaller,
     ],
     include_directories: [
         openssl_inc,

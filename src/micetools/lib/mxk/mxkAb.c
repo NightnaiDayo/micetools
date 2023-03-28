@@ -103,7 +103,7 @@ MXK_STATUS mxkAbGameId(MXK_CACHE cache, char* gameId, unsigned char* err) {
         AppBoot.m_cacheDirty = true;
     }
 
-    MXK_STATUS status;
+    MXK_STATUS status = MXK_STATUS_ERROR;
     if (!AppBoot.m_useFlash) {
         // if (HAS_N2 == true) {
         //     status = mxkGetKeychipIdFromN2();

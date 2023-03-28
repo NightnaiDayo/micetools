@@ -29,6 +29,7 @@ _LF(Devices, PCA9535, "pca9535")
 _LF(Devices, Eeprom, "eeprom")
 _LF(Devices, MaiTouch, "maitouch")
 _LF(Devices, MaiLED, "mailed")
+_LF(Devices, Servo15069, "servo15069")
 
 _LF(Drivers, Columba, "columba")
 _LF(Drivers, MxJvs, "mxjvs")

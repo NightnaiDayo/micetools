@@ -4,8 +4,8 @@ link_with = [inih.get_variable('lib_inih'), libpcp]
 
 rc = import('windows').compile_resources('micekeychip.rc', depend_files: micekeychip_ico)
 sources = [
-    'main.c',
     'mxk.c',
+    'config.c',
     'callbacks/appboot.c',
     'callbacks/billing.c',
     'callbacks/crypto.c',
@@ -22,7 +22,7 @@ mxk = static_library(
 executable(
     'micekeychip',
     win_subsystem: subsystem,
-    sources: sources,
+    sources: sources + ['main.c'],
     link_with: link_with,
     dependencies: dependencies,
 )

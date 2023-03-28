@@ -19,5 +19,6 @@ libpcp = static_library(
     ],
     link_with: [
         amiTimer,
+        amiDebug,
     ],
 )

@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "log.h"
+#include "../../lib/mice/mice.h"
 
 function_hook_t* hook_list = NULL;
 
@@ -104,19 +104,19 @@ void* CreateHook32(PVOID src, PVOID dst) {
         // push 0x...       (dword)
         len = 5;
     } else if (bSrc[0] == 0x55 && bSrc[1] == 0x8B && bSrc[2] == 0xEC && bSrc[3] == 0x83 &&
-                         bSrc[4] == 0xE4) {
+               bSrc[4] == 0xE4) {
         // pusb ebp
         // mov ebp,esp
         // and esp,ffffff**
         len = 6;
     } else if (bSrc[0] == 0x55 && bSrc[1] == 0x8B && bSrc[2] == 0xEC && bSrc[3] == 0x8b &&
-                         bSrc[4] == 0x45) {
+               bSrc[4] == 0x45) {
         // pusb ebp
         // mov ebp,esp
         // mov eax,DWORD PTR [...]
         len = 6;
     } else if (bSrc[0] == 0x55 && bSrc[1] == 0x8B && bSrc[2] == 0xEC && bSrc[3] == 0x80 &&
-                         bSrc[4] == 0x3D) {
+               bSrc[4] == 0x3D) {
         // pusb ebp
         // mov ebp,esp
         // cmd BYTE PTR ds:0x...,0x...
@@ -169,8 +169,7 @@ void setup_hooks() {
         //     (TrueGetProcAddress ? TrueGetProcAddress : GetProcAddress)(dll, hook->name);
         void* original = GetProcAddress(dll, hook->name);
         if (original == NULL) {
-            log_warning(plfHooks, "failed to get original %s (%03x)", hook->name,
-                        GetLastError());
+            log_warning(plfHooks, "failed to get original %s (%03x)", hook->name, GetLastError());
         } else {
             void* gateway = CreateHook32(original, hook->patch);
             if (hook->store != NULL) *hook->store = gateway;

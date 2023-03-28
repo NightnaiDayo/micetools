@@ -91,8 +91,18 @@ void mice_got_game_id(char game_id[4]) {
             // 2P is unbound by default, as a (nice) keymap with both
             // will probably also involve changing 1P too.
         }
+    } else if (IS_GAME(SBVH /* Sega & Sonic All-Stars Racing Arcade */)) {
+        log_info(plfBoot, "Detect game Sega & Sonic All-Stars Racing Arcade");
+
+        MiceConfig.devices.com1 = "servo_15069";
+        MiceConfig.devices.com2 = "";
+        MiceConfig.devices.com3 = "";
+        MiceConfig.devices.com5 = "";
+        MiceConfig.devices.com6 = "";
+        MiceConfig.devices.com7 = "";
+        MiceConfig.devices.com8 = "";
     } else {
-        log_warning(plfBoot, "Unknown game ID: %.4s", game_id);
+        if (game_id[0] != '\0') return log_warning(plfBoot, "Unknown game ID: %.4s", game_id);
         return;
     }
 

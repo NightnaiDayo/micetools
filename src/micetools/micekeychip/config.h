@@ -12,3 +12,6 @@ typedef struct config {
 } config_t;
 
 extern config_t Config;
+
+void mxkMakeDefaultConfig();
+void mxkLoadConfig();

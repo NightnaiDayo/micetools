@@ -7,7 +7,7 @@ pcpa_cb_table_t CALLBACK_FUNCTION_BUFFER[40];
 byte BINARY_DATA[4096];
 size_t BINARY_DATA_LEN;
 
-void mxkBinaryCallback(pcpa_t* stream, void* data) {
+void mxkBinaryCallback(pcpa_t *stream, void *data) {
     pcpaSetSendBinaryBuffer(stream, BINARY_DATA, BINARY_DATA_LEN);
 }
 
@@ -24,11 +24,11 @@ int mxkInit() {
     return err;
 }
 
-void log_callback(struct pcpa* stream, void* data) {
-    FILE* log_file;
+void log_callback(struct pcpa *stream, void *data) {
+    FILE *log_file;
     fopen_s(&log_file, "pcp.log", "a");
     if (log_file != NULL) {
-        fprintf(log_file, "%s\n", (char*)data);
+        fprintf(log_file, "%s\n", (char *)data);
         fclose(log_file);
     }
 }
@@ -38,7 +38,7 @@ e_pcpa_t mxkPcpStreamInit() {
 
     err = pcpaInitStream(&PCP);
     if (err != e_pcpa_ok) {
-        printf("pcpaInitStream Error. Code:%d\n", err);
+        amiDebugLog("pcpaInitStream Error. Code:%d", err);
         return err;
     }
     PCP.before_cb = log_callback;
@@ -47,7 +47,7 @@ e_pcpa_t mxkPcpStreamInit() {
         &PCP, CALLBACK_FUNCTION_BUFFER,
         (sizeof CALLBACK_FUNCTION_BUFFER) / (sizeof CALLBACK_FUNCTION_BUFFER[0]));
     if (err != e_pcpa_ok) {
-        printf("pcpaSetCallBackFuncBuffer Error. Code:%d\n", err);
+        amiDebugLog("pcpaSetCallBackFuncBuffer Error. Code:%d", err);
         return err;
     }
 
@@ -58,7 +58,7 @@ e_pcpa_t mxkPcpStreamInit() {
     pcpaSetCallbackFunc(&PCP, DS_COMPUTE, mxkPcpDsCompute, NULL);
     pcpaSetCallbackFunc(&PCP, SSD_PROOF, mxkPcpSsdProof, NULL);
     pcpaSetCallbackFunc(&PCP, SSD_HOSTPROOF, mxkPcpSsdHostProof, NULL);
-    pcpaSetCallbackFunc(&PCP, KC_ENCRYPT, mkxPcpEncrypt, NULL);
+    pcpaSetCallbackFunc(&PCP, KC_ENCRYPT, mxkPcpEncrypt, NULL);
     pcpaSetCallbackFunc(&PCP, KC_DECRYPT, mxkPcpDecrypt, NULL);
     pcpaSetCallbackFunc(&PCP, KC_SETIV, mxkPcpSetIv, NULL);
     // Appboot
@@ -100,12 +100,12 @@ e_pcpa_t mxkPcpStreamInit() {
 
     long text_port = Config.pcp_control_port;
     if (text_port > 0xffff) {
-        puts("PCP control port invalid");
+        amiDebugLog("PCP control port invalid");
         exit(-1);
     }
     long binary_port = Config.pcp_binary_port;
     if (binary_port > 0xffff) {
-        puts("PCP binary port invalid");
+        amiDebugLog("PCP binary port invalid");
         exit(-1);
     }
     int open_mode = Config.pcp_bind_global ? OPEN_MODE_GLOBAL : OPEN_MODE_LOCAL;
@@ -113,13 +113,13 @@ e_pcpa_t mxkPcpStreamInit() {
     err =
         pcpaOpenServerWithBinary(&PCP, open_mode, text_port & 0xffff, binary_port & 0xffff, 300000);
     if (err != e_pcpa_ok && err != e_pcpa_to) {
-        printf("pcpaOpenServerWithBinary Error. Code %d\n", err);
+        amiDebugLog("pcpaOpenServerWithBinary Error. Code %d", err);
         return e_pcpa_not_open;
     }
     if (open_mode == OPEN_MODE_GLOBAL)
-        printf("Listening on 0.0.0.0:%d (:%d)\n", text_port & 0xffff, binary_port & 0xffff);
+        amiDebugLog("Listening on 0.0.0.0:%d (:%d)", text_port & 0xffff, binary_port & 0xffff);
     else
-        printf("Listening on 127.0.0.1:%d (:%d)\n", text_port & 0xffff, binary_port & 0xffff);
+        amiDebugLog("Listening on 127.0.0.1:%d (:%d)", text_port & 0xffff, binary_port & 0xffff);
     return e_pcpa_ok;
 }
 
@@ -147,7 +147,7 @@ e_pcpa_t mxkPcpServer() {
         if (err == e_pcpa_to || err == e_pcpa_closed) err = e_pcpa_ok;
 
         if (err) {
-            printf("Error pcpaServer. Code %d\n", err);
+            amiDebugLog("Error pcpaServer. Code %d", err);
             pcpaClose(&PCP);
             SERVER_STATE = 1;
         }
@@ -160,4 +160,23 @@ e_pcpa_t mxkPcpServer() {
 #endif
 
     return err;
+}
+
+int mxkMain(void) {
+    DWORD dwAttrib = GetFileAttributes(CONFIG_PATH);
+    if (dwAttrib == INVALID_FILE_ATTRIBUTES || (dwAttrib & FILE_ATTRIBUTE_DIRECTORY))
+        mxkMakeDefaultConfig();
+
+    mxkLoadConfig();
+
+    int err = mxkInit();
+    if (err != 0) {
+        amiDebugLog("Error mxkInit. Code %d", err);
+        return -1;
+    }
+
+    while (1) {
+        err = mxkPcpServer();
+        if (err != e_pcpp_ok) amiDebugLog("Server tick: %d", err);
+    }
 }

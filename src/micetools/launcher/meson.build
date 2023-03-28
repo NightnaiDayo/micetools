@@ -4,10 +4,18 @@ executable(
     win_subsystem: subsystem,
     sources: [
         'locate.c',
+        'spawn.c',
         'main.c',
         rc,
     ],
     link_with: [
         mice_lib,
+        mxklib,
+
+        # Madoka service emulation
+        mxk,
+        dummykeychip,
+        dummymaster,
+        dummyinstaller,
     ],
 )

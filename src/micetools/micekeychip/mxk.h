@@ -9,3 +9,4 @@ void mxkBinaryCallback(pcpa_t* stream, void* data);
 int mxkInit();
 e_pcpa_t mxkPcpStreamInit();
 e_pcpa_t mxkPcpServer();
+int mxkMain(void);

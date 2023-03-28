@@ -248,9 +248,13 @@ DWORD WINAPI FakeQueryDosDeviceW(LPCWSTR lpDeviceName, LPWSTR lpTargetPath, DWOR
         swprintf_s(lpTargetPath, ucchMax, L"\\Device\\%ls", volume->m_DeviceName);
         return ucchMax;
     } else {
+        // ! We cannot do this, because some programs lie in ucchMax!!
+        // ZeroMemory(lpTargetPath, ucchMax);
+
         // TODO: This, properly!!
-        ZeroMemory(lpTargetPath, ucchMax);
-        swprintf_s(lpTargetPath, ucchMax, DUMMY_USB_RM);
+        size_t nbytes = swprintf_s(lpTargetPath, ucchMax, DUMMY_USB_RM);
+        lpTargetPath[nbytes] = '\0';
+        lpTargetPath[nbytes + 1] = '\0';
     }
     return 0;
 }
@@ -292,14 +296,14 @@ UINT WINAPI FakeGetDriveTypeA(LPCSTR lpRootPathName) {
     disk_volume_t* volume = getVolumeByPath(lpRootPathName, VOL_MATCH_PATH | VOL_MATCH_DOS_DEVICE);
     if (volume == NULL) {
         // If we aren't faking this drive, check if we're allowing fall-through
-        // char gameDrive = char_lower(GetGamedataDrive());
-        // if (strlen(lpRootPathName) >= 2 && char_lower(lpRootPathName[0]) == gameDrive &&
-        //     lpRootPathName[1] == ':') {
-        //     return DRIVE_FIXED;
-        // }
+        char gameDrive = char_lower(GetGamedataDrive());
+        if (strlen(lpRootPathName) >= 2 && char_lower(lpRootPathName[0]) == gameDrive &&
+            lpRootPathName[1] == ':') {
+            return DRIVE_FIXED;
+        }
+
         // SetLastError(ERROR_FILE_NOT_FOUND);
         // return DRIVE_NO_ROOT_DIR;
-
         // We could do the above, but for now, we're just going to pass through to the real API.
         return TrueGetDriveTypeA(lpRootPathName);
     }

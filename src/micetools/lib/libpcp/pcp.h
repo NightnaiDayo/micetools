@@ -1,6 +1,5 @@
 #pragma once
 
-#define PCP_LOG(fmt, ...) printf("%s:%d:" fmt, __func__, __LINE__, ##__VA_ARGS__)
 #define ZERO(x) memset(&(x), 0, sizeof(x))
 #define ZERO_BUF(x) memset((x), 0, sizeof(*x))
 

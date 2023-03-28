@@ -55,7 +55,7 @@ e_pcpp_t _pcppGetErrorFromPcpt(int err) {
 
 bool pcppCheckPrompt(pcpp_t* stream) {
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return false;
     }
 
@@ -85,7 +85,7 @@ e_pcpp_t pcppCheckRecvMsg(char* recv_data, size_t buf_len, int param_3) {
     bool bVar1 = true;
 
     if (recv_data == NULL) {
-        PCP_LOG("pointer error\n");
+        amiDebugLog("pointer error");
         return e_pcpp_param_invalid;
     }
 
@@ -118,13 +118,13 @@ pcpp_char_type_t pcppCheckStr(char* recv_data, uint* found_at, int* is_qmark) {
     uint idx = 0;
 
     if (recv_data == NULL || is_qmark == NULL || found_at == NULL) {
-        PCP_LOG("pointer error\n");
+        amiDebugLog("pointer error");
         return pcpp_char_error;
     }
 
     *is_qmark = 0;
     if (*found_at == 0) {
-        PCP_LOG("stream exhausted\n");
+        amiDebugLog("stream exhausted");
         return pcpp_char_error;
     }
 
@@ -170,7 +170,7 @@ pcpp_char_type_t pcppCheckStr(char* recv_data, uint* found_at, int* is_qmark) {
 
 void pcppClose(pcpp_t* stream) {
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return;
     }
 
@@ -201,7 +201,7 @@ void pcppClose(pcpp_t* stream) {
 
 void pcppCloseBinary(pcpp_t* stream) {
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return;
     }
 
@@ -225,7 +225,7 @@ e_pcpp_t pcppGetBlockingTime(uint param_1, timeout_t timeout, pcpp_t* stream, in
     amtime_t local_8;
 
     if (stream == NULL || blocking_time == NULL) {
-        PCP_LOG("pointer error\n");
+        amiDebugLog("pointer error");
         return 0;
     }
 
@@ -261,7 +261,7 @@ e_pcpp_t pcppGetBlockingTime(uint param_1, timeout_t timeout, pcpp_t* stream, in
 
 char* pcppGetCommand(pcp_parse_data_t* recv_data, char* command) {
     if (recv_data == NULL || command == NULL) {
-        PCP_LOG("error Recv Data isn\'t set\n");
+        amiDebugLog("error Recv Data isn't set");
         return NULL;
     }
 
@@ -276,12 +276,12 @@ char* pcppGetCommand(pcp_parse_data_t* recv_data, char* command) {
 
 char* pcppGetKeyword(pcp_parse_data_t* recvData, uint keywordNum) {
     if (recvData == NULL) {
-        PCP_LOG("error Recv Data isn\'t set\n");
+        amiDebugLog("error Recv Data isn't set");
         return NULL;
     }
 
     if ((keywordNum >= PCP_CMDS_MAX) && (keywordNum > recvData->cmd_count)) {
-        PCP_LOG("error keywordNum over\n");
+        amiDebugLog("error keywordNum over");
         return NULL;
     }
     return recvData->strings + recvData->keywords[keywordNum];
@@ -289,7 +289,7 @@ char* pcppGetKeyword(pcp_parse_data_t* recvData, uint keywordNum) {
 
 SOCKET pcppGetServerSocket(pcpp_t* stream, int which) {
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return SOCKET_INVAL;
     }
 
@@ -305,7 +305,7 @@ SOCKET pcppGetServerSocket(pcpp_t* stream, int which) {
 
 e_pcpp_t pcppInitStream(pcpp_t* stream) {
     if (stream == NULL) {
-        PCP_LOG("error don\'t set stream\n");
+        amiDebugLog("error don't set stream");
         return e_pcpp_param_invalid;
     }
 
@@ -353,11 +353,11 @@ e_pcpp_t pcppOpenClient(pcpp_t* stream, char* ipAddr, ushort port, uint param_4,
     amtime_t now;
 
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
     if (ipAddr == NULL) {
-        PCP_LOG("error IpAddr isn\'t set\n");
+        amiDebugLog("error IpAddr isn't set");
         return e_pcpp_param_invalid;
     }
 
@@ -375,7 +375,7 @@ e_pcpp_t pcppOpenClient(pcpp_t* stream, char* ipAddr, ushort port, uint param_4,
             return e_pcpp_to;
         }
         stream->err = e_pcpp_no_server;
-        PCP_LOG("error Time out error\n");
+        amiDebugLog("error Time out error");
     }
     if (stream->err == 0) {
         amiTimerGet(&now);
@@ -398,13 +398,13 @@ e_pcpp_t pcppOpenClient(pcpp_t* stream, char* ipAddr, ushort port, uint param_4,
         pcptCloseDataSock(&stream->sock);
         pcppResetRead(stream);
         err = stream->err;
-        PCP_LOG("error pcppRecvPrompt error = %d\n", err);
+        amiDebugLog("error pcppRecvPrompt error = %d", err);
     } else {
         pcptCloseDataSock(&stream->sock);
         pcppResetRead(stream);
         stream->state = pcpp_state_none;
         err = stream->err;
-        PCP_LOG("error pcptOpenClient error = %d\n", err);
+        amiDebugLog("error pcptOpenClient error = %d", err);
     }
 LAB_00a16a90:
     return stream->err;
@@ -412,7 +412,7 @@ LAB_00a16a90:
 
 e_pcpp_t pcppOpenBinaryServer(pcpp_t* stream, int open_mode, ushort port) {
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
 
@@ -421,7 +421,7 @@ e_pcpp_t pcppOpenBinaryServer(pcpp_t* stream, int open_mode, ushort port) {
     stream->last_active = _amTimeMs(time);
     stream->state = pcpp_state_none;
     if (open_mode != 0 && open_mode != 1) {
-        PCP_LOG("error Open Mode isn\'t set\n");
+        amiDebugLog("error Open Mode isn't set");
         stream->state = pcpp_state_none;
         return stream->err = e_pcpp_param_invalid;
     }
@@ -429,7 +429,7 @@ e_pcpp_t pcppOpenBinaryServer(pcpp_t* stream, int open_mode, ushort port) {
     e_pcpp_t err = _errT2P(pcptOpenServer(&stream->data_sock, open_mode, port));
     stream->err = err;
     if (err != e_pcpp_ok) {
-        PCP_LOG("error pcptOpenBinaryServer\n");
+        amiDebugLog("error pcptOpenBinaryServer");
         return err;
     }
 
@@ -440,11 +440,11 @@ e_pcpp_t pcppOpenBinaryServer(pcpp_t* stream, int open_mode, ushort port) {
 
 e_pcpp_t pcppOpenBinaryClient(pcpp_t* stream, char* ipAddr, ushort port, timeout_t timeout) {
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
     if (ipAddr == NULL) {
-        PCP_LOG("error IpAddr isn\'t set\n");
+        amiDebugLog("error IpAddr isn't set");
         return e_pcpp_param_invalid;
     }
     stream->state = pcpp_state_open_binary;
@@ -478,12 +478,12 @@ e_pcpp_t pcppOpenBinaryClient(pcpp_t* stream, char* ipAddr, ushort port, timeout
 
 e_pcpp_t pcppOpenServer(pcpp_t* stream, int open_mode, u_short port, undefined4 param_4) {
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
     stream->field_0xb8 = param_4;
     if (open_mode != 0 && open_mode != 1) {
-        PCP_LOG("error Open Mode isn\'t set\n");
+        amiDebugLog("error Open Mode isn't set");
 
         stream->err = e_pcpp_param_invalid;
         stream->state = pcpp_state_none;
@@ -493,7 +493,7 @@ e_pcpp_t pcppOpenServer(pcpp_t* stream, int open_mode, u_short port, undefined4 
     e_pcpp_t err = _errT2P(pcptOpenServer(&stream->sock, open_mode, port));
     stream->err = err;
     if (err != e_pcpp_ok) {
-        PCP_LOG("error pcppOpenServer error = %d\n", err);
+        amiDebugLog("error pcppOpenServer error = %d", err);
         return err;
     }
     stream->open = 1;
@@ -506,7 +506,7 @@ e_pcpp_t pcppOpenServer(pcpp_t* stream, int open_mode, u_short port, undefined4 
 
 pcp_send_data_t* pcppSetSendPacket(pcp_send_data_t* send_data, char* keyword, char* value) {
     if (send_data == NULL || keyword == NULL) {
-        PCP_LOG("error Send Data isn\'t set\n");
+        amiDebugLog("error Send Data isn't set");
         return NULL;
     }
 
@@ -533,7 +533,7 @@ pcp_send_data_t* pcppSetSendPacket(pcp_send_data_t* send_data, char* keyword, ch
 
 uint pcppRecvCheck(char* buf, int* offset) {
     if (buf == NULL || offset == NULL) {
-        PCP_LOG("pointer error\n");
+        amiDebugLog("pointer error");
         return 1;
     }
 
@@ -591,11 +591,11 @@ uint pcppRecvCheck(char* buf, int* offset) {
 
 e_pcpp_t pcppSendResponseTable(pcpp_t* stream, pcp_send_data_t* data, timeout_t timeout_ms) {
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
     if (data == NULL) {
-        PCP_LOG("error Response buffer isn\'t set\n");
+        amiDebugLog("error Response buffer isn't set");
         return e_pcpp_param_invalid;
     }
 
@@ -610,16 +610,16 @@ e_pcpp_t pcppSendResponse(pcpp_t* stream, pcp_send_data_t* resp_buffer, size_t b
     amtime_t time;
 
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
     if (resp_buffer == NULL) {
-        PCP_LOG("error Response buffer isn\'t set\n");
+        amiDebugLog("error Response buffer isn't set");
         return e_pcpp_param_invalid;
     }
 
     if (buf_len > PCP_BUF_MAX - 1) {
-        PCP_LOG("error Response buffer over\n");
+        amiDebugLog("error Response buffer over");
         return stream->err = e_pcpp_param_invalid;
     }
 
@@ -629,7 +629,7 @@ e_pcpp_t pcppSendResponse(pcpp_t* stream, pcp_send_data_t* resp_buffer, size_t b
     if (err != e_pcpp_ok) {
         stream->state = pcpp_state_none;
         pcppResetRead(stream);
-        PCP_LOG("error Send message format error\n");
+        amiDebugLog("error Send message format error");
         printf("'%s'\n", resp_buffer->data);
         return stream->err;
     }
@@ -668,11 +668,11 @@ e_pcpp_t pcppRecvRequest(pcpp_t* stream, pcp_parse_data_t* recv_data, timeout_t 
     amtime_t now2;
 
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
     if (recv_data == NULL) {
-        PCP_LOG("error Request buffer isn\'t set\n");
+        amiDebugLog("error Request buffer isn't set");
         return stream->err = e_pcpp_param_invalid;
     }
 
@@ -727,7 +727,7 @@ e_pcpp_t pcppRecvRequestMain(pcpp_t* stream, bool* bReRecv, undefined4 timeout) 
     char* recv_data;
 
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
 
@@ -759,7 +759,7 @@ e_pcpp_t pcppSendPrompt(pcpp_t* stream, uint param_2, timeout_t timeout_ms) {
 
     bool has_timeout = false;
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
 
@@ -785,7 +785,7 @@ LAB_00456133:
         err = stream->open ? -12 : -6;
         pcptCloseDataSock(&stream->sock);
         pcppResetRead(stream);
-        if (stream->open == 0) PCP_LOG("Error : Time out error\n");
+        if (stream->open == 0) amiDebugLog("Error : Time out error");
     }
     amiTimerGet(&now);
     stream->last_active = _amTimeMs(now);
@@ -804,12 +804,12 @@ e_pcpp_t pcppRecvAllMsg(pcpp_t* stream, uint param_1, bool* bReRecv) {
 
     local_14 = param_1;
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
 
     if (bReRecv == NULL) {
-        PCP_LOG("error bReRecv isn\'t set\n");
+        amiDebugLog("error bReRecv isn't set");
         return e_pcpp_param_invalid;
     }
     *bReRecv = false;
@@ -864,17 +864,17 @@ e_pcpp_t pcppRecvAllMsg(pcpp_t* stream, uint param_1, bool* bReRecv) {
 
 pcp_parse_data_t* pcppChangeRequest(pcpp_t* stream, uint* lenout) {
     if (stream == NULL || lenout == NULL) {
-        PCP_LOG("pointer error\n");
+        amiDebugLog("pointer error");
         return NULL;
     }
 
     if (stream->recv_data_buffer == NULL) {
-        PCP_LOG("don\'t set recvData buffer\n");
+        amiDebugLog("don't set recvData buffer");
         return NULL;
     }
 
     if (stream->read_bytes_num > PCP_BUF_MAX) {
-        PCP_LOG("Buffer size error\n");
+        amiDebugLog("Buffer size error");
         return NULL;
     }
 
@@ -917,7 +917,7 @@ pcp_parse_data_t* pcppChangeRequest(pcpp_t* stream, uint* lenout) {
                 break;
             case PCP_CHAR_SEP:
                 if (stream->recv_data_buffer->cmd_count > PCP_CMDS_MAX) {
-                    PCP_LOG("Buffer size error\n");
+                    amiDebugLog("Buffer size error");
                     return NULL;
                 }
                 stream->recv_data_buffer->strings[string_idx] = PCP_CHAR_EOF;
@@ -927,7 +927,7 @@ pcp_parse_data_t* pcppChangeRequest(pcpp_t* stream, uint* lenout) {
                 break;
             case PCP_CHAR_EQU:
                 if (stream->recv_data_buffer->cmd_count > PCP_CMDS_MAX) {
-                    PCP_LOG("Buffer size error\n");
+                    amiDebugLog("Buffer size error");
                     return NULL;
                 }
                 stream->recv_data_buffer->strings[string_idx] = PCP_CHAR_EOF;
@@ -953,7 +953,7 @@ int pcppRecvPrompt(pcpp_t* stream, undefined4 param_2, int param_3) {
 
     uint local_c = param_3;
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
 
@@ -995,12 +995,12 @@ int pcppRecvPrompt(pcpp_t* stream, undefined4 param_2, int param_3) {
 
 e_pcpp_t pcppSendRequestMain(pcpp_t* stream, undefined4 param_2, timeout_t timeout_ms) {
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
 
     if (stream->resp_buffer == NULL) {
-        PCP_LOG("error Request buffer isn\'t set\n");
+        amiDebugLog("error Request buffer isn't set");
         return e_pcpp_param_invalid;
     }
 
@@ -1037,11 +1037,11 @@ e_pcpp_t pcppRecvBinary(pcpp_t* stream, unsigned char* recv_buf, size_t buf_len,
 
     recvb_local = param_4;
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
     if (recv_buf == NULL) {
-        PCP_LOG("error Recv Bninary Buffer isn\'t set\n");
+        amiDebugLog("error Recv Bninary Buffer isn't set");
         return e_pcpp_param_invalid;
     }
     stream->field_0x214 = 0;
@@ -1160,11 +1160,11 @@ e_pcpp_t pcppSendBinary(pcpp_t* stream, unsigned char* send_binary_buffer, size_
 
     local_14 = param_4;
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
     if (send_binary_buffer == NULL) {
-        PCP_LOG("error Send Bninary Buffer isn\'t set\n");
+        amiDebugLog("error Send Bninary Buffer isn't set");
         return stream->err = e_pcpp_param_invalid;
     }
     amiTimerGet(&local_8);
@@ -1266,7 +1266,7 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
     local_1c = 0;
     local_24 = 0;
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
     amiTimerGet(&local_18);
@@ -1511,7 +1511,7 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 }
                 stream->state = pcpp_state_none;
                 pcppResetRead(stream);
-                PCP_LOG("error Response format error\n");
+                amiDebugLog("error Response format error");
                 return stream->err;
             }
             if (iVar3 == 0) break;
@@ -1824,7 +1824,7 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 if (eVar7 != e_pcpp_ok) {
                     stream->state = pcpp_state_none;
                     pcppResetRead(stream);
-                    PCP_LOG("error Response format error\n");
+                    amiDebugLog("error Response format error");
                     return stream->err;
                 }
                 pcppChangeRequest(stream, &timeout);
@@ -1884,7 +1884,7 @@ int pcpp_something(amtime_t* time, timeout_t timeout, pcpp_t* stream, pcpt_t* so
 
 pcp_send_data_t* pcppAddSendPacket(pcp_send_data_t* send_data, char* keyword, char* value) {
     if (send_data == NULL || keyword == NULL) {
-        PCP_LOG("error Send Data isn\'t set\n");
+        amiDebugLog("error Send Data isn't set");
         return NULL;
     }
 
@@ -1913,12 +1913,12 @@ pcp_send_data_t* pcppAddSendPacket(pcp_send_data_t* send_data, char* keyword, ch
 
 e_pcpp_t pcppSendRequestTable(pcpp_t* stream, pcp_send_data_t* request_buffer, timeout_t timeout) {
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
 
     if (request_buffer == NULL) {
-        PCP_LOG("error Request buffer isn\'t set\n");
+        amiDebugLog("error Request buffer isn't set");
         return e_pcpp_param_invalid;
     }
 
@@ -1932,16 +1932,16 @@ e_pcpp_t pcppSendRequest(pcpp_t* stream, pcp_send_data_t* request_buffer, uint n
     amtime_t local_8;
 
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return e_pcpp_param_invalid;
     }
     if (request_buffer == NULL) {
-        PCP_LOG("error Request buffer isn\'t set\n");
+        amiDebugLog("error Request buffer isn't set");
         return e_pcpp_param_invalid;
     }
 
     if (0x100 < nbytes) {
-        PCP_LOG("error Request buffer over\n");
+        amiDebugLog("error Request buffer over");
         return (stream->err = e_pcpp_param_invalid);
     }
 
@@ -1951,7 +1951,7 @@ e_pcpp_t pcppSendRequest(pcpp_t* stream, pcp_send_data_t* request_buffer, uint n
     if (pcpp_err != e_pcpp_ok) {
         stream->state = pcpp_state_none;
         pcppResetRead(stream);
-        PCP_LOG("error Message format error\n");
+        amiDebugLog("error Message format error");
         return stream->err;
     }
 
@@ -1990,12 +1990,12 @@ e_pcpp_t pcppRecvResponse(pcpp_t* stream, pcp_parse_data_t* buffer, timeout_t ti
     amtime_t local_8;
 
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return -5;
     }
 
     if (buffer == NULL) {
-        PCP_LOG("error Response buffer isn\'t set\n");
+        amiDebugLog("error Response buffer isn't set");
         return -5;
     }
 
@@ -2038,7 +2038,7 @@ e_pcpp_t pcppRecvResponse(pcpp_t* stream, pcp_parse_data_t* buffer, timeout_t ti
     } else {
         stream->state = pcpp_state_none;
         pcppResetRead(stream);
-        PCP_LOG("error Response format error\n");
+        amiDebugLog("error Response format error");
         return stream->err;
     }
 
@@ -2047,7 +2047,7 @@ e_pcpp_t pcppRecvResponse(pcpp_t* stream, pcp_parse_data_t* buffer, timeout_t ti
 
 SOCKADDR* pcppGetSockAddr(pcpp_t* stream, bool is_data) {
     if (stream == NULL) {
-        PCP_LOG("error PCPP stream isn\'t set\n");
+        amiDebugLog("error PCPP stream isn't set");
         return NULL;
     }
 

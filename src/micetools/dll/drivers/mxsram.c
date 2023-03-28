@@ -70,7 +70,7 @@ BOOL WINAPI mxsram_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, L
 
     switch (dwIoControlCode) {
         case IOCTL_MXSRAM_PING:  // Get version
-            log_info(plfMxSram,
+            log_misc(plfMxSram,
                      "DeviceIoControl(<mxsram>, <ping>, 0x%p, 0x%x, -, 0x%x, "
                      "-, -)",
                      lpInBuffer, nInBufferSize, nOutBufferSize);
@@ -79,7 +79,7 @@ BOOL WINAPI mxsram_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, L
             if (lpBytesReturned) *lpBytesReturned = 4;
             break;
         case IOCTL_DISK_GET_DRIVE_GEOMETRY:
-            log_info(plfMxSram,
+            log_misc(plfMxSram,
                      "DeviceIoControl(<mxsram>, <get drive geom>, 0x%p, "
                      "0x%x, -, 0x%x, -, -)",
                      lpInBuffer, nInBufferSize, nOutBufferSize);
@@ -97,7 +97,7 @@ BOOL WINAPI mxsram_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, L
             log_error(plfMxSram, "Unhandled IOCTL_DISK_GET_LENGTH_INFO");
             return FALSE;
         case IOCTL_MXSRAM_GET_SECTOR_SIZE:
-            log_info(plfMxSram,
+            log_misc(plfMxSram,
                      "DeviceIoControl(<mxsram>, <get sector size>, 0x%p, "
                      "0x%x, -, 0x%x, -, -)",
                      lpInBuffer, nInBufferSize, nOutBufferSize);

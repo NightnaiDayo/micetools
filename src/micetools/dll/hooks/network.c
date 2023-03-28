@@ -3,8 +3,9 @@
 int WINAPI Fake_connect(SOCKET s, const SOCKADDR* name, int namelen) {
     ULONG addr = _byteswap_ulong(((SOCKADDR_IN*)name)->sin_addr.S_un.S_addr);
     USHORT port = _byteswap_ushort(((SOCKADDR_IN*)name)->sin_port);
-    // Poorly exclude nxauth. TODO: better
-    if (port != 40190) {
+    // Poorly exclude nxauth and mxgcatcher.
+    // TODO: better
+    if (port != 40190 && port != 40110) {
         log_info(plfNetwork, "connect(%hhu.%hhu.%hhu.%hhu:%hu)", (addr >> 24) & 0xff,
                  (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff, port);
     }
