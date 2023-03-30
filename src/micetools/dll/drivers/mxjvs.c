@@ -253,6 +253,16 @@ unsigned char jvs_exchange(jvs_board_t* board, unsigned char* inData, short inCo
                     // log_warning(plfMxJvs, "Unhandled GPIO write: *(%d) = %02x", i, gpio_value);
                 }
                 break;
+            case JVS_CMD_WRITE_GPIO2:
+            case JVS_CMD_WRITE_GPIO3:
+                jvs_write(JVS_REPORT_OK);
+                unsigned char gpioByteIndex;
+                unsigned char gpioByteData;
+                jvs_read(gpioByteIndex);
+                jvs_read(gpioByteData);
+                log_warning(plfMxJvs, "GPIO%d Unhandled: [%02x]=%02x",
+                            (cmd - JVS_CMD_WRITE_GPIO2) + 1, gpioByteIndex, gpioByteData);
+                break;
 
             case JVS_CMD_COIN_DECREASE:
                 jvs_write(JVS_REPORT_OK);
