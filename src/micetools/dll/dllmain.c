@@ -1,5 +1,6 @@
 #include <signal.h>
 
+#include "../lib/util/pid.h"
 #include "common.h"
 #include "devices/_devices.h"
 #include "drivers/mx.h"
@@ -112,7 +113,7 @@ void init_injection(HMODULE hModule) {
     load_mice_config();
 
     // We're in a new context now, so need to reconfigure
-    setup_logging(GetParentProcessId());
+    setup_logging();
     log_info(plfBoot, "Handover complete. Now executing within %ls", exeName);
 
     init_com_devices();

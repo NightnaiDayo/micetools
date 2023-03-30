@@ -73,8 +73,9 @@ bool inject_dll(HANDLE process, LPCSTR inject) {
     return remote_call(process, addr_LoadLibraryA, inject, &result);
 }
 
-HANDLE start_and_inject(HANDLE hJob, LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL debug_wait,
-                        DWORD delay, LPCSTR extra_injections, DWORD flags) {
+BOOL start_and_inject(HANDLE hJob, LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL debug_wait,
+                      DWORD delay, LPCSTR extra_injections, DWORD flags,
+                      LPPROCESS_INFORMATION lpProcessInformation) {
     STARTUPINFOA startupInfo;
     PROCESS_INFORMATION processInformation = { 0 };
 
@@ -143,7 +144,11 @@ HANDLE start_and_inject(HANDLE hJob, LPCSTR path, LPSTR cmdline, LPCSTR inject, 
         goto abort;
     }
 
-    return processInformation.hProcess;
+    if (lpProcessInformation) {
+        memcpy(lpProcessInformation, &processInformation, sizeof processInformation);
+    }
+
+    return TRUE;
 
 abort:
     if (processInformation.hProcess && processInformation.hProcess != INVALID_HANDLE_VALUE) {
@@ -158,5 +163,5 @@ abort:
             log_error(plfProcesses, "Fatal: CloseHandle(hThread) failed: %d", GetLastError());
     }
 
-    return INVALID_HANDLE_VALUE;
+    return FALSE;
 }

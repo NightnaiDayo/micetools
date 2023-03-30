@@ -1,7 +1,6 @@
 #define _WIN32_WINNT 0x0600
 #include <Windows.h>
 #include <dbghelp.h>
-#include <tlhelp32.h>
 
 #include "../hooks/files.h"
 
@@ -185,24 +184,4 @@ void* open_mapped_file(LPCWSTR path, DWORD size, HANDLE* file, HANDLE* file_mapp
         return NULL;
     }
     return mapping;
-}
-
-DWORD GetParentProcessIdFor(DWORD pid) {
-    HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    PROCESSENTRY32 pe = { 0 };
-    pe.dwSize = sizeof(PROCESSENTRY32);
-
-    if (Process32First(h, &pe)) {
-        do {
-            if (pe.th32ProcessID == pid) {
-                CloseHandle(h);
-                return pe.th32ParentProcessID;
-            }
-        } while (Process32Next(h, &pe));
-    }
-    CloseHandle(h);
-    return (DWORD)-1;
-}
-DWORD GetParentProcessId(void) {
-    return GetParentProcessIdFor(GetCurrentProcessId());
 }

@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "../lib/mice/mice.h"
+#include "../lib/util/pid.h"
 #include "locate.h"
 #include "spawn.h"
 
@@ -112,7 +113,7 @@ static DWORD WINAPI MiceMailslotWatcher(HANDLE* pSlot) {
         if (hLogFile != INVALID_HANDLE_VALUE) {
             // The only VT100 sequences being used are colours, so this lazy approach works
             BOOL inVt100 = FALSE;
-            for (int i = 0; i < nBytes; i++) {
+            for (unsigned int i = 0; i < nBytes; i++) {
                 if (readBuffer[i] == '\033') {
                     inVt100 = TRUE;
                     continue;
@@ -162,17 +163,16 @@ static int terminate(int err) {
     return err;
 }
 
-HANDLE hGameProc = INVALID_HANDLE_VALUE;
 HANDLE hJob = INVALID_HANDLE_VALUE;
 BOOL WINAPI MiceHandlerRoutine(DWORD CtrlType) {
     if (hJob != INVALID_HANDLE_VALUE) CloseHandle(hJob);
-    // if (hGameProc != INVALID_HANDLE_VALUE) TerminateProcess(hGameProc, 0);
+    ExitProcess(terminate(0));
 }
 
 int main(int argc, char* argv[]) {
     load_mice_config();
     if (!setup_mailslot()) return 1;
-    setup_logging(GetCurrentProcessId());
+    setup_logging();
 
     log_info(plfBoot, "Micetools version: %s", MICE_VERSION);
 
@@ -217,17 +217,18 @@ int main(int argc, char* argv[]) {
     SetInformationJobObject(hJob, JobObjectExtendedLimitInformation, &info, sizeof info);
 
     char* extra_injections = MiceConfig.launcher.inject;
-    hGameProc = start_and_inject(hJob, exe_name, commandline, micepath, debug_wait, boot_delay,
-                                 extra_injections, 0);
-    if (!hGameProc) return terminate(-1);
+    PROCESS_INFORMATION pi;
+    if (!start_and_inject(hJob, exe_name, commandline, micepath, debug_wait, boot_delay,
+                          extra_injections, 0, &pi))
+        return terminate(-1);
 
     SetConsoleCtrlHandler(MiceHandlerRoutine, TRUE);
 
-    if (FAILED(WaitForSingleObject(hGameProc, INFINITE))) {
+    if (FAILED(WaitForSingleObject(pi.hProcess, INFINITE))) {
         log_error(plfBoot, "Fatal: WaitForSingleObject failed: %03x", GetLastError());
     } else {
         log_info(plfBoot, "Shutting down");
-        CloseHandle(hGameProc);
+        CloseHandle(pi.hProcess);
     }
     return terminate(0);
 }

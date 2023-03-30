@@ -21,21 +21,8 @@ BOOL WINAPI FakeCreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine,
 
     log_info(plfProcesses, "CreateProcessA %s %s", lpApplicationName, lpCommandLine);
 
-    // return TrueCreateProcessA("mxAuthDisc.bat", "", lpProcessAttributes, lpThreadAttributes,
-    //                           bInheritHandles, dwCreationFlags, lpEnvironment,
-    //                           lpCurrentDirectory, lpStartupInfo, lpProcessInformation);
-
-    // HANDLE fake_evt = CreateEvent(NULL, TRUE, FALSE, NULL);
-    // SetEvent(fake_evt);
-
-    HANDLE hProcess = start_and_inject(INVALID_HANDLE_VALUE, lpApplicationName, lpCommandLine,
-                                       MICELIB, FALSE, 0, "", 0);
-
-    if (lpProcessInformation) {
-        lpProcessInformation->hProcess = hProcess;
-    }
-
-    return TRUE;
+    return start_and_inject(INVALID_HANDLE_VALUE, lpApplicationName, lpCommandLine,
+                                       MICELIB, FALSE, 0, NULL, 0, lpProcessInformation);
 }
 BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
                                LPSECURITY_ATTRIBUTES lpProcessAttributes,
@@ -53,62 +40,8 @@ BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
     LPSTR commandLine = malloc(nMultiChars);
     WideCharToMultiByte(CP_ACP, 0, lpCommandLine, -1, commandLine, nMultiChars, NULL, NULL);
 
-    // WideCharToMultiByte(CP_ACP, 0, lpApplicationName, -1, applicationName, sizeof
-    // applicationName,
-    //                     NULL, NULL);
-
-    // HANDLE child;
-    // CHAR commandLine[MAX_PATH + 1];
-    // WCHAR commandLineW[MAX_PATH + 1];
-    // WCHAR micePathW[MAX_PATH + 1];
-    // GetModuleFileNameW(NULL, micePathW, MAX_PATH);
-
-    // HANDLE fake_evt = CreateEvent(NULL, TRUE, FALSE, NULL);
-    // SetEvent(fake_evt);
-
-    // return TrueCreateProcessA(applicationName, commandLine, lpProcessAttributes, lpThreadAttributes,
-    //                           bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory,
-    //                           lpStartupInfo, lpProcessInformation);
-
-    HANDLE hProcess = start_and_inject(INVALID_HANDLE_VALUE, applicationName, commandLine, MICELIB,
-                                       TRUE, 0, NULL, 0);
-    if (lpProcessInformation) {
-        lpProcessInformation->hProcess = hProcess;
-        lpProcessInformation->hThread = GetDummyHandle();
-    }
-
-    log_game(plfProcesses, "hP: %08x", hProcess);
-
-    return TRUE;
-
-    // if (lpCommandLine != NULL) {
-    //     log_error(plfProcesses, "!!");
-    //     return FALSE;
-    //     // WideCharToMultiByte(CP_ACP, 0, lpCommandLine, -1, commandLine, sizeof commandLine,
-    //     NULL,
-    //     //                     NULL);
-    //     // child = start_and_inject(INVALID_HANDLE_VALUE, applicationName, commandLine, MICELIB,
-    //     // false, 0, NULL,
-    //     //                          CREATE_NEW_CONSOLE);
-    // } else {
-    //     dwCreationFlags |= CREATE_NEW_CONSOLE;
-    //     wsprintfW(commandLineW, L"mice -b %ls", lpApplicationName);
-    //     printf("%ls %ls\n", micePathW, commandLineW);
-    //     BOOL ret =
-    //         TrueCreateProcessW(L"mice.cmd", commandLineW, lpProcessAttributes,
-    //         lpThreadAttributes,
-    //                            bInheritHandles, dwCreationFlags, lpEnvironment,
-    //                            lpCurrentDirectory, lpStartupInfo, lpProcessInformation);
-    //     printf("%d\n", ret);
-    //     return ret;
-    //     // CHAR commandLine[]
-    //     // child =
-    //     //     start_and_inject(INVALID_HANDLE_VALUE, applicationName, NULL, MICELIB, false, 0,
-    //     //     NULL, CREATE_NEW_CONSOLE);
-    // }
-
-    // return !FAILED(child);
-    // // #endif
+    return start_and_inject(INVALID_HANDLE_VALUE, applicationName, commandLine, MICELIB,
+                                       FALSE, 0, NULL, 0, lpProcessInformation);
 }
 
 BOOL WINAPI FakeGetExitCodeProcess(HANDLE hProcess, LPDWORD lpExitCode) {

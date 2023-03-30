@@ -38,7 +38,7 @@ int vlog_game(PLOG_FACILITY facility, const char* format, va_list args);
 
 void log_stack(PLOG_FACILITY facility);
 
-void setup_logging(DWORD slotPid);
+void setup_logging();
 
 // Disable some logging entirely at build time for speed
 #define COMPILE_LOG_LEVEL 6

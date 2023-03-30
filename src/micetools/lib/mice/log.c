@@ -7,6 +7,7 @@
 #include <time.h>
 #pragma comment(lib, "DbgHelp.lib")
 
+#include "../util/pid.h"
 #include "config.h"
 
 #define _LF(category, name, display) \
@@ -86,7 +87,6 @@ int _do_log(BYTE log_level, PLOG_FACILITY facility, const char* format, va_list 
     // }
 
     char prefix = LOG_PREFIXES[log_level];
-
 
     int col_len = strlen(log_colours[log_level]);
 
@@ -168,9 +168,9 @@ int _log_game(PLOG_FACILITY facility, const char* format, ...) {
     return ret;
 }
 
-void setup_logging(DWORD slotPid) {
+void setup_logging() {
     char slotName[MAX_PATH + 1];
-    sprintf_s(slotName, MAX_PATH, "\\\\.\\mailslot\\micelog%d", slotPid);
+    sprintf_s(slotName, MAX_PATH, "\\\\.\\mailslot\\micelog%d", GetOutermostMiceId());
 
     hSlot = CreateFile(slotName, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING,
                        FILE_ATTRIBUTE_NORMAL, NULL);

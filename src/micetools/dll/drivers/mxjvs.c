@@ -453,7 +453,7 @@ DWORD __stdcall mxjvs_comdev_thread(com_device_t* com) {
             nbytes--;
         }
 
-        short packetSize = bufferPtr - inBuffer;
+        short packetSize = (bufferPtr - inBuffer) & 0xFFFF;
         mxjvs_handle(inBuffer, packetSize, outBuffer, _countof(outBuffer), &bytesReturned);
         com->modemStatus = !JVS_SENSE ? MS_DSR_ON : 0;
         comdev_write(com, outBuffer, bytesReturned & 0xFFFF);

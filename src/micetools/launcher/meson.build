@@ -11,6 +11,7 @@ executable(
     link_with: [
         mice_lib,
         mxklib,
+        util_lib,
 
         # Madoka service emulation
         mxk,
