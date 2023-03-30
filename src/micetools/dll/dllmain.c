@@ -112,7 +112,7 @@ void init_injection(HMODULE hModule) {
     load_mice_config();
 
     // We're in a new context now, so need to reconfigure
-    setup_logging();
+    setup_logging(GetParentProcessId());
     log_info(plfBoot, "Handover complete. Now executing within %ls", exeName);
 
     init_com_devices();

@@ -261,7 +261,7 @@ unsigned char jvs_exchange(jvs_board_t* board, unsigned char* inData, short inCo
                 jvs_read(gpioByteIndex);
                 jvs_read(gpioByteData);
                 log_warning(plfMxJvs, "GPIO%d Unhandled: [%02x]=%02x",
-                            (cmd - JVS_CMD_WRITE_GPIO2) + 1, gpioByteIndex, gpioByteData);
+                            (cmd - JVS_CMD_WRITE_GPIO2) + 2, gpioByteIndex, gpioByteData);
                 break;
 
             case JVS_CMD_COIN_DECREASE:

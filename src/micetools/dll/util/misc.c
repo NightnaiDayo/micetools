@@ -1,6 +1,7 @@
 #define _WIN32_WINNT 0x0600
 #include <Windows.h>
 #include <dbghelp.h>
+#include <tlhelp32.h>
 
 #include "../hooks/files.h"
 
@@ -156,15 +157,14 @@ void make_dirs(const char* path) {
 void* open_mapped_file(LPCWSTR path, DWORD size, HANDLE* file, HANDLE* file_mapping) {
     make_dirs(path);
     *file = _CreateFileW(path, GENERIC_READ | GENERIC_WRITE,
-                               FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
-                               OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_ALWAYS,
+                         FILE_ATTRIBUTE_NORMAL, NULL);
     if (*file == INVALID_HANDLE_VALUE) {
         log_error(plfMisc, "Failed to CreateFileW(%ls): %d", path, GetLastError());
         return NULL;
     }
 
-    *file_mapping =
-        CreateFileMappingW(*file, NULL, PAGE_READWRITE, 0, size, NULL);
+    *file_mapping = CreateFileMappingW(*file, NULL, PAGE_READWRITE, 0, size, NULL);
 
     if (*file_mapping == INVALID_HANDLE_VALUE) {
         CloseHandle(*file);
@@ -179,10 +179,30 @@ void* open_mapped_file(LPCWSTR path, DWORD size, HANDLE* file, HANDLE* file_mapp
     if (mapping == NULL || GetLastError()) {
         log_error(plfMisc, "Failed to MapViewOfFileEx: %d", GetLastError());
         CloseHandle(*file);
-    CloseHandle(*file_mapping);
+        CloseHandle(*file_mapping);
         *file = INVALID_HANDLE_VALUE;
         *file_mapping = INVALID_HANDLE_VALUE;
         return NULL;
     }
     return mapping;
+}
+
+DWORD GetParentProcessIdFor(DWORD pid) {
+    HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    PROCESSENTRY32 pe = { 0 };
+    pe.dwSize = sizeof(PROCESSENTRY32);
+
+    if (Process32First(h, &pe)) {
+        do {
+            if (pe.th32ProcessID == pid) {
+                CloseHandle(h);
+                return pe.th32ParentProcessID;
+            }
+        } while (Process32Next(h, &pe));
+    }
+    CloseHandle(h);
+    return (DWORD)-1;
+}
+DWORD GetParentProcessId(void) {
+    return GetParentProcessIdFor(GetCurrentProcessId());
 }

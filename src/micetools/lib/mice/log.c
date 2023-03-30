@@ -17,13 +17,13 @@
 #include "log_facilities.def"
 #undef _LF
 
+static BOOL logIsMaster = FALSE;
+
 extern WCHAR exeName[MAX_PATH + 1];
 extern DWORD imageOffset;
 
 extern BOOL(WINAPI* TrueWriteFile)(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
                                    LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped);
-
-BOOL HAS_COLOUR = FALSE;
 
 char _log_prelude[64];
 char* log_prelude() {
@@ -65,13 +65,12 @@ void __stdcall amLogCallback(DWORD level, char* format) {
 DWORD pLogcb;
 DWORD* ppLogcb;
 
+HANDLE hSlot;
+
 static char log_buf[1024];
 int _do_log(BYTE log_level, PLOG_FACILITY facility, const char* format, va_list args) {
     // Early-return if we have nothing to do
-    if (MiceConfig.mice.log_level < log_level &&
-        (!MiceConfig.mice.log_to_file || MiceConfig.mice.file_log_level < log_level)) {
-        return 0;
-    }
+    if (MiceConfig.mice.log_level < log_level) return 0;
 
     // TODO: These are all horrible bodges
     // if (wcscmp(exeName, L"mxnetwork.exe") == 0) {
@@ -88,30 +87,21 @@ int _do_log(BYTE log_level, PLOG_FACILITY facility, const char* format, va_list 
 
     char prefix = LOG_PREFIXES[log_level];
 
-    EnterCriticalSection(&logger_lock);
 
     int col_len = strlen(log_colours[log_level]);
 
+    EnterCriticalSection(&logger_lock);
     int log_len = snprintf(log_buf, _countof(log_buf), "%s%s%c:%s:", log_colours[log_level],
                            log_prelude(), prefix, facility->m_name);
     log_len += vsnprintf(log_buf + log_len, _countof(log_buf) - log_len, format, args);
     log_len += snprintf(log_buf + log_len, _countof(log_buf) - log_len, "%s\n", COLOR_RESET);
     log_buf[_countof(log_buf) - 1] = '\0';
 
-    if (MiceConfig.mice.log_level >= log_level) {
-        HANDLE sout = GetStdHandle(STD_OUTPUT_HANDLE);
-        WriteFile(sout, log_buf, log_len, NULL, NULL);
-        // FlushFileBuffers(sout);
-    }
-
-    if (MiceConfig.mice.log_to_file && MiceConfig.mice.file_log_level >= log_level) {
-        if (log_file && log_file != INVALID_HANDLE_VALUE) {
-            // Replace the colour reset with a newline, then skip the prefix when writing
-            log_buf[log_len - col_len] = '\n';
-            log_buf[log_len - col_len + 1] = '\0';
-            WriteFile(log_file, log_buf + col_len, log_len - col_len - sizeof(COLOR_RESET), NULL,
-                      NULL);
-        }
+    if (hSlot != INVALID_HANDLE_VALUE) {
+        WriteFile(hSlot, log_buf, log_len, NULL, NULL);
+    } else {
+        // This should never happen, but there's no harm being prepared in case it does
+        WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), log_buf, log_len, NULL, NULL);
     }
 
     LeaveCriticalSection(&logger_lock);
@@ -178,23 +168,18 @@ int _log_game(PLOG_FACILITY facility, const char* format, ...) {
     return ret;
 }
 
-void setup_logging() {
-    // Force stdio even for GUI applications
-    // AttachConsole(ATTACH_PARENT_PROCESS);
+void setup_logging(DWORD slotPid) {
+    char slotName[MAX_PATH + 1];
+    sprintf_s(slotName, MAX_PATH, "\\\\.\\mailslot\\micelog%d", slotPid);
 
-    // Enable colour in CMD
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD dwMode = 0;
-    if (GetConsoleMode(hConsole, &dwMode))
-        HAS_COLOUR = SetConsoleMode(hConsole, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    hSlot = CreateFile(slotName, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hSlot == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "Fatal: Failed to open mailslot %s", slotName);
+        ExitProcess(2);
+    }
 
     InitializeCriticalSection(&logger_lock);
-
-    if (MiceConfig.mice.log_to_file) {
-        if (log_file == INVALID_HANDLE_VALUE && MiceConfig.mice.log_file[0] != '\0')
-            log_file = CreateFileA(MiceConfig.mice.log_file, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-                                   CREATE_ALWAYS, 0, NULL);
-    }
 }
 
 void log_stack(PLOG_FACILITY facility) {

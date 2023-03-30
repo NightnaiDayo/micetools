@@ -2,18 +2,20 @@
 
 #include <stdlib.h>
 
+#include "log.h"
+
 bool inject_debug_wait(HANDLE process) {
     BOOL present;
 
-    fprintf(stderr, "Waiting for debugger to attach.\n");
+    log_info(plfBoot, "Waiting for debugger to attach.");
     do {
         Sleep(1000);
         if (FAILED(CheckRemoteDebuggerPresent(process, &present))) {
-            fprintf(stderr, "Fatal: CheckRemoteDebuggerPresent failed: %03x\n", GetLastError());
+            log_error(plfBoot, "Fatal: CheckRemoteDebuggerPresent failed: %d", GetLastError());
             return false;
         }
     } while (!present);
-    fprintf(stderr, "Debugger attached, resuming\n");
+    log_info(plfBoot, "Debugger attached, resuming");
     return true;
 }
 bool remote_call(HANDLE process, LPVOID function, LPCSTR argument, DWORD* result) {
@@ -22,33 +24,33 @@ bool remote_call(HANDLE process, LPVOID function, LPCSTR argument, DWORD* result
     LPVOID arg_addr =
         VirtualAllocEx(process, NULL, nchars + 1, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (arg_addr == NULL) {
-        fprintf(stderr, "Fatal: VirtualAllocEx failed: %03x\n", GetLastError());
+        log_error(plfProcesses, "Fatal: VirtualAllocEx failed: %d", GetLastError());
         return false;
     }
 
     if (FAILED(WriteProcessMemory(process, arg_addr, argument, nchars + 1, NULL))) {
-        fprintf(stderr, "Fatal: WriteProcessMemory failed: %03x\n", GetLastError());
+        log_error(plfProcesses, "Fatal: WriteProcessMemory failed: %d", GetLastError());
         return false;
     }
 
     HANDLE remote_thread =
         CreateRemoteThread(process, NULL, 0, (LPTHREAD_START_ROUTINE)function, arg_addr, 0, NULL);
     if (remote_thread == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Fatal: CreateRemoteThread failed: %03x\n", GetLastError());
+        log_error(plfProcesses, "Fatal: CreateRemoteThread failed: %d", GetLastError());
         return false;
     }
 
     if (WaitForSingleObject(remote_thread, INFINITE) != WAIT_OBJECT_0) {
-        fprintf(stderr, "Fatal: WaitForSingleObject failed: %03x\n", GetLastError());
+        log_error(plfProcesses, "Fatal: WaitForSingleObject failed: %d", GetLastError());
         return false;
     }
 
     if (FAILED(GetExitCodeThread(remote_thread, result))) {
-        fprintf(stderr, "Fatal: GetExitCodeThread failed: %03x\n", GetLastError());
+        log_error(plfProcesses, "Fatal: GetExitCodeThread failed: %d", GetLastError());
         return false;
     }
     if (*result == 0) {
-        fprintf(stderr, "Fatal: GetExitCodeThread failed: result == 0\n");
+        log_error(plfProcesses, "Fatal: GetExitCodeThread failed: result == 0");
         return false;
     }
 
@@ -57,13 +59,13 @@ bool remote_call(HANDLE process, LPVOID function, LPCSTR argument, DWORD* result
 bool inject_dll(HANDLE process, LPCSTR inject) {
     HMODULE kernel32 = GetModuleHandleA("kernel32.dll");
     if (kernel32 == NULL) {
-        fprintf(stderr, "Fatal: GetModuleHandleA failed: %03x\n", GetLastError());
+        log_error(plfProcesses, "Fatal: GetModuleHandleA failed: %d", GetLastError());
         return false;
     }
 
     LPVOID addr_LoadLibraryA = (LPVOID)GetProcAddress(kernel32, "LoadLibraryA");
     if (addr_LoadLibraryA == NULL) {
-        fprintf(stderr, "Fatal: GetProcAddress failed: %03x\n", GetLastError());
+        log_error(plfProcesses, "Fatal: GetProcAddress failed: %d", GetLastError());
         return false;
     }
 
@@ -71,8 +73,8 @@ bool inject_dll(HANDLE process, LPCSTR inject) {
     return remote_call(process, addr_LoadLibraryA, inject, &result);
 }
 
-HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL debug_wait, DWORD delay,
-                        LPCSTR extra_injections, DWORD flags) {
+HANDLE start_and_inject(HANDLE hJob, LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL debug_wait,
+                        DWORD delay, LPCSTR extra_injections, DWORD flags) {
     STARTUPINFOA startupInfo;
     PROCESS_INFORMATION processInformation = { 0 };
 
@@ -87,27 +89,33 @@ HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL debug_wa
     // Does the exe we're starting exist?
     found = SearchPathA(NULL, path, NULL, 0, NULL, NULL);
     if (found == 0) {
-        fprintf(stderr, "Fatal: Cannot start %s: not found\n", path);
+        log_error(plfProcesses, "Fatal: Cannot start %s: not found", path);
         goto abort;
     }
-    // Does the DLL we want to inject exist?
-    found = SearchPathA(NULL, inject, NULL, 0, NULL, NULL);
-    if (found == 0) {
-        fprintf(stderr, "Fatal: Cannot inject %s: not found\n", inject);
-        goto abort;
+    if (inject != NULL) {
+        // Does the DLL we want to inject exist?
+        found = SearchPathA(NULL, inject, NULL, 0, NULL, NULL);
+        if (found == 0) {
+            log_error(plfProcesses, "Fatal: Cannot inject %s: not found", inject);
+            goto abort;
+        }
     }
 
     // Start the binary
     flags |= CREATE_SUSPENDED;
     if (!CreateProcessA(path, cmdline, NULL, NULL, FALSE, flags, NULL, NULL, &startupInfo,
                         &processInformation)) {
-        fprintf(stderr, "Fatal: CreateProcessA failed: %03x\n", GetLastError());
+        log_error(plfProcesses, "Fatal: CreateProcessA(%s, %s) failed: %d", path, cmdline,
+                  GetLastError());
         goto abort;
     }
 
+    if (hJob != INVALID_HANDLE_VALUE) AssignProcessToJobObject(hJob, processInformation.hProcess);
+
     if (debug_wait)
         if (!inject_debug_wait(processInformation.hProcess)) goto abort;
-    if (!inject_dll(processInformation.hProcess, inject)) goto abort;
+    if (inject != NULL)
+        if (!inject_dll(processInformation.hProcess, inject)) goto abort;
 
     if (extra_injections != NULL && extra_injections[0] != '\0') {
         char* copy = (char*)malloc(strlen(extra_injections) + 1);
@@ -125,13 +133,13 @@ HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL debug_wa
     }
 
     if (delay) {
-        fprintf(stderr, "Delaying for %dms\n", delay);
+        log_info(plfBoot, "Delaying for %dms", delay);
         Sleep(delay);
     }
 
     // Injection completed, let the program continue execution
     if (FAILED(ResumeThread(processInformation.hThread))) {
-        fprintf(stderr, "Fatal: ResumeThread failed: %03x\n", GetLastError());
+        log_error(plfProcesses, "Fatal: ResumeThread failed: %d", GetLastError());
         goto abort;
     }
 
@@ -140,14 +148,14 @@ HANDLE start_and_inject(LPCSTR path, LPSTR cmdline, LPCSTR inject, BOOL debug_wa
 abort:
     if (processInformation.hProcess && processInformation.hProcess != INVALID_HANDLE_VALUE) {
         if (!CloseHandle(processInformation.hThread) && GetLastError() != ERROR_INVALID_HANDLE)
-            fprintf(stderr, "Fatal: CloseHandle(hProcess) failed: %03x\n", GetLastError());
+            log_error(plfProcesses, "Fatal: CloseHandle(hProcess) failed: %d", GetLastError());
 
         if (!TerminateProcess(processInformation.hProcess, 1))
-            fprintf(stderr, "Fatal: TerminateProcess failed: %03x\n", GetLastError());
+            log_error(plfProcesses, "Fatal: TerminateProcess failed: %d", GetLastError());
     }
     if (processInformation.hThread && processInformation.hThread != INVALID_HANDLE_VALUE) {
         if (!CloseHandle(processInformation.hThread) && GetLastError() != ERROR_INVALID_HANDLE)
-            fprintf(stderr, "Fatal: CloseHandle(hThread) failed: %03x\n", GetLastError());
+            log_error(plfProcesses, "Fatal: CloseHandle(hThread) failed: %d", GetLastError());
     }
 
     return INVALID_HANDLE_VALUE;

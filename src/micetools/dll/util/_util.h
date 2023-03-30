@@ -13,6 +13,7 @@ BOOL RemoveDataForHandle(HANDLE hObject, DWORD type);
 HANDLE GetDummyHandle();
 void BytesToHex(char* hex_buffer, BYTE* bytes, DWORD nbytes);
 void PrintStack(void);
+DWORD GetParentProcessId(void);
 
 BOOL PathEqual(LPCSTR path1, LPCSTR path2);
 BOOL PathPrefix(LPCSTR path, LPCSTR prefix);
