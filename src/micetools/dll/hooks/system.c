@@ -64,6 +64,22 @@ LONG WINAPI FakeRtlGetVersion(PRTL_OSVERSIONINFOW lpVersionInformation) {
     return 0;
 }
 
+// TODO: We should probably handle libamv_amd.dll at some point too
+HMODULE WINAPI FakeLoadLibraryA(LPCSTR lpLibFileName) {
+    if (strcmp(lpLibFileName, "libamv_nvidia.dll") == 0) {
+        return TrueLoadLibraryA(MICELIB);
+    }
+    return TrueLoadLibraryA(lpLibFileName);
+}
+#define WIDEN2(x) L ## x
+#define WIDEN(x) WIDEN2(x)
+HMODULE WINAPI FakeLoadLibraryW(LPCWSTR lpLibFileName) {
+    if (wcscmp(lpLibFileName, L"libamv_nvidia.dll") == 0) {
+        return TrueLoadLibraryW(WIDEN(MICELIB));
+    }
+    return TrueLoadLibraryW(lpLibFileName);
+}
+
 void hook_system() {
     // TODO: This should be part of drives/hooks.c
     hook("Kernel32.dll", "GetVolumeInformationW", FakeGetVolumeInformationW, NULL);
@@ -71,6 +87,8 @@ void hook_system() {
     // hook("Kernel32.dll", "GetVersionExA", FakeGetVersionExA, NULL);
     // hook("Kernel32.dll", "GetProcAddress", FakeGetProcAddress, (void*)&TrueGetProcAddress);
     // hook("Kernel32.dll", "GetModuleHandleA", FakeGetModuleHandleA, (void*)&TrueGetModuleHandleA);
+    hook("Kernel32.dll", "LoadLibraryA", FakeLoadLibraryA, (void*)&TrueLoadLibraryA);
+    hook("Kernel32.dll", "LoadLibraryW", FakeLoadLibraryW, (void*)&TrueLoadLibraryW);
 
     // hook("ntdll.dll", "RtlGetVersion", FakeRtlGetVersion, NULL);
 
