@@ -6,7 +6,8 @@ void mdkPcpStatus(pcpa_t* stream, void* data) { pcpaSetSendPacket(stream, KC_STA
 
 void mdkPcpAbGameId(pcpa_t* stream, void* data) {
     // TODO: Can we do better?
-    pcpaSetSendPacket(stream, AB_GAMEID, "----");
+    // pcpaSetSendPacket(stream, AB_GAMEID, "----");
+    pcpaSetSendPacket(stream, AB_GAMEID, "SDEY");
 }
 void mdkPcpAbSystemFlag(pcpa_t* stream, void* data) {
     // systemflag 24 = billing + allnet, which should suffice for everything

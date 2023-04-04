@@ -22,6 +22,8 @@ extern PLOG_FACILITY plfNetwork;
 
 extern CRITICAL_SECTION logger_lock;
 
+void MiceSetLogBasename(char* baseName);
+
 int _log_trace(PLOG_FACILITY facility, const char* format, ...);
 int _log_misc(PLOG_FACILITY facility, const char* format, ...);
 int _log_info(PLOG_FACILITY facility, const char* format, ...);

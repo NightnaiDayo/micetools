@@ -20,11 +20,13 @@
 
 static BOOL logIsMaster = FALSE;
 
-extern WCHAR exeName[MAX_PATH + 1];
+CHAR logBasename[MAX_PATH + 1] = { 0 };
 extern DWORD imageOffset;
 
 extern BOOL(WINAPI* TrueWriteFile)(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
                                    LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped);
+
+void MiceSetLogBasename(char* baseName) { strcpy_s(logBasename, sizeof logBasename, baseName); }
 
 char _log_prelude[64];
 char* log_prelude() {
@@ -34,7 +36,9 @@ char* log_prelude() {
     time(&rawtime);
     localtime_s(&timeinfo, &rawtime);
 
-    strftime(_log_prelude, sizeof _log_prelude, "[%Y/%m/%d %H:%M:%S] ", &timeinfo);
+    size_t offset = strftime(_log_prelude, sizeof _log_prelude, "[%Y/%m/%d %H:%M:%S] ", &timeinfo);
+    if (logBasename[0])
+        sprintf_s(_log_prelude + offset, sizeof _log_prelude - offset, "%s:", logBasename);
     return _log_prelude;
 }
 

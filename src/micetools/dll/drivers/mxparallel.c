@@ -164,13 +164,22 @@ void init_nv_storage() {
 
 void dump_nv_storage() {
     FILE* fp;
-    fopen_s(&fp, "dev/kc/nvram.bin", "wb");
+    if (fopen_s(&fp, "dev/kc/nvram.bin", "wb")) {
+        log_error(plfMxParallel, "Failed to open nvram.bin");
+        return;
+    }
     fwrite(nvram, 1, sizeof nvram, fp);
     fclose(fp);
-    fopen_s(&fp, "dev/kc/eeprom.bin", "wb");
+    if (fopen_s(&fp, "dev/kc/eeprom.bin", "wb")) {
+        log_error(plfMxParallel, "Failed to open eeprom.bin");
+        return;
+    }
     fwrite(eeprom, 1, sizeof eeprom, fp);
     fclose(fp);
-    fopen_s(&fp, "dev/kc/flash.bin", "wb");
+    if (fopen_s(&fp, "dev/kc/flash.bin", "wb")) {
+        log_error(plfMxParallel, "Failed to open flash.bin");
+        return;
+    }
     fwrite(flash, 1, sizeof flash, fp);
     fclose(fp);
 }

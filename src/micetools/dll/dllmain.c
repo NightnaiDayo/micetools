@@ -7,6 +7,7 @@
 #include "hooks/_hooks.h"
 
 WCHAR exeName[MAX_PATH + 1];
+char exeNameC[MAX_PATH + 1];
 DWORD imageOffset;
 
 #define WIN32_EXE_BASE 0x00400000
@@ -61,9 +62,6 @@ void apply_patches(HMODULE hModule) {
     }
     imageOffset = (DWORD)hModule - imageBase;
 
-    char exeNameC[MAX_PATH + 1];
-    WideCharToMultiByte(CP_ACP, 0, exeName, -1, exeNameC, sizeof exeNameC, NULL, NULL);
-
     if (!load_patches(MiceConfig.mice.patches_file, exeNameC)) {
         log_error(plfBoot, "Failed to load patches file %s", MiceConfig.mice.patches_file);
         return;
@@ -98,15 +96,17 @@ void prebind_hooks() {
     hook_all();
     install_devices();
     // TODO: Figure out why we're needing to call this manually (medium priority)
-    if (wcscmp(exeName, L"ALLNetProc.exe") == 0) {
-        log_warning(plfBoot, "Making explicit call to OPENSSL_add_all_algorithms_noconf");
+    // if (wcscmp(exeName, L"ALLNetProc.exe") == 0) {
+    //     log_warning(plfBoot, "Making explicit call to OPENSSL_add_all_algorithms_noconf");
 
-        // OPENSSL_add_all_algorithms_noconf
-        ((void (*)(void))(0x00459770))();
-    }
+    //     // OPENSSL_add_all_algorithms_noconf
+    //     ((void (*)(void))(0x00459770))();
+    // }
 }
 
 void init_injection(HMODULE hModule) {
+    WideCharToMultiByte(CP_ACP, 0, exeName, -1, exeNameC, sizeof exeNameC, NULL, NULL);
+
     // Make sure our CRC32 tables are ready for anything that might want to use them
     amiCrc32RInit();
 
@@ -114,6 +114,7 @@ void init_injection(HMODULE hModule) {
 
     // We're in a new context now, so need to reconfigure
     setup_logging();
+    MiceSetLogBasename(exeNameC);
     log_info(plfBoot, "Handover complete. Now executing within %ls", exeName);
 
     init_com_devices();

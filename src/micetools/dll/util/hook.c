@@ -76,6 +76,11 @@ void* Win32HotpatchHook(PVOID src, PVOID dst) {
     // We don't need a gateway; we can just jump right in
     return bSrc + 2;
 }
+
+#define CMP2(x, a, b) (x[0] == 0x##a && x[1] == 0x##b)
+#define CMP3(x, a, b, c) (CMP2(x, a, b) && x[2] == 0x##c)
+#define CMP4(x, a, b, c, d) (CMP3(x, a, b, c) && x[3] == 0x##d)
+#define CMP5(x, a, b, c, d, e) (CMP4(x, a, b, c, d) && x[4] == 0x##e)
 void* CreateHook32(PVOID src, PVOID dst) {
     LPBYTE bSrc = (LPBYTE)src;
 
@@ -89,7 +94,7 @@ void* CreateHook32(PVOID src, PVOID dst) {
 
     // This is a very crude way to identify common instruction patterns
     // to select or patch length.
-    if (bSrc[0] == 0xff && bSrc[1] == 0x25) {
+    if (CMP2(bSrc, ff, 25)) {
         // jmp  DWORD PTR ds:0x........
         len = 6;
     } else if (bSrc[0] == 0x6a && bSrc[2] == 0x68) {
@@ -103,24 +108,24 @@ void* CreateHook32(PVOID src, PVOID dst) {
     } else if (bSrc[0] == 0x68) {
         // push 0x...       (dword)
         len = 5;
-    } else if (bSrc[0] == 0x55 && bSrc[1] == 0x8B && bSrc[2] == 0xEC && bSrc[3] == 0x83 &&
-               bSrc[4] == 0xE4) {
+    } else if (CMP5(bSrc, 55, 8B, EC, 83, E4)) {
         // pusb ebp
         // mov ebp,esp
         // and esp,ffffff**
         len = 6;
-    } else if (bSrc[0] == 0x55 && bSrc[1] == 0x8B && bSrc[2] == 0xEC && bSrc[3] == 0x8b &&
-               bSrc[4] == 0x45) {
+    } else if (CMP5(bSrc, 55, 8B, EC, 8B, 45)) {
         // pusb ebp
         // mov ebp,esp
         // mov eax,DWORD PTR [...]
         len = 6;
-    } else if (bSrc[0] == 0x55 && bSrc[1] == 0x8B && bSrc[2] == 0xEC && bSrc[3] == 0x80 &&
-               bSrc[4] == 0x3D) {
+    } else if (CMP5(bSrc, 55, 8B, EC, 80, 3D)) {
         // pusb ebp
         // mov ebp,esp
         // cmd BYTE PTR ds:0x...,0x...
         len = 10;
+    } else if (CMP5(bSrc, B8, 00, 10, 00, 00)) {
+        // mov eax,0x1000
+        len = 5;
     } else {
         log_error(plfHooks, "Unable to identify gateway length! Function peek:");
         for (int i = 0; i < 16; i++) {
