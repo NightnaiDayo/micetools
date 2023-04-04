@@ -1,8 +1,8 @@
 #include "mxkCrypt.h"
 
 #include <openssl/evp.h>
-#include <openssl/pem.h>
 #include <openssl/hmac.h>
+#include <openssl/pem.h>
 
 // These three should be initialised to null, and populated by mxkCryptInit, but we already know
 // their values and aren't trying to hide them from anyone! mxkCryptInit is still fully implemented,
@@ -153,8 +153,8 @@ void mxkSwapKeys() {
     memcpy(KEY_S, temp, 16);
 }
 
-MXK_STATUS mxkCryptEncryptAes128CBC(const unsigned char* key, const unsigned char* iv,
-                                    unsigned char* ct, const unsigned char* pt, size_t nbytes) {
+MXK_STATUS mxkCryptEncryptAes128CBC(const unsigned char* key, const unsigned char* iv, void* ct,
+                                    const void* pt, size_t nbytes) {
     if (key == NULL || iv == NULL || ct == NULL || pt == NULL) {
         amiDebugLog("Error: Invalid param.");
         return MXK_STATUS_INVALID_PARAM;
@@ -173,7 +173,7 @@ MXK_STATUS mxkCryptEncryptAes128CBC(const unsigned char* key, const unsigned cha
 }
 
 MXK_STATUS mxkCryptDecryptAes128CBC(const unsigned char* key, const unsigned char* iv,
-                                    const unsigned char* ct, unsigned char* pt, size_t nbytes) {
+                                    const void* ct, void* pt, size_t nbytes) {
     if (key == NULL || iv == NULL || ct == NULL || pt == NULL) {
         amiDebugLog("Error: Invalid param.");
         return MXK_STATUS_INVALID_PARAM;

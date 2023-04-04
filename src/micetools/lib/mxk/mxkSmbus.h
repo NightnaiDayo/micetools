@@ -10,9 +10,9 @@
 int mxkSmbusI2CWriteCommand(unsigned char command_code, unsigned char *buffer, size_t nbytes);
 
 int mxkSmbusI2CWriteBlock(unsigned char addr, unsigned char command, unsigned char *buffer,
-                     unsigned char nbytes);
-bool mxkSmbusI2CReadBlock(unsigned char smbAddress, unsigned char block, unsigned char *buffer,
                           unsigned char nbytes);
+int mxkSmbusI2CReadBlock(unsigned char smbAddress, unsigned char block, unsigned char *buffer,
+                         unsigned char nbytes);
 
 int mxkSmbusWriteByte(unsigned char v_addr, unsigned char command_code, unsigned char data);
 int mxkSmbusReadByte(unsigned char addr, unsigned char *readByte, unsigned char cmd_code);

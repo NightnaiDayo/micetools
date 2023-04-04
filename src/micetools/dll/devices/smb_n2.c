@@ -13,8 +13,9 @@ LOG_FACILITY _lf = {
 };
 PLOG_FACILITY plf = &_lf;
 
-#define N2_IO_BUFFER 0x1000
+#define N2_IO_BUFFER 512
 
+BYTE n2_auth_level = 1;
 BYTE n2_in_buffer[N2_IO_BUFFER];
 WORD n2_in_pointer = 0;
 BYTE n2_out_buffer[N2_IO_BUFFER];
@@ -25,7 +26,7 @@ WORD n2_error_code = 0;
 BYTE n2_auth_key[20] = { 0x96, 0xed, 0x31, 0xb2, 0x28, 0x71, 0x05, 0xa5, 0xa3, 0x30,
                          0x54, 0x0f, 0x25, 0xbe, 0xd8, 0x51, 0xa5, 0xc8, 0x36, 0x21 };
 
-BYTE n2_session_nonce[20];
+BYTE n2_session_salt[20];
 struct {
     BYTE key[16];
     BYTE iv[16];
@@ -67,24 +68,26 @@ typedef struct {
 } N2_KEYCHIP_INFO, *PN2_KEYCHIP_INFO;
 #pragma pack(pop)
 
-N2_KEYCHIP_INFO n2_keychip_info = { .m_KeyId = KEY_ID,
-                                    .m_Appboot = {
-                                        .m_Format = 1,
-                                        .m_GameId = GAME_ID,
-                                        .m_Region = 0xff,
-                                        .m_ModelType = 2,
-                                        .m_SystemFlag = 0x24,
-                                        .m_PlatformId = HW_ID,
-                                        .m_DvdFlag = 1,
-                                        .m_NetworkAddr =
-                                            (192 << 0) | (168 << 8) | (103 << 16) | (0 << 24),
-                                    } };
+N2_KEYCHIP_INFO n2_keychip_info = {
+    .m_KeyId = KEY_ID,
+    .m_Appboot = {
+        .m_Format = 1,
+        .m_GameId = GAME_ID,
+        .m_Region = 0xff,
+        .m_ModelType = 2,
+        .m_SystemFlag = 0x24,
+        .m_PlatformId = HW_ID,
+        .m_DvdFlag = 1,
+        .m_NetworkAddr =
+            (192 << 0) | (168 << 8) | (103 << 16) | (0 << 24),
+    },
+};
 
 WORD n2_enable_session(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut) {
     *nOut = 20;
 
-    RAND_bytes(n2_session_nonce, sizeof n2_session_nonce);
-    memcpy(dataOut, n2_session_nonce, sizeof n2_session_nonce);
+    RAND_bytes(n2_session_salt, sizeof n2_session_salt);
+    memcpy(dataOut, n2_session_salt, sizeof n2_session_salt);
 
     log_misc(plf, "Session open");
     return N2_SUCCESS;
@@ -97,6 +100,8 @@ WORD n2_set_auth_key(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut)
     mxkCryptDecryptAes128CBC(n2_enc_key.key, n2_enc_key.iv, dataIn, pt, sizeof pt);
     memcpy(n2_auth_key, pt, sizeof n2_auth_key);
 
+    n2_auth_level = 2;
+
     return N2_SUCCESS;
 }
 WORD n2_set_enc_key(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut) {
@@ -108,11 +113,13 @@ WORD n2_set_enc_key(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut) 
     memcpy(n2_enc_key.key, pt, sizeof n2_enc_key.key);
     memcpy(n2_enc_key.iv, pt + sizeof n2_enc_key.key, sizeof n2_enc_key.iv);
 
+    n2_auth_level = 3;
+
     return N2_SUCCESS;
 }
 WORD n2_get_auth_level(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nOut) {
     *nOut = 1;
-    dataOut[0] = 3;  // TODO: ?
+    dataOut[0] = n2_auth_level;
     log_misc(plf, "Auth level get");
     return N2_SUCCESS;
 }
@@ -241,6 +248,9 @@ void n2_install_commands() {
 }
 
 void do_n2_command(WORD tag, WORD paramSize, WORD command, LPBYTE data) {
+    EVP_MD_CTX* ctx;
+    unsigned int outlen;
+
     n2_install_commands();
 
     log_info(plf, "Processing command: %04x/%04x (%d bytes)", tag, command, paramSize);
@@ -257,25 +267,56 @@ void do_n2_command(WORD tag, WORD paramSize, WORD command, LPBYTE data) {
     WORD expectedExtraData = N2_CHECKSUM_SIZE + N2_HEADER_SIZE;
     if (tag == N2_TAG_RQU_AUTH_COMMAND) expectedExtraData += N2_AUTH_SIZE;
 
-    n2_command handler = N2_COMMANDS[command & 0xff];
-    if (handler.handler == NULL) {
-        result = N2_BAD_ORDINAL;
-    } else if (handler.tag != tag) {
-        result = N2_BAD_TAG;
-    } else if (handler.paramSize + expectedExtraData != paramSize) {
-        result = N2_BAD_DATASIZE;
+    unsigned char sha1sum[20];
+    ctx = EVP_MD_CTX_create();
+    EVP_DigestInit(ctx, EVP_sha1());
+    EVP_DigestUpdate(ctx, n2_in_buffer, N2_HEADER_SIZE + paramSize - expectedExtraData);
+    EVP_DigestFinal_ex(ctx, sha1sum, &outlen);
+    EVP_MD_CTX_destroy(ctx);
+
+    HMAC_CTX hmac_ctx;
+    if (tag == N2_TAG_RQU_COMMAND) {
+        if (memcmp(sha1sum, n2_in_buffer + paramSize - N2_CHECKSUM_SIZE, N2_CHECKSUM_SIZE) != 0) {
+            log_error(plf, "SHA1Sum chek failed!");
+            result = N2_SUMFAIL;
+        }
     } else {
-        result = (*handler.handler)(paramSize, n2_in_buffer + N2_HEADER_SIZE,
-                                    n2_out_buffer + N2_HEADER_SIZE, &bodyLength);
+        unsigned char nonce[20];
+        memcpy_s(nonce, 20, n2_in_buffer + paramSize - N2_CHECKSUM_SIZE - N2_AUTH_SIZE, 20);
+        unsigned char hmac[20];
+
+        HMAC_CTX_init(&hmac_ctx);
+        HMAC_Init_ex(&hmac_ctx, auth_key, sizeof auth_key, EVP_sha1(), NULL);
+        HMAC_Update(&hmac_ctx, sha1sum, N2_CHECKSUM_SIZE);
+        HMAC_Update(&hmac_ctx, n2_session_salt, N2_CHECKSUM_SIZE);
+        HMAC_Update(&hmac_ctx, nonce, N2_CHECKSUM_SIZE);
+        HMAC_Final(&hmac_ctx, hmac, &outlen);
+        HMAC_CTX_cleanup(&hmac_ctx);
+
+        if (memcmp(hmac, n2_in_buffer + paramSize - N2_AUTH_SIZE, N2_AUTH_SIZE) != 0) {
+            log_error(plf, "HMAC check failed!");
+            result = N2_AUTHFAIL;
+        }
+    }
+
+    if (result == N2_SUCCESS) {
+        n2_command handler = N2_COMMANDS[command & 0xff];
+        if (handler.handler == NULL) {
+            result = N2_BAD_ORDINAL;
+        } else if (handler.tag != tag) {
+            result = N2_BAD_TAG;
+        } else if (handler.paramSize + expectedExtraData != paramSize) {
+            result = N2_BAD_DATASIZE;
+        } else {
+            result = (*handler.handler)(paramSize, n2_in_buffer + N2_HEADER_SIZE,
+                                        n2_out_buffer + N2_HEADER_SIZE, &bodyLength);
+        }
     }
 
     WORD paramSizeOut = bodyLength + expectedExtraData;
     ((PWORD)n2_out_buffer)[0] = fix_endian(tag + 2);
     ((PWORD)n2_out_buffer)[1] = fix_endian(paramSizeOut);
     ((PWORD)n2_out_buffer)[2] = fix_endian(result);
-
-    EVP_MD_CTX* ctx;
-    unsigned int outlen;
 
     WORD fixed_command = fix_endian(command);
 
@@ -291,26 +332,16 @@ void do_n2_command(WORD tag, WORD paramSize, WORD command, LPBYTE data) {
     // At this point: packet = header | data | SHA(header | command | data)
 
     if (tag == N2_TAG_RQU_AUTH_COMMAND) {
-        BYTE crypto_buffer[N2_CHECKSUM_SIZE];
-
-        // Calculate a new SHA1 of the packet, including the SHA1 we just appeneded
-        // crypto_buffer = SHA1(header | command | data)
-        ctx = EVP_MD_CTX_create();
-        EVP_DigestInit(ctx, EVP_sha1());
-        EVP_DigestUpdate(ctx, n2_out_buffer, N2_HEADER_SIZE);
-        EVP_DigestUpdate(ctx, &fixed_command, 2);
-        EVP_DigestUpdate(ctx, n2_out_buffer + N2_HEADER_SIZE, bodyLength);
-        EVP_DigestFinal_ex(ctx, crypto_buffer, &outlen);
-        EVP_MD_CTX_destroy(ctx);
+        // TODO: Further investigation might be needed here.
+        // The following code checks out against mxkeychip, but repeating the
+        // packet sum twice feels wrong.
 
         // Calculate an HMAC, and append it
-        HMAC_CTX hmac_ctx;
         HMAC_CTX_init(&hmac_ctx);
         HMAC_Init_ex(&hmac_ctx, auth_key, sizeof auth_key, EVP_sha1(), NULL);
 
         // SHA1(header | command | data)
-        HMAC_Update(&hmac_ctx, crypto_buffer, sizeof crypto_buffer);
-        // SHA1(header | auth | data)
+        HMAC_Update(&hmac_ctx, n2_out_buffer + N2_HEADER_SIZE + bodyLength, N2_CHECKSUM_SIZE);
         HMAC_Update(&hmac_ctx, n2_out_buffer + N2_HEADER_SIZE + bodyLength, N2_CHECKSUM_SIZE);
         // Request nonce
         HMAC_Update(&hmac_ctx, n2_in_buffer + paramSize - N2_AUTH_SIZE - N2_CHECKSUM_SIZE,
@@ -319,6 +350,10 @@ void do_n2_command(WORD tag, WORD paramSize, WORD command, LPBYTE data) {
         HMAC_Final(&hmac_ctx, n2_out_buffer + N2_HEADER_SIZE + bodyLength + N2_CHECKSUM_SIZE,
                    &outlen);
         HMAC_CTX_cleanup(&hmac_ctx);
+
+        // Update session salt
+        memcpy_s(n2_session_salt, sizeof n2_session_salt,
+                 n2_out_buffer + N2_HEADER_SIZE + bodyLength, N2_CHECKSUM_SIZE);
     }
 }
 
@@ -376,6 +411,7 @@ BOOL smbus_N2_write(ich9_cmd_t cmd, WORD code, BYTE nbytes, LPBYTE data) {
 }
 
 BOOL smbus_N2_read(ich9_cmd_t cmd, WORD code, BYTE nbytes, BYTE* data) {
+    // TODO: Unaligned mxk reads poke into this for the final byte!
     log_error(plf, "Unsupported read mode: %01x (%02x)", cmd, code);
     return FALSE;
 }

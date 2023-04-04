@@ -8,6 +8,8 @@ shared_library(
     name_prefix: '',
     vs_module_defs: 'mice.def',
     sources: [
+        'amvStub/amv.c',
+
         'util/misc.c',
         'util/hook.c',
         'util/path.c',

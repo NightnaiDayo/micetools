@@ -115,6 +115,8 @@ BOOL smbus_ds28cn01_write(ich9_cmd_t cmd, WORD code, BYTE dlen, BYTE* data) {
                 memcpy(&MAC_INPUT_BUFFER[4], USER_EEPROM[page], DS28CN01_EEPROM_PAGE_SIZE);
                 memcpy(&MAC_INPUT_BUFFER[36], &data[0], 4);
                 MAC_INPUT_BUFFER[40] = 0x40 | page;
+                // TODO: Where did I get that the unique number is factored in?
+                // This seems like it would cause sums to calculate wrong!
                 memcpy(&MAC_INPUT_BUFFER[41], UNIQUE_NUMBER, 7);
                 memcpy(&MAC_INPUT_BUFFER[48], &SECRET[4], 4);
                 memcpy(&MAC_INPUT_BUFFER[52], &data[4], 3);

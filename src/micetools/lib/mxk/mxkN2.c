@@ -1,3 +1,5 @@
+#include "mxkN2.h"
+
 #include <Windows.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
@@ -7,30 +9,47 @@
 #include "mxkCrypt.h"
 #include "mxkSmbus.h"
 
-#define N2_ADDR 0x30
-
 typedef struct {
     unsigned char m_Key[16];
     unsigned char m_IV[16];
 } AESKey_t;
 
+#pragma pack(push, 1)
 typedef struct {
     unsigned short m_Tag;
     unsigned short m_ParamSize;
     unsigned short m_Command;
-    unsigned char m_Body[506];
+    unsigned char m_Body[N2_DATA_MAX];
 } N2Packet_t;
+typedef struct {
+    union {
+        struct {
+            Sha1Sum_t m_ShaSum;
+        } rqu;
+        struct {
+            N2Nonce_t m_Nonce;
+            HmacSum_t m_Hmac;
+        } sign;
+    };
+} N2PacketFooter_t;
+#pragma pack(pop)
 
 BOOL MXK_HAS_INIT = FALSE;
 BOOL MXK_N2_INIT = FALSE;
+#define CheckN2Init                               \
+    do {                                          \
+        if (!MXK_N2_INIT) {                       \
+            amiDebugLog("Error: Uninitialized."); \
+            return -3;                            \
+        }                                         \
+    } while (0);
 typedef struct {
     unsigned char m_Addr;
-    unsigned char m_HmacKey[20];
+    HmacKey_t m_HmacKey;
     AESKey_t m_AESKey;
-    unsigned char m_AuthKey[20];
-    unsigned char m_EncKey[16];
-    unsigned char Unk[16];
-    unsigned char m_HmacOut[20];
+    N2AuthKey_t m_AuthKey;
+    AESKey_t m_EncKey;
+    HmacSum_t m_HmacSalt;
 } N2DeviceInfo_t;
 N2DeviceInfo_t N2DeviceInfo;
 
@@ -41,14 +60,16 @@ unsigned char N2_KEY_HMAC[2][20] = {
       0x1d, 0x1e, 0x1f, 0x11, 0xee, 0xb0, 0xf4, 0xd4, 0x20, 0x24 }
 };
 
-AESKey_t N2_KEY_AES[2] = { { { 0xd7, 0xf6, 0x86, 0xfb, 0x63, 0x44, 0xff, 0xa5, 0x60, 0x9d, 0x4e,
-                               0xf0, 0x18, 0xe9, 0x45, 0xb4 },
-                             { 0x12, 0x6c, 0xb1, 0xdb, 0x9e, 0x00, 0x8c, 0xc6, 0xae, 0xa1, 0x73,
-                               0xec, 0xe7, 0x2f, 0x5a, 0xc4 } },
-                           { { 0xa1, 0x1a, 0xc4, 0x4d, 0xcd, 0x48, 0x4f, 0xed, 0x70, 0xcc, 0x3f,
-                               0x5d, 0x94, 0x5b, 0xbe, 0xb3 },
-                             { 0x9c, 0x5c, 0xba, 0x7f, 0xb0, 0x15, 0xc7, 0x69, 0xcb, 0xb4, 0x41,
-                               0x19, 0x97, 0x2b, 0x45, 0x9f } } };
+AESKey_t N2_KEY_AES[2] = {
+    { { 0xd7, 0xf6, 0x86, 0xfb, 0x63, 0x44, 0xff, 0xa5, 0x60, 0x9d, 0x4e, 0xf0, 0x18, 0xe9, 0x45,
+        0xb4 },
+      { 0x12, 0x6c, 0xb1, 0xdb, 0x9e, 0x00, 0x8c, 0xc6, 0xae, 0xa1, 0x73, 0xec, 0xe7, 0x2f, 0x5a,
+        0xc4 } },
+    { { 0xa1, 0x1a, 0xc4, 0x4d, 0xcd, 0x48, 0x4f, 0xed, 0x70, 0xcc, 0x3f, 0x5d, 0x94, 0x5b, 0xbe,
+        0xb3 },
+      { 0x9c, 0x5c, 0xba, 0x7f, 0xb0, 0x15, 0xc7, 0x69, 0xcb, 0xb4, 0x41, 0x19, 0x97, 0x2b, 0x45,
+        0x9f } },
+};
 
 int mxkN2CmdInit(void) {
     if (MXK_N2_INIT) {
@@ -65,7 +86,7 @@ int mxkN2CmdSetDeviceInfo(void) {
 
     if (mxkN2CmdInit() != 0) return -5;
 
-    unsigned char hmacKey[20];
+    HmacKey_t hmacKey;
     AESKey_t aesKey;
     for (int i = 0; i < sizeof hmacKey; i++) hmacKey[i] = N2_KEY_HMAC[0][i] ^ N2_KEY_HMAC[1][i];
     for (int i = 0; i < sizeof aesKey.m_Key; i++)
@@ -88,17 +109,18 @@ int mxkN2CmdSetDeviceInfo(void) {
 }
 
 // TODO: Better name
-void _randomBytes(unsigned char *buf, int nbytes) {
+void _randomBytes(void *buf, int nbytes) {
     FILETIME fileTime;
     amtime_t amTime;
 
     for (int i = 0; i < nbytes; i++) {
         amiTimerGet(&amTime);
         GetSystemTimeAsFileTime(&fileTime);
-        buf[i] = (amTime.microseconds ^ fileTime.dwLowDateTime ^ fileTime.dwHighDateTime) & 0xff;
+        ((unsigned char *)buf)[i] =
+            (amTime.microseconds ^ fileTime.dwLowDateTime ^ fileTime.dwHighDateTime) & 0xff;
     }
 }
-void mxkN2GetPacketNonce(unsigned char *nonce) { _randomBytes(nonce, 20); }
+void mxkN2GetPacketNonce(PN2Nonce_t nonce) { _randomBytes(nonce, 20); }
 
 int mxkN2UtilVCatenateData(unsigned char *out, size_t *count, unsigned int numStreams,
                            va_list args) {
@@ -110,10 +132,11 @@ int mxkN2UtilVCatenateData(unsigned char *out, size_t *count, unsigned int numSt
     size_t offset = 0;
     size_t max = *count;
     for (size_t i = 0; i < numStreams && i < max; i++) {
-        size_t n = va_arg(args, size_t);
         unsigned char *b = va_arg(args, unsigned char *);
-        if (i + n > max) n = max - i;
-        memcpy(out + offset, b, i);
+        size_t n = va_arg(args, size_t);
+        if (offset + n > max) n = max - offset;
+        memcpy(out + offset, b, n);
+        offset += n;
     }
 
     *count = offset;
@@ -129,46 +152,49 @@ void mxkN2UtilCatenateData(unsigned char *concatinated, size_t *count, unsigned 
     va_end(args);
 }
 
-void mxkN2UtilSha1Many(unsigned char *sum, int numStreams, ...) {
+void mxkN2UtilSha1Many(PSha1Sum_t sum, int numStreams, ...) {
     va_list args;
     va_start(args, numStreams);
 
-    unsigned char sumout[20];
+    Sha1Sum_t sumout;
     unsigned char concatinated[0x200];
     size_t size = sizeof concatinated;
 
     mxkN2UtilVCatenateData(concatinated, &size, numStreams, args);
-    mxkCryptCalcHashWithSha1(concatinated, size, sumout);
-    memcpy_s(sum, 20, sumout, 20);
+    mxkCryptCalcHashWithSha1(concatinated, size, &sumout);
+    memcpy_s(sum, sizeof *sum, sumout, sizeof sumout);
 
     va_end(args);
 }
 
-int mxkN2UtilHmacPacket(void *val1, unsigned char *sha1, void *nonce, void *key,
-                        unsigned char *hash_out) {
-    unsigned char hash[20];
-    unsigned char data_in[60];
+int mxkN2UtilHmacPacket(PSha1Sum_t packetSha, PHmacSum_t hmacSalt, PN2Nonce_t nonce, PHmacKey_t key,
+                        PHmacSum_t computedHash) {
+    HmacSum_t hash;
+    unsigned char data_in[sizeof *packetSha + sizeof *hmacSalt + sizeof *nonce];
 
-    size_t count = 60;
-    size_t nout = 20;
-    mxkN2UtilCatenateData(data_in, &count, 3, val1, 20, sha1, 20, nonce, 20);
+    size_t count = sizeof *packetSha + sizeof *hmacSalt + sizeof *nonce;
+    size_t nout = HMAC_SUM_SIZE;
+    mxkN2UtilCatenateData(data_in, &count, 3, packetSha, sizeof *packetSha, hmacSalt,
+                          sizeof *hmacSalt, nonce, sizeof *nonce);
 
-    int iVar1 = mxkCryptCalcHashWithHmacSha1(key, hash, &nout, data_in, count);
-    if (iVar1 != -2 && nout == 20) {
-        memcpy(hash_out, hash, 20);
-        return 0;
-    }
-    return -2;
+    int err = mxkCryptCalcHashWithHmacSha1(key, &hash, &nout, data_in, count);
+    if (err == -2 || nout != HMAC_SUM_SIZE) return -2;
+
+    memcpy_s(computedHash, sizeof *computedHash, hash, HMAC_SUM_SIZE);
+    return 0;
 }
 
-int mxkN2CmdWriteData(unsigned char addr, unsigned char *data, unsigned short nbytes,
+int mxkN2CmdWriteData(unsigned char addr, void *data, unsigned short nbytes,
                       unsigned short *nbytesOut) {
     unsigned int ptr_;
     unsigned char nstep;
     int status;
     unsigned short position;
 
-    if (mxkSmbusRequestMutex() != 0) return -6;
+    if (mxkSmbusRequestMutex() != 0) {
+        amiDebugLog("Error: mxkSmbusRequestMutex");
+        return -6;
+    }
 
     status = 0;
     position = 0;
@@ -178,14 +204,14 @@ int mxkN2CmdWriteData(unsigned char addr, unsigned char *data, unsigned short nb
             if ((int)(nbytes - ptr_) < 5) {
                 nstep = (byte)(nbytes - ptr_);
                 if (nstep != 1) goto LAB_0040ae51;
-                status = mxkSmbusWriteByte(addr, 0xcc, data[ptr_]);
+                status = mxkSmbusWriteByte(addr, 0xcc, ((unsigned char *)data)[ptr_]);
             } else {
                 nstep = 4;
             LAB_0040ae51:
-                status = mxkSmbusI2CWriteBlock(addr, 0xcc, data + ptr_, nstep);
+                status = mxkSmbusI2CWriteBlock(addr, 0xcc, &((unsigned char *)data)[ptr_], nstep);
             }
             if (status != 0) {
-                amiDebugLog("Error: Data write failed. Position %d. ErrorCode %d.\n", position,
+                amiDebugLog("Error: Data write failed. Position %d. ErrorCode %d.", position,
                             status);
 
                 break;
@@ -196,118 +222,410 @@ int mxkN2CmdWriteData(unsigned char addr, unsigned char *data, unsigned short nb
     }
     *nbytesOut = position;
 
-    if (!mxkSmbusReleaseMutex()) return -6;
+    if (mxkSmbusReleaseMutex() != 0) {
+        amiDebugLog("Error: mxkSmbusReleaseMutex");
+        return -6;
+    }
     return 0;
 }
 
-int mxkN2CmdWriteCommand(unsigned char *param_1, unsigned char *packet, unsigned short tag,
-                         unsigned short command, unsigned char *auth_key, unsigned char addr,
-                         void *data, size_t nbytes) {
-    int iVar1;
-    unsigned short real_tag;
-    unsigned short paramsize;
-
-    N2Packet_t cmd;
+int mxkN2CmdWriteCommand(PN2Nonce_t requestNonce, PHmacSum_t hmacSalt, N2Tag_t tag,
+                         N2Command_t command, PHmacKey_t hmacKey, unsigned char addr,
+                         N2Byte_t *data, unsigned short nbytes) {
+    Sha1Sum_t sha1sum;
+    N2Packet_t packet;
+    int ret;
 
     if (data == NULL && nbytes != 0) return -2;
 
-    memset(&cmd, 0, 0x200);
-    paramsize = (tag == N2_TAG_RQU_COMMAND ? 20 : 0) + 0x14 + (nbytes & 0xffff) + 6;
-    real_tag = (tag != N2_TAG_RQU_COMMAND) + 0xc1;
-    cmd.m_Tag = real_tag * 0x100 | real_tag >> 8;
-    cmd.m_ParamSize = (unsigned short)paramsize << 8 | (unsigned short)paramsize >> 8;
-    cmd.m_Command = command << 8 | command >> 8;
-    if (data != NULL) memcpy_s(cmd.m_Body, sizeof cmd.m_Body, data, nbytes);
+    N2PacketFooter_t *footer = (N2PacketFooter_t *)(packet.m_Body + nbytes);
 
-    // SHA1(header | data)
-    unsigned char packet_sha[20];
-    mxkN2UtilSha1Many(packet_sha, 1, &cmd, nbytes + 6);
+    ZeroMemory(&packet, sizeof packet);
+    unsigned short paramsize =
+        N2_HEADER_SIZE + nbytes +
+        (tag == N2_TAG_RQU_COMMAND ? N2_FOOTER_RQU_SIZE : N2_FOOTER_SIGN_SIZE);
+
+    N2Tag_t realTag = tag == N2_TAG_RQU_COMMAND ? N2_TAG_RQU_COMMAND : N2_TAG_RQU_AUTH_COMMAND;
+    packet.m_Tag = _byteswap_ushort(realTag);
+    packet.m_ParamSize = _byteswap_ushort(paramsize);
+    packet.m_Command = _byteswap_ushort(command);
+
+    if (data != NULL) memcpy_s(packet.m_Body, sizeof packet.m_Body, data, nbytes);
+
+    mxkN2UtilSha1Many(&sha1sum, 1, &packet, nbytes + N2_HEADER_SIZE);
 
     if (tag == N2_TAG_RQU_COMMAND) {
-        memcpy(cmd.m_Body, packet_sha, 20);
+        memcpy_s(footer->rqu.m_ShaSum, sizeof footer->rqu.m_ShaSum, sha1sum, sizeof sha1sum);
     } else {
-        unsigned char nonce[20];
-        mxkN2GetPacketNonce(nonce);
-        memcpy(cmd.m_Body + nbytes, nonce, 20);
-        mxkN2UtilHmacPacket(packet_sha, param_1, nonce, auth_key, cmd.m_Body + nbytes + 20);
+        if (requestNonce == NULL || hmacKey == NULL) return -2;
 
-        puts("Dodgy HMAC");
-        exit(1);
+        mxkN2GetPacketNonce(requestNonce);
+        memcpy_s(footer->sign.m_Nonce, sizeof footer->sign.m_Nonce, requestNonce,
+                 sizeof *requestNonce);
+
+        mxkN2UtilHmacPacket(&sha1sum, hmacSalt, &footer->sign.m_Nonce, hmacKey,
+                            &footer->sign.m_Hmac);
     }
 
-    unsigned short nWrote;
-    iVar1 = mxkN2CmdWriteData(addr, (unsigned char *)&cmd, paramsize, &nWrote);
-    if (iVar1 == 0) {
-        iVar1 = 0;
-    } else {
-        amiDebugLog("Error: Data write failed. ErrorCode %d.", iVar1);
-        iVar1 = -8;
+    unsigned short nBytesOut;
+    ret = mxkN2CmdWriteData(addr, &packet, paramsize, &nBytesOut);
+    if (ret != 0) {
+        amiDebugLog("Error: Data write failed. ErrorCode %d.", ret);
+        return -8;
     }
-    return iVar1;
+    return 0;
+}
+
+int mxkN2CmdReadData(unsigned char addr, N2Packet_t *lpPacket, unsigned short nReadSize,
+                     unsigned short *lpBytesRead) {
+    int err;
+    *lpBytesRead = 0;
+
+    if (nReadSize < 4 || lpPacket == NULL) {
+        amiDebugLog("Error: Invalid param.");
+        return -2;
+    }
+    if (mxkSmbusRequestMutex() != 0) return -6;
+
+    unsigned char *buffer = (unsigned char *)lpPacket;
+
+    // Read until m_ParamSize
+    err = mxkSmbusI2CReadBlock(addr, 0xc3, buffer, 4);
+
+    unsigned short readPosition = 4;
+    if (err == 0) {
+        unsigned short paramSize = _byteswap_ushort(lpPacket->m_ParamSize);
+        if (nReadSize < paramSize - 4) {
+            amiDebugLog("mxkSmbusI2CReadBlock data : %04X %04X", lpPacket->m_Tag,
+                        lpPacket->m_ParamSize);
+            amiDebugLog("Error: Data size is too small.(readSize:%04X, m_paramSize:%04X)",
+                        nReadSize, (lpPacket->m_ParamSize << 8 | lpPacket->m_ParamSize >> 8) - 4);
+            return -11;
+        }
+
+        if (4 < paramSize) {
+            while (readPosition < paramSize) {
+                unsigned short blockSize = paramSize - readPosition;
+                if (blockSize > 4) blockSize = 4;
+
+                if (blockSize == 1)
+                    err = mxkSmbusReadByte(addr, buffer + readPosition, 0xc3);
+                else
+                    err = mxkSmbusI2CReadBlock(addr, 0xc3, buffer + readPosition, blockSize & 0xff);
+
+                if (err != 0) {
+                    amiDebugLog("Error: Data read failed. Position %d. ErrorCode %d.", readPosition,
+                                err);
+                    break;
+                }
+
+                readPosition += blockSize;
+            }
+        }
+    }
+
+    *lpBytesRead = readPosition;
+    if (mxkSmbusReleaseMutex() != 0) {
+        amiDebugLog("Error: ReleaseMutex(). ErrorCode %d.", GetLastError());
+        return -6;
+    }
+    if (err) return -1;
+    return 0;
+}
+
+bool mxkN2CmdIsValidOutParam(N2Packet_t *packet, unsigned tag, unsigned short paramSize) {
+    unsigned short tagPacket = _byteswap_ushort(packet->m_Tag);
+    unsigned short paramSizePacket = _byteswap_ushort(packet->m_ParamSize);
+    unsigned short returnCode = _byteswap_ushort(packet->m_Command);
+    if (tagPacket == tag && paramSizePacket == paramSize && returnCode == 0) return true;
+
+    amiDebugLog("tag: %04x, paramSize: %d, returnCode: %04x", tagPacket, paramSizePacket,
+                returnCode);
+    return false;
+}
+
+int mxkN2CmdReadResponce(PN2Nonce_t requestNonce, PHmacSum_t hmacSalt, N2Tag_t tag,
+                         N2Command_t command, PHmacKey_t hmacKey, unsigned char addr, void *bufOut,
+                         unsigned short nOut) {
+    int ret;
+    unsigned short nBytesRead;
+    Sha1Sum_t sha1sum;
+    N2Packet_t packet;
+
+    ZeroMemory(&packet, sizeof packet);
+    unsigned short footerSize =
+        tag == N2_TAG_RQU_COMMAND ? N2_FOOTER_RQU_SIZE : N2_FOOTER_SIGN_SIZE;
+    ret = mxkN2CmdReadData(addr, &packet, nOut + N2_HEADER_SIZE + footerSize, &nBytesRead);
+    if (ret != 0) {
+        amiDebugLog("Error: Data read failed. ErrorCode %d.", ret);
+        return -7;
+    }
+
+    if (!mxkN2CmdIsValidOutParam(
+            &packet, tag == N2_TAG_RQU_COMMAND ? N2_TAG_RSP_COMMAND : N2_TAG_RSP_AUTH_COMMAND,
+            nBytesRead)) {
+        amiDebugLog("Error: Invalid output parameter.");
+        return -9;
+    }
+
+    unsigned short fixedCommand = _byteswap_ushort(command);
+
+    mxkN2UtilSha1Many(&sha1sum, 3, &packet, N2_HEADER_SIZE, &fixedCommand, sizeof fixedCommand,
+                      packet.m_Body, nOut);
+
+    N2PacketFooter_t *footer = (N2PacketFooter_t *)(packet.m_Body + nOut);
+
+    if (tag == N2_TAG_RQU_COMMAND) {
+        if (memcmp(footer->rqu.m_ShaSum, sha1sum, sizeof sha1sum) != 0) {
+            amiDebugLog("Error: Invalid hash value.");
+            return -10;
+        }
+    } else {
+        if (requestNonce == NULL || hmacKey == NULL) return -2;
+
+        HmacSum_t computedHash;
+        mxkN2UtilHmacPacket(&sha1sum, &footer->sign.m_Nonce, requestNonce, hmacKey, &computedHash);
+        if (memcmp(footer->sign.m_Hmac, computedHash, sizeof computedHash) != 0) {
+            amiDebugLog("Error: Invalid hash value.");
+            return -10;
+        }
+        memcpy_s(requestNonce, sizeof *requestNonce, packet.m_Body + nOut, 20);
+
+        if (hmacSalt != NULL)
+            memcpy_s(hmacSalt, sizeof *hmacSalt, &footer->sign.m_Nonce,
+                     sizeof footer->sign.m_Nonce);
+    }
+
+    if (bufOut != NULL && nOut != 0) {
+        memcpy_s(bufOut, nOut, packet.m_Body,
+                 ((nBytesRead - footerSize) - N2_HEADER_SIZE) & 0xffff);
+    }
+    return 0;
 }
 
 int mxkN2CmdEnableSession(void) {
-    int ret;
-    unsigned char local_18[20];
+    N2Nonce_t nonce;
 
-    if (!MXK_N2_INIT) {
-        amiDebugLog("Error: Uninitialized.");
-        return -3;
-    }
+    CheckN2Init;
 
-    ret = mxkN2CmdWriteCommand(NULL, local_18, N2_TAG_RQU_COMMAND, N2_ORD_ENABLE_SESSION, NULL,
+    int err;
+    err = mxkN2CmdWriteCommand(&nonce, NULL, N2_TAG_RQU_COMMAND, N2_ORD_ENABLE_SESSION, NULL,
                                N2DeviceInfo.m_Addr, NULL, 0);
-    if (ret != 0) return ret;
+    if (err != 0) return err;
 
     Sleep(32);
-    // TODO: ASAP
-    // ret = mxkN2CmdReadResponce(local_18, NULL, N2_TAG_RQU_COMMAND, N2_ORD_ENABLE_SESSION, NULL,
-    //                            N2DeviceInfo.m_Addr, N2DeviceInfo.m_HmacOut, 20);
-    if (ret != 0) return ret;
+    err = mxkN2CmdReadResponce(&nonce, NULL, N2_TAG_RQU_COMMAND, N2_ORD_ENABLE_SESSION, NULL,
+                               N2DeviceInfo.m_Addr, &N2DeviceInfo.m_HmacSalt, 20);
+    if (err != 0) return err;
     Sleep(16);
     return 0;
 }
 
+int mxkN2CmdGetErrorCode(unsigned short *errorCode) {
+    N2Nonce_t nonce;
+
+    CheckN2Init;
+
+    int err;
+    err = mxkN2CmdWriteCommand(&nonce, NULL, N2_TAG_RQU_COMMAND, N2_ORD_GET_ERROR_CODE, NULL,
+                               N2DeviceInfo.m_Addr, NULL, 0);
+    if (err != 0) return err;
+
+    Sleep(32);
+    unsigned short rawErrorCode;
+    err = mxkN2CmdReadResponce(&nonce, NULL, N2_TAG_RQU_COMMAND, N2_ORD_GET_ERROR_CODE, NULL,
+                               N2DeviceInfo.m_Addr, &rawErrorCode, 2);
+    if (err != 0) return err;
+
+    Sleep(16);
+    *errorCode = _byteswap_ushort(rawErrorCode);
+    return 0;
+}
+
+int mxkN2CmdSetAuthKey(PN2AuthKey_t authKey) {
+    CheckN2Init;
+
+    unsigned char authKeyPt[32];
+    ZeroMemory(authKeyPt, sizeof authKeyPt);
+    unsigned char authKeyCt[32];
+    memcpy_s(authKeyPt, sizeof authKeyPt, authKey, sizeof *authKey);
+    mxkCryptEncryptAes128CBC(N2DeviceInfo.m_AESKey.m_Key, N2DeviceInfo.m_AESKey.m_IV, authKeyCt,
+                             authKeyPt, sizeof authKeyPt);
+
+    N2Nonce_t nonce;
+    int err;
+    err = mxkN2CmdWriteCommand(&nonce, &N2DeviceInfo.m_HmacSalt, N2_TAG_RQU_AUTH_COMMAND,
+                               N2_ORD_SET_AUTH_KEY, &N2DeviceInfo.m_HmacKey, N2DeviceInfo.m_Addr,
+                               authKeyCt, sizeof authKeyCt);
+    if (err != 0) return err;
+
+    Sleep(96);
+    err = mxkN2CmdReadResponce(&nonce, &N2DeviceInfo.m_HmacSalt, N2_TAG_RQU_AUTH_COMMAND,
+                               N2_ORD_SET_AUTH_KEY, &N2DeviceInfo.m_HmacKey, N2DeviceInfo.m_Addr,
+                               NULL, 0);
+    if (err != 0) return err;
+    Sleep(16);
+    memcpy_s(N2DeviceInfo.m_AuthKey, sizeof N2DeviceInfo.m_AuthKey, authKey, sizeof *authKey);
+    return 0;
+}
+
+int mxkN2CmdSetEncKey(AESKey_t *encKey) {
+    CheckN2Init;
+
+    unsigned char encKeyCt[sizeof *encKey];
+    mxkCryptEncryptAes128CBC(N2DeviceInfo.m_AESKey.m_Key, N2DeviceInfo.m_AESKey.m_IV, encKeyCt,
+                             encKey, sizeof encKeyCt);
+
+    N2Nonce_t requestNonce;
+    int err;
+    err = mxkN2CmdWriteCommand(&requestNonce, &N2DeviceInfo.m_HmacSalt, N2_TAG_RQU_AUTH_COMMAND,
+                               N2_ORD_SET_ENC_KEY, &N2DeviceInfo.m_AuthKey, N2DeviceInfo.m_Addr,
+                               encKeyCt, sizeof encKeyCt);
+    if (err != 0) return err;
+
+    Sleep(96);
+    err = mxkN2CmdReadResponce(&requestNonce, &N2DeviceInfo.m_HmacSalt, N2_TAG_RQU_AUTH_COMMAND,
+                               N2_ORD_SET_ENC_KEY, &N2DeviceInfo.m_AuthKey, N2DeviceInfo.m_Addr,
+                               NULL, 0);
+    if (err != 0) return err;
+
+    Sleep(16);
+    memcpy_s(&N2DeviceInfo.m_EncKey, sizeof N2DeviceInfo.m_EncKey, encKey, sizeof *encKey);
+    return 0;
+}
+
+int mxkN2CmdGetAuthLevel(unsigned char *authLevel) {
+    CheckN2Init;
+
+    unsigned char rawAuthlevel;
+    N2Nonce_t nonce;
+
+    int err;
+    err = mxkN2CmdWriteCommand(&nonce, NULL, N2_TAG_RQU_COMMAND, N2_ORD_GET_AUTH_LEVEL, NULL,
+                               N2DeviceInfo.m_Addr, NULL, 0);
+    if (err != 0) return err;
+    Sleep(32);
+    err = mxkN2CmdReadResponce(&nonce, NULL, N2_TAG_RQU_COMMAND, N2_ORD_GET_AUTH_LEVEL, NULL,
+                               N2DeviceInfo.m_Addr, &rawAuthlevel, 1);
+    if (err != 0) return err;
+    Sleep(16);
+    err = 0;
+    *authLevel = rawAuthlevel;
+    return 0;
+}
+
+int mxkN2GetErrorCode(void) {
+    unsigned short errorCode;
+
+    int err = mxkN2CmdGetErrorCode(&errorCode);
+    if (err != 0) {
+        amiDebugLog("Error: mxkN2CmdGetErrorCode(). ErrorCode %d", err);
+        return -5;
+    }
+
+    amiDebugLog("N2 ErrorCode 0x%04X", errorCode);
+    return 0;
+}
+int mxkN2CmdReadKeychipID(N2KeychipId_t *lpKeychipId) {
+    CheckN2Init;
+
+    N2Nonce_t nonce;
+
+    unsigned char readData[sizeof *lpKeychipId + 2];
+
+    N2Byte_t request[4];
+    request[0] = 0;
+    request[1] = 0;
+    request[2] = 0;
+    request[3] = sizeof *lpKeychipId;
+
+    int err;
+    err = mxkN2CmdWriteCommand(&nonce, &N2DeviceInfo.m_HmacSalt, N2_TAG_RQU_AUTH_COMMAND,
+                               N2_ORD_READ_KEYCHIP_ID, &N2DeviceInfo.m_AuthKey, N2DeviceInfo.m_Addr,
+                               request, sizeof request);
+    if (err != 0) return err;
+    Sleep(128);
+    err = mxkN2CmdReadResponce(&nonce, &N2DeviceInfo.m_HmacSalt, N2_TAG_RQU_AUTH_COMMAND,
+                               N2_ORD_READ_KEYCHIP_ID, &N2DeviceInfo.m_AuthKey, N2DeviceInfo.m_Addr,
+                               readData, sizeof readData);
+
+    if (err != 0) return err;
+    Sleep(16);
+
+    mxkCryptDecryptAes128CBC(N2DeviceInfo.m_EncKey.m_Key, N2DeviceInfo.m_EncKey.m_IV, readData + 2,
+                             (unsigned char *)lpKeychipId, sizeof *lpKeychipId);
+    return 0;
+}
+
 int mxkN2Authentication(void) {
-    // TODO: ASAP
-    // unsigned char auth_key[20];
-    // unsigned char enc_key[32];
+    N2AuthKey_t authKey;
+    AESKey_t enc_key;
 
     if (!MXK_HAS_INIT) {
         amiDebugLog("No Init Error!!");
         return -3;
     }
 
-    int ErrorCode;
-
-    ErrorCode = mxkN2CmdEnableSession();
-    if (ErrorCode != 0) {
-        // mxkN2GetErrorCode();
-        amiDebugLog("Error: mxkN2CmdEnableSession(). ErrorCode %d", ErrorCode);
+    int err;
+    err = mxkN2CmdEnableSession();
+    if (err != 0) {
+        mxkN2GetErrorCode();
+        amiDebugLog("Error: mxkN2CmdEnableSession(). ErrorCode %d", err);
         return -5;
     }
 
-    // _randomBytes(auth_key, sizeof auth_key);
-    // ErrorCode = mxkN2CmdSetAuthKey(auth_key);
-    // if (ErrorCode != 0) {
-    //     mxkN2GetErrorCode();
-    //     amiDebugLog("Error: mxkN2CmdSetAuthKey(). ErrorCode %d", ErrorCode);
-    //     return -5;
-    // }
+    unsigned char authLevel;
+    mxkN2CmdGetAuthLevel(&authLevel);
+    printf("Achieved auth level: %d\n", authLevel);
 
-    // _randomBytes(enc_key, sizeof enc_key);
-    // ErrorCode = mxkN2CmdSetEncKey(enc_key);
-    // if (ErrorCode != 0) {
-    //     mxkN2GetErrorCode();
-    //     amiDebugLog("Error: mxkN2CmdSetEncKey().ErrorCode %d", ErrorCode);
-    //     return -5;
-    // }
+    _randomBytes(authKey, sizeof authKey);
+    err = mxkN2CmdSetAuthKey(&authKey);
+    if (err != 0) {
+        mxkN2GetErrorCode();
+        amiDebugLog("Error: mxkN2CmdSetAuthKey(). ErrorCode %d", err);
+        return -5;
+    }
 
-    // unsigned char auth_level;
-    // ErrorCode = mxkN2CmdGetAuthLevel(&auth_level);
-    // if (ErrorCode == 0 && auth_level == 3) return 0;
+    mxkN2CmdGetAuthLevel(&authLevel);
+    printf("Achieved auth level: %d\n", authLevel);
 
-    // mxkN2GetErrorCode();
-    // amiDebugLog("Error: mxkN2CmdGetAuthLevel().ErrorCode %d", ErrorCode);
+    _randomBytes(&enc_key, sizeof enc_key);
+    err = mxkN2CmdSetEncKey(&enc_key);
+    if (err != 0) {
+        mxkN2GetErrorCode();
+        amiDebugLog("Error: mxkN2CmdSetEncKey().ErrorCode %d", err);
+        return -5;
+    }
+
+    mxkN2CmdGetAuthLevel(&authLevel);
+    printf("Achieved auth level: %d\n", authLevel);
+
+    // unsigned char authLevel;
+    err = mxkN2CmdGetAuthLevel(&authLevel);
+    if (err == 0 && authLevel == 3) return 0;
+
+    mxkN2GetErrorCode();
+    amiDebugLog("Error: mxkN2CmdGetAuthLevel().ErrorCode %d", err);
     return -5;
+}
+
+void mxkN2Exit(void) { MXK_N2_INIT = FALSE; }
+
+int mxkN2Init(void) {
+    int err;
+    err = mxkN2CmdSetDeviceInfo();
+    if (err != 0) return err;
+
+    err = mxkN2Authentication();
+    if (err != 0) {
+        unsigned short errorCode;
+        err = mxkN2CmdGetErrorCode(&errorCode);
+        if (err != 0) {
+            amiDebugLog("Error: mxkN2CmdGetErrorCode(). ErrorCode %d", err);
+        } else {
+            amiDebugLog("N2 ErrorCode 0x%04X", errorCode);
+        }
+        return -1;
+    }
+    return 0;
 }

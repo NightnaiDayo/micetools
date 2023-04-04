@@ -16,7 +16,7 @@ void miceDumpKCPIC() {
     }
 
     /**
-     * The following sequence is required to avoid SBTR!
+     * The following sequence is required, within 30 seconds, to avoid SBTR!
      *
      * amDongleSetupKeychip:
      *     keychip.appboot.systemflag=?&cache=0

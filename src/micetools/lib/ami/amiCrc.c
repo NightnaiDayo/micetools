@@ -4,9 +4,9 @@
 
 AM_LIB_C_HEADER(amiCrc, AMI_CRC)
 
-void amiCrc32RCreateTable(unsigned int *table) {
+void amiCrc32RCreateTable(uint32_t *table) {
     for (int i = 0; i < 256; i++) {
-        unsigned int value = (~i & 1) - 1 & CRC32_POLYNOMIAL;
+        uint32_t value = (~i & 1) - 1 & CRC32_POLYNOMIAL;
         value = ((i >> 1 ^ ~value) & 1) - 1 & CRC32_POLYNOMIAL ^ value >> 1;
         value = ((i >> 2 ^ ~value) & 1) - 1 & CRC32_POLYNOMIAL ^ value >> 1;
         value = ((i >> 3 ^ ~value) & 1) - 1 & CRC32_POLYNOMIAL ^ value >> 1;
@@ -18,13 +18,12 @@ void amiCrc32RCreateTable(unsigned int *table) {
     }
 }
 
-unsigned int amiCrc32RGet(unsigned int *table, int length, unsigned char *data,
-                          unsigned int initial) {
-    unsigned int value = ~initial;
+uint32_t amiCrc32RGet(uint32_t *table, int length, void *data, uint32_t initial) {
+    uint32_t value = ~initial;
     while (length > 0) {
-        value = value >> 8 ^ table[(data[0] ^ value) & 0xff];
+        value = value >> 8 ^ table[(((unsigned char *)data)[0] ^ value) & 0xff];
         length += -1;
-        data++;
+        ((unsigned char *)data)++;
     }
     return ~value;
 }

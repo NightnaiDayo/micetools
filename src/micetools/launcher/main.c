@@ -9,7 +9,9 @@
 bool debug_wait = false;
 int boot_delay = 0;
 char exe_name[MAX_PATH + 1] = "";
-char commandline[MAX_PATH + 1] = "";
+
+size_t nCommandLine = 256;
+char* commandLine = NULL;
 
 static void print_help(char* exe) {
     log_info(plfBoot, "Usage: %s [-h] [-t] [-b executable.exe] [-d]", exe);
@@ -69,10 +71,13 @@ static bool parse_cmdline(int argc, char* argv[]) {
                 return false;
             }
         } else {
-            if (commandline[0] == 0)
-                snprintf(commandline, sizeof commandline, "%s", argv[i]);
-            else
-                snprintf(commandline, sizeof commandline, "%s %s", commandline, argv[i]);
+            size_t newLength = nCommandLine + 1 + strlen(argv[i]) + 1;
+            if (newLength > nCommandLine) {
+                nCommandLine = newLength;
+                commandLine = realloc(commandLine, nCommandLine);
+            }
+            strcat_s(commandLine, nCommandLine, " ");
+            strcat_s(commandLine, nCommandLine, argv[i]);
         }
     }
     return true;
@@ -176,6 +181,13 @@ int main(int argc, char* argv[]) {
 
     log_info(plfBoot, "Micetools version: %s", MICE_VERSION);
 
+    commandLine = malloc(nCommandLine);
+    if (commandLine == NULL) {
+        log_error(plfBoot, "Fatal: Failed to malloc(commandLine)");
+        return terminate(-1);
+    }
+    commandLine[0] = '\0';
+
     CHAR workDir[MAX_PATH + 1];
     GetCurrentDirectory(MAX_PATH, workDir);
     log_info(plfBoot, "Current directory: %s", workDir);
@@ -203,7 +215,7 @@ int main(int argc, char* argv[]) {
 
     spawn_pcp_processes();
 
-    log_info(plfBoot, "exec: %s %s", exe_name, commandline);
+    log_info(plfBoot, "exec: %s %s", exe_name, commandLine);
 
     char micepath[MAX_PATH + 1];
     if (!locate_library(micepath, MAX_PATH + 1)) {
@@ -216,18 +228,30 @@ int main(int argc, char* argv[]) {
     info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     SetInformationJobObject(hJob, JobObjectExtendedLimitInformation, &info, sizeof info);
 
+    size_t nFullCommandLine = nCommandLine + strlen(exe_name) + 1;
+    char* fullCommandLine = malloc(nFullCommandLine);
+    snprintf(fullCommandLine, nFullCommandLine, "%s %s", exe_name, commandLine);
+    free(commandLine);
+
     char* extra_injections = MiceConfig.launcher.inject;
     PROCESS_INFORMATION pi;
-    if (!start_and_inject(hJob, exe_name, commandline, micepath, debug_wait, boot_delay,
-                          extra_injections, 0, &pi))
+    if (!start_and_inject(hJob, exe_name, fullCommandLine, micepath, debug_wait, boot_delay,
+                          extra_injections, 0, &pi)) {
+        free(fullCommandLine);
         return terminate(-1);
+    }
+    free(fullCommandLine);
 
     SetConsoleCtrlHandler(MiceHandlerRoutine, TRUE);
 
     if (FAILED(WaitForSingleObject(pi.hProcess, INFINITE))) {
         log_error(plfBoot, "Fatal: WaitForSingleObject failed: %03x", GetLastError());
     } else {
-        log_info(plfBoot, "Shutting down");
+        DWORD exitCode;
+        if (GetExitCodeProcess(pi.hProcess, &exitCode))
+            log_info(plfBoot, "Shutting down (ret:%d)", exitCode);
+        else
+            log_info(plfBoot, "Shutting down (failed to get exit code)");
         CloseHandle(pi.hProcess);
     }
     return terminate(0);

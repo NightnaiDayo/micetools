@@ -228,7 +228,7 @@ int mxkSmbusI2CWriteCommand(unsigned char command_code, unsigned char *buffer, s
     return tries == 5 ? -9 : 0;
 }
 
-bool mxkSmbusI2CReadBlock(unsigned char smbAddress, unsigned char block, unsigned char *buffer,
+int mxkSmbusI2CReadBlock(unsigned char smbAddress, unsigned char block, unsigned char *buffer,
                           unsigned char nbytes) {
     DWORD nBytesReturned;
     smb_packet packet;
@@ -244,10 +244,10 @@ bool mxkSmbusI2CReadBlock(unsigned char smbAddress, unsigned char block, unsigne
         if (!succ || nBytesReturned != sizeof packet) return false;
         if (packet.status == 0) {
             memcpy(buffer, packet.data, nbytes);
-            return true;
+            return 0;
         }
         if (packet.status != 24) return false;
         Sleep(16);
     }
-    return false;
+    return -8;
 }

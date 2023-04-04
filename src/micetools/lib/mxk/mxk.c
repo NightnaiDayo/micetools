@@ -177,7 +177,7 @@ BOOL mxkNvramRead(unsigned short addr, unsigned char blocks, unsigned char* data
 }
 
 bool mxkValidString(const char* string, unsigned int length) {
-    for (int i = 0; i < length; i++) {
+    for (unsigned int i = 0; i < length; i++) {
         char c = string[i];
         if (isalnum(c)) continue;
         if (c != '.' && c != '_' && c != '-' && c != ':' && c != '@' && c != '%' && c != '/' &&
@@ -187,7 +187,52 @@ bool mxkValidString(const char* string, unsigned int length) {
     return true;
 }
 
-MXK_STATUS mxkInit() {
+MXK_STATUS mxkGetKeychipIdFromN2(void) {
+    N2KeychipId_t kcId;
+
+    memset(&kcId, 0, sizeof kcId);
+    int err = mxkN2CmdReadKeychipID(&kcId);
+    if (err != 0) {
+        amiDebugLog("Error: mxkN2CmdReadKeychipID().ErrorCode %d", err);
+        return MXK_STATUS_ERROR;
+    }
+
+    amiCrc32RInit();
+    uint32_t crcCalc = amiCrc32RCalc((sizeof kcId.m_AppBoot) - 4, (LPBYTE)&kcId.m_AppBoot + 4, 0);
+    if (crcCalc != kcId.m_AppBoot.m_Crc) {
+        amiDebugLog("Error AppBootInfo CRC!!!");
+        return MXK_STATUS_ERROR;
+    }
+
+    crcCalc = amiCrc32RCalc(sizeof kcId - 4, (LPBYTE)&kcId + 4, 0);
+    if (crcCalc != kcId.m_Crc) {
+        amiDebugLog("Error KeychipID CRC!!!");
+        return MXK_STATUS_ERROR;
+    }
+
+    // N2 keychip ID is a smaller, more compact, format than normal appboot. Restructure it to match
+    // before committing it to memory!
+    unsigned char keyId[16];
+    appboot_t appboot;
+
+    memcpy_s(keyId, sizeof keyId, kcId.m_KeyId, sizeof kcId.m_KeyId);
+    memcpy_s(&appboot, sizeof appboot, &kcId.m_AppBoot,
+             sizeof kcId.m_AppBoot - sizeof kcId.m_AppBoot.m_Seed);
+    memcpy_s(appboot.seed, sizeof appboot.seed, kcId.m_AppBoot.m_Seed,
+             sizeof kcId.m_AppBoot.m_Seed);
+
+    printf("Got N2 key ID: %.16s\n", keyId);
+    printf("Got N2 game ID: %.4s\n", kcId.m_AppBoot.m_GameId);
+
+    // ...but we're not actually committing it to memory at the moment!
+    // memcpy_s(&APPBOOT, 256, &appboot, sizeof appboot);
+    // memcpy_s(N2_KEYID, 16, keyId, 16);
+    // DAT_004adc95 = 0;
+    // DAT_004adda4 = 0;
+    return MXK_STATUS_OK;
+}
+
+MXK_STATUS mxkInit(void) {
     mxkVersionDirty = true;
     AppBoot.m_cacheDirty = true;
 
@@ -203,7 +248,6 @@ MXK_STATUS mxkInit() {
         amiDebugLog("Error mxkExchengeAesKey!!");
         return MXK_STATUS_ERROR;
     }
-    // TODO: N2
     if (mxkSmbusInit() != MXK_STATUS_OK) {
         amiDebugLog("Error mxkSmbusInit!!");
         return MXK_STATUS_ERROR;
@@ -226,9 +270,15 @@ MXK_STATUS mxkInit() {
         // eeprom_playcount();
     }
 
-    // TODO:
-    mxkN2CmdSetDeviceInfo();
-    mxkN2Authentication();
+    if (mxkN2Init() != 0) {
+        amiDebugLog("Error mxkN2Init!!");
+        return MXK_STATUS_ERROR;
+    }
+
+    if (mxkGetKeychipIdFromN2() != 0) {
+        amiDebugLog("Error mxkGetKeychipIdFromN2!!");
+        return MXK_STATUS_ERROR;
+    }
 
     return MXK_STATUS_OK;
 }

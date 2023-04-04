@@ -2,7 +2,9 @@
 
 #include "../common.h"
 
-FARPROC (*TrueGetProcAddress)(HMODULE hModule, LPCSTR lpProcName);
-HMODULE (*TrueGetModuleHandleA)(LPCSTR lpModuleName);
+FARPROC(WINAPI* TrueGetProcAddress)(HMODULE hModule, LPCSTR lpProcName);
+HMODULE(WINAPI* TrueGetModuleHandleA)(LPCSTR lpModuleName);
+HMODULE(WINAPI* TrueLoadLibraryA)(LPCSTR lpLibFileName);
+HMODULE(WINAPI* TrueLoadLibraryW)(LPCWSTR lpLibFileName);
 
 void hook_system();

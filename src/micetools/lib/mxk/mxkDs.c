@@ -57,7 +57,7 @@ int mxkDsKeychipComputeMac(unsigned char page, void *challenge, unsigned char *m
         Sleep(16);
         status = mxkDsWaitNotBusy(&INT_004ab34c);
         if (status == 0) {
-            if (!mxkSmbusI2CReadBlock(KC_DS_ADDRESS, DS28CN01_REG_MAC, mac, 20)) {
+            if (mxkSmbusI2CReadBlock(KC_DS_ADDRESS, DS28CN01_REG_MAC, mac, 20) != 0) {
                 amiDebugLog("Error mxkSmbusI2CReadBlock()!!!");
                 error = -8;
             }
