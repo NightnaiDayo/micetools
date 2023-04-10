@@ -1,4 +1,3 @@
-#include "../config.h"
 #include "callbacks.h"
 
 void mxkPcpVersion(pcpa_t* stream, void* data) {
@@ -9,12 +8,12 @@ void mxkPcpVersion(pcpa_t* stream, void* data) {
 
     char version[5];
     if (sDevice && strcmp(sDevice, "n2") == 0)
-        snprintf(version, 5, "%04X", Config.keychip_dongle_version);
+        snprintf(version, 5, "%04X", N2_VERSION);
     else
-        snprintf(version, 5, "%04X", Config.keychip_pic_version);
+        snprintf(version, 5, "%04X", PIC_VERSION);
     pcpaSetSendPacket(stream, KC_VERSION, version);
 }
 
 void mxkPcpStatus(pcpa_t* stream, void* data) {
-    pcpaSetSendPacket(stream, KC_STATUS, Config.keychip_status);
+    pcpaSetSendPacket(stream, KC_STATUS, "available");
 }

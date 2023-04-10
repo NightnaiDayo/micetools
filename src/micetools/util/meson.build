@@ -81,3 +81,14 @@ executable(
         amiDebug,
     ],
 )
+
+executable(
+    'micefs_test',
+    win_subsystem: subsystem,
+    sources: [
+        'micefs_test.c',
+    ],
+    link_with: [
+        mice_lib,
+    ],
+)

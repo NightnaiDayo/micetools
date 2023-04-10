@@ -95,13 +95,6 @@ void apply_patches(HMODULE hModule) {
 void prebind_hooks() {
     hook_all();
     install_devices();
-    // TODO: Figure out why we're needing to call this manually (medium priority)
-    // if (wcscmp(exeName, L"ALLNetProc.exe") == 0) {
-    //     log_warning(plfBoot, "Making explicit call to OPENSSL_add_all_algorithms_noconf");
-
-    //     // OPENSSL_add_all_algorithms_noconf
-    //     ((void (*)(void))(0x00459770))();
-    // }
 }
 
 void init_injection(HMODULE hModule) {
@@ -117,8 +110,45 @@ void init_injection(HMODULE hModule) {
     MiceSetLogBasename(exeNameC);
     log_info(plfBoot, "Handover complete. Now executing within %ls", exeName);
 
+    // Start Mice FS
+    BOOL success = TRUE;
+    success &= MiceFSInit();
+    if (success) success &= MiceFSAddRingedgeLayers(FALSE);
+    if (!success) {
+        log_error(plfFile, "Failed to initialise Mice FS stack: %d", GetLastError());
+        exit(1);
+    }
+
+    if (MiceConfig.mice.original && MiceConfig.mice.original[0] == '\0') {
+        CHAR szCurrentDir[MAX_PATH + 1];
+        GetCurrentDirectoryA(sizeof szCurrentDir, szCurrentDir);
+        MiceFSAddLayer(RING_MOUNT_ORIGINAL, szCurrentDir);
+        MiceFSAddLayer(RING_MOUNT_GAME, szCurrentDir);
+    } else {
+        MiceFSAddLayer(RING_MOUNT_ORIGINAL, MiceConfig.mice.original);
+        MiceFSAddLayer(RING_MOUNT_GAME, MiceConfig.mice.original);
+    }
+    if (MiceConfig.mice.patch && MiceConfig.mice.patch[0] != '\0') {
+        MiceFSAddLayer(RING_MOUNT_PATCH, MiceConfig.mice.patch);
+        MiceFSAddLayer(RING_MOUNT_GAME, MiceConfig.mice.patch);
+    }
+    if (MiceConfig.mice.extend && MiceConfig.mice.extend[0] != '\0') {
+        MiceFSAddLayer(RING_MOUNT_EXTEND_VOL, MiceConfig.mice.extend);
+        MiceFSAddLayer(RING_MOUNT_GAME, MiceConfig.mice.extend);
+    }
+    if (MiceConfig.mice.extend2 && MiceConfig.mice.extend2[0] != '\0') {
+        MiceFSAddLayer(RING_MOUNT_EXTEND2_VOL, MiceConfig.mice.extend2);
+        MiceFSAddLayer(RING_MOUNT_GAME, MiceConfig.mice.extend2);
+    }
+
+    if (success) success &= MiceFSAddDevLayers();
+
+    MiceFSSetCwd(RING_MOUNT_GAME);
+
+    // Setup default COM devices
     init_com_devices();
 
+    // Apply any in-memory patches requested
     if (MiceConfig.mice.apply_patches) apply_patches(hModule);
 
     // Columba: Driver-level memory access, used to read the DMI tables
@@ -144,6 +174,21 @@ void init_injection(HMODULE hModule) {
 
     // Must be the last thing called!
     prebind_hooks();
+
+    // TODO: Figure out why we're needing to call this manually (medium priority)
+    if (wcscmp(exeName, L"ALLNetProc.exe") == 0) {
+        log_warning(plfBoot, "Making explicit call to OPENSSL_add_all_algorithms_noconf");
+
+        DWORD imageBase = GetImageBase();
+        imageOffset = (DWORD)hModule - imageBase;
+
+        // OPENSSL_add_all_algorithms_noconf (old exe)
+        // ((void (*)(void))(0x00459770 + imageOffset))();
+
+        // OPENSSL_add_all_algorithms_noconf (new exe)
+        ((void (*)(void))(0x00463480 + imageOffset))();
+    }
+
     setup_hooks();
 }
 

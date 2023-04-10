@@ -185,7 +185,7 @@ MXK_STATUS mxkCryptDecryptAes128CBC(const unsigned char* key, const unsigned cha
     int outl;
     EVP_DecryptUpdate(ctx, pt, &outl, ct, nbytes);
     unsigned char dump[16];
-    EVP_EncryptFinal_ex(ctx, dump, &outl);
+    EVP_DecryptFinal_ex(ctx, dump, &outl);
     EVP_CIPHER_CTX_free(ctx);
 
     return MXK_STATUS_OK;

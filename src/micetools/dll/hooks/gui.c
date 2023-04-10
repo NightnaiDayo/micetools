@@ -258,6 +258,9 @@ static HRESULT(STDMETHODCALLTYPE* TrueCreateDevice)(IDirect3D9* this, UINT Adapt
                                                     DWORD BehaviorFlags,
                                                     D3DPRESENT_PARAMETERS* pPresentationParameters,
                                                     IDirect3DDevice9** ppReturnedDeviceInterface);
+static HRESULT(STDMETHODCALLTYPE* TrueEnumAdapterModes)(IDirect3D9* this, UINT Adapter,
+                                                        D3DFORMAT Format, UINT Mode,
+                                                        D3DDISPLAYMODE* pMode);
 
 extern RECT monitorRect;
 HRESULT STDMETHODCALLTYPE FakeCreateDevice(IDirect3D9* this, UINT Adapter, D3DDEVTYPE DeviceType,
@@ -309,6 +312,23 @@ HRESULT STDMETHODCALLTYPE FakeCreateDevice(IDirect3D9* this, UINT Adapter, D3DDE
                 break;
         }
     }
+    log_info(plfD3D9, "Device created: %d", res);
+    return res;
+}
+
+HRESULT STDMETHODCALLTYPE FakeEnumAdapterModes(IDirect3D9* this, UINT Adapter, D3DFORMAT Format,
+                                               UINT Mode, D3DDISPLAYMODE* pMode) {
+    HRESULT res = TrueEnumAdapterModes(this, Adapter, Format, Mode, pMode);
+    if (res == S_OK) {
+        // printf("Found: %dx%d @ %d\n", pMode->Width, pMode->Height, pMode->RefreshRate);
+        // TODO: Is this going to ever cause issues?
+        pMode->Width = MiceConfig.window.w;
+        pMode->Height = MiceConfig.window.h;
+        pMode->RefreshRate = 60;
+    }
+
+    // printf("Request format: %d/%d. Result: %d\n", Format, Mode, res);
+    // pMode->Format = Format;
     return res;
 }
 
@@ -319,6 +339,10 @@ IDirect3D9* WINAPI FakeDirect3DCreate9(UINT SDKVersion) {
     TrueCreateDevice = pD3D->lpVtbl->CreateDevice;
     DWORD patch = (DWORD)&FakeCreateDevice;
     patch_at(&pD3D->lpVtbl->CreateDevice, (char*)&patch, 4);
+
+    TrueEnumAdapterModes = pD3D->lpVtbl->EnumAdapterModes;
+    patch = (DWORD)&FakeEnumAdapterModes;
+    patch_at(&pD3D->lpVtbl->EnumAdapterModes, (char*)&patch, 4);
 
     return pD3D;
 };

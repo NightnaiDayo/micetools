@@ -102,7 +102,10 @@ void mice_got_game_id(char game_id[4]) {
         MiceConfig.devices.com7 = "";
         MiceConfig.devices.com8 = "";
     } else {
-        if (game_id[0] != '\0') return log_warning(plfBoot, "Unknown game ID: %.4s", game_id);
+        if (game_id[0] != '\0') {
+            log_warning(plfBoot, "Unknown game ID: %.4s", game_id);
+            return;
+        }
         return;
     }
 

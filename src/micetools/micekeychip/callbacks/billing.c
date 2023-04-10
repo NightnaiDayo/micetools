@@ -2,8 +2,12 @@
 #include "../lib/libpcp/libpcp.h"
 #include "callbacks.h"
 
-void mxkPcpPbKeyId(pcpa_t* stream, void* data) { pcpaSetSendPacket(stream, BIL_KEYID, Config.billing_keyid); }
-void mxkPcpPbMainId(pcpa_t* stream, void* data) { pcpaSetSendPacket(stream, BIL_MAINID, Config.billing_mainid); }
+void mxkPcpPbKeyId(pcpa_t* stream, void* data) {
+    pcpaSetSendPacket(stream, BIL_KEYID, Config.billing_keyid);
+}
+void mxkPcpPbMainId(pcpa_t* stream, void* data) {
+    pcpaSetSendPacket(stream, BIL_MAINID, Config.billing_mainid);
+}
 void mxkPcpPbPlayCount(pcpa_t* stream, void* data) {
     char pc[9];
     snprintf(pc, sizeof pc, "%08X", Config.billing_playcount);

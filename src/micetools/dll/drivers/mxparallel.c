@@ -10,20 +10,22 @@ BYTE parallel_data = 0x00;
 BYTE KEYCHIP_ID[16] = KEY_ID;
 BYTE _MAIN_ID[16] = MAIN_ID;
 
-appboot_t APPBOOT = {
-    .format = 1,
-    .game_id = GAME_ID,
-    .region = 8 | 4 | 2 | 1,
-    .model_type = 2,
-    // Bitfield
-    // 1 = use flash for appboot
-    .system_flag = 0x24,
-    ._ = 0,
-    .platform_id = HW_ID,
-    .dvd_flag = 1,
-    .network_addr = (192 << 0) | (168 << 8) | (103 << 16) | (0 << 24),
-    .__ = 0,
-    .seed = 1,
+AM_APPBOOT_256 APPBOOT = {
+    .m_Header = {
+        .m_Format = 1,
+        .m_GameId = GAME_ID,
+        .m_Region = 8 | 4 | 2 | 1,
+        .m_ModelType = 2,
+        // Bitfield
+        // 1 = use flash for appboot
+        .m_SystemFlag = 0x24,
+        .Rsv0f = 0,
+        .m_PlatformId = HW_ID,
+        .m_DvdFlag = 1,
+        .m_NetworkAddr = (192 << 0) | (168 << 8) | (103 << 16) | (0 << 24),
+    },
+    .Rsv18 = 0,
+    .m_Seed = 1,
 };
 billing_t BILLING = {
     .playlimit = 21046,
@@ -46,9 +48,10 @@ uint32_t BILLING_PLAYCOUNT = 69420;
         overlappedComplete(len);                     \
     } while (0)
 
-BOOL WINAPI mxparallel_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer,
-                                DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
-                                LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
+BOOL WINAPI mxparallel_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode,
+                                       LPVOID lpInBuffer, DWORD nInBufferSize, LPVOID lpOutBuffer,
+                                       DWORD nOutBufferSize, LPDWORD lpBytesReturned,
+                                       LPOVERLAPPED lpOverlapped) {
     log_trace(plfMxParallel, "DeviceIoControl(<mxparallel>, 0x%08x, 0x%p, 0x%x, -, 0x%x, -, -)",
               dwIoControlCode, lpInBuffer, nInBufferSize, nOutBufferSize);
 
@@ -273,7 +276,8 @@ void mxparallel_process_packet(BYTE* request) {
                 log_warning(plfMxParallel, "GetAppBootInfo[%d] unexpected!", request[1]);
             }
 
-            APPBOOT.crc = amiCrc32RCalc(sizeof APPBOOT - 4, (unsigned char*)&APPBOOT + 4, 0);
+            APPBOOT.m_Header.m_Crc =
+                amiCrc32RCalc(sizeof APPBOOT - 4, (unsigned char*)&APPBOOT + 4, 0);
             for (int i = 0; i < sizeof APPBOOT; i += 16) {
                 micexkSendPacket((unsigned char*)(&APPBOOT) + i);
             }

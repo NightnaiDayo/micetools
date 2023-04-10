@@ -4,26 +4,14 @@
 #include <varargs.h>
 
 #include "mxkCrypt.h"
+#include "../../segastructs.h"
 
 #pragma pack(push, 1)
 typedef struct {
     uint32_t m_Crc;
     uint8_t m_Unk04[12];
     uint8_t m_KeyId[16];
-    struct {
-        uint32_t m_Crc;
-        uint32_t m_FormatType;
-        uint8_t m_GameId[4];
-        uint8_t m_Region;
-        uint8_t m_ModelType;
-        uint8_t m_SystemFlags;
-        uint8_t Rsv0f;
-        uint8_t m_PlatformId[3];
-        uint8_t m_DvdFlag;
-        uint8_t m_NetworkAddr[4];
-        uint8_t Unk10[88];
-        uint8_t m_Seed[16];
-    } m_AppBoot;
+    AM_APPBOOT_128 m_AppBoot;
 } N2KeychipId_t;
 #pragma pack(pop)
 

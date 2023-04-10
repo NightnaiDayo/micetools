@@ -1,6 +1,21 @@
 #define _MICE_FILES
 #include "files.h"
+
 #include "../util/_util.h"
+
+// TODO: This should be part of MiceFS I think
+file_hook_t* MiceFSLocateHookW(_In_ LPCWSTR lpFileName);
+file_hook_t* MiceFSLocateHookW(LPCWSTR lpFileName) {
+    file_hook_t* file_hook = file_hook_list;
+    while (file_hook != NULL) {
+        if (wcscmp(lpFileName, file_hook->filename) == 0 ||
+            (file_hook->altFilename != NULL && wcscmp(lpFileName, file_hook->altFilename) == 0)) {
+            return file_hook;
+        }
+        file_hook = file_hook->next;
+    }
+    return NULL;
+}
 
 HANDLE open_hook(file_hook_t* file_hook) {
     open_hook_t* opened = (open_hook_t*)malloc(sizeof(open_hook_t));
@@ -97,78 +112,11 @@ void hook_file_with_buffer(LPCWSTR filename, LPBYTE buffer, DWORD nBytes, DWORD 
     hook_file(hook);
 }
 
-drive_redirect_t DRIVE_REDIRECT_TABLE[] = {
-    // Note: Had to create last_shime.log
-    { .drive = "C:\\Documents and Settings\\AppUser\\temp\\", .path = ".\\dev\\temp\\" },
-    // {.drive = "C:\\ProgramData/boost_interprocess/", .path = "\\\\.\\ipc\\"},
-};
-
-char _redirected_path[MAX_PATH];
-
-file_hook_t* find_hook(LPCWSTR lpFileName) {
-    file_hook_t* file_hook = file_hook_list;
-    while (file_hook != NULL) {
-        if (wcscmp(lpFileName, file_hook->filename) == 0 ||
-            (file_hook->altFilename != NULL && wcscmp(lpFileName, file_hook->altFilename) == 0)) {
-            return file_hook;
-        }
-        file_hook = file_hook->next;
-    }
-    return NULL;
-};
-
-BOOL redirect_path(LPCSTR path, LPCSTR* redirected) {
-    for (int i = 0; i < sizeof DRIVE_REDIRECT_TABLE / sizeof DRIVE_REDIRECT_TABLE[0]; i++) {
-        drive_redirect_t row = DRIVE_REDIRECT_TABLE[i];
-        if (PathPrefix(path, row.drive)) {
-            log_trace(plfHooks, "Redirecting '%s' to '%s'", path, row.path);
-
-            size_t new_len = strlen(path) - strlen(row.drive) + strlen(row.path);
-            strcpy_s(_redirected_path, new_len + 1, row.path);
-
-            char* dst = _redirected_path + strlen(row.path);
-            size_t len = strlen(path) - strlen(row.drive);
-            const char* src = path + strlen(row.drive);
-
-            for (; len > 0; len--) (dst++)[0] = (src++)[0];
-            dst[0] = 0;
-            log_trace(plfHooks, "New filename: '%s'", _redirected_path);
-
-            make_dirs(_redirected_path);
-            *redirected = _redirected_path;
-            return TRUE;
-        }
-    }
-
-    // Don't redirect local paths
-    if (IsGamedataLocalPath(path)) return FALSE;
-
-    if ((('a' <= path[0] && path[0] <= 'z') || ('A' <= path[0] && path[0] <= 'Z')) &&
-        path[1] == ':' && (path[2] == '/' || path[2] == '\\')) {
-        ZeroMemory(_redirected_path, sizeof _redirected_path);
-        snprintf(_redirected_path, sizeof _redirected_path, "dev\\%c\\%s", char_lower(path[0]),
-                 path + 3);
-
-        make_dirs(_redirected_path);
-        *redirected = _redirected_path;
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
-BOOL redirect_path_w(LPCWSTR lpFileName, LPCSTR* redirected) {
-    char cFileName[MAX_PATH] = { 0 };
-    WideCharToMultiByte(CP_ACP, 0, lpFileName, wcslen(lpFileName), cFileName, sizeof cFileName,
-                        NULL, NULL);
-    return redirect_path(cFileName, redirected);
-}
-
 HANDLE WINAPI FakeCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
                               LPSECURITY_ATTRIBUTES lpSecurityAttributes,
                               DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes,
                               HANDLE hTemplateFile) {
-    file_hook_t* found_fh = find_hook(lpFileName);
+    file_hook_t* found_fh = MiceFSLocateHookW(lpFileName);
     if (found_fh != NULL) {
         HANDLE handle = open_hook(found_fh);
         log_info(plfHooks, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
@@ -177,16 +125,10 @@ HANDLE WINAPI FakeCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD d
 
     HANDLE handle;
 
-    LPCSTR redirected;
-    if (redirect_path_w(lpFileName, &redirected)) {
-        handle = TrueCreateFileA(redirected, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
-                                 dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-        log_misc(plfHooks, "CreateFileW(%s) -> 0x%p", redirected, handle);
-    } else {
-        handle = TrueCreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
-                                 dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-        log_misc(plfHooks, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
-    }
+    MiceFSRedirectPathW(lpFileName, &lpFileName);
+    handle = TrueCreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+                             dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+    log_misc(plfHooks, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
 
     return handle;
 }
@@ -197,14 +139,14 @@ HANDLE WINAPI FakeCreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
     WCHAR wideFileName[MAX_PATH + 1];
     MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, (LPWSTR)&wideFileName, MAX_PATH + 1);
 
-    file_hook_t* found_fh = find_hook(wideFileName);
+    file_hook_t* found_fh = MiceFSLocateHookW(wideFileName);
     if (found_fh != NULL) {
         HANDLE handle = open_hook(found_fh);
         log_info(plfHooks, "CreateFileA(%s) -> 0x%p", lpFileName, handle);
         return handle;
     }
 
-    redirect_path(lpFileName, &lpFileName);
+    MiceFSRedirectPathA(lpFileName, &lpFileName);
     HANDLE handle = TrueCreateFileA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                                     dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
     log_misc(plfHooks, "CreateFileA(%s) -> 0x%p", lpFileName, handle);
@@ -212,32 +154,24 @@ HANDLE WINAPI FakeCreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
 }
 
 BOOL WINAPI FakePathFileExistsA(LPCSTR pszPath) {
-    log_misc(plfHooks, "PathFileExists(%s)", pszPath);
-    redirect_path(pszPath, &pszPath);
+    MiceFSRedirectPathA(pszPath, &pszPath);
     BOOL ret = TruePathFileExistsA(pszPath);
+    log_misc(plfHooks, "PathFileExistsA(%s) = %d", pszPath, ret);
     return ret;
 }
 BOOL WINAPI FakePathFileExistsW(LPCWSTR pszPath) {
-    log_misc(plfHooks, "PathFileExists(%ls)", pszPath);
-    LPCSTR redirected;
-    if (redirect_path_w(pszPath, &redirected)) {
-        return TruePathFileExistsA(redirected);
-    }
-    return TruePathFileExistsW(pszPath);
+    MiceFSRedirectPathW(pszPath, &pszPath);
+    BOOL ret = TruePathFileExistsW(pszPath);
+    log_misc(plfHooks, "PathFileExistsW(%ls) = %d", pszPath, ret);
+    return ret;
 }
 
 BOOL WINAPI FakeDeleteFileA(LPCSTR pszPath) {
-    LPCSTR redirected;
-    if (redirect_path(pszPath, &redirected)) {
-        return TrueDeleteFileA(redirected);
-    }
+    MiceFSRedirectPathA(pszPath, &pszPath);
     return TrueDeleteFileA(pszPath);
 }
 BOOL WINAPI FakeDeleteFileW(LPCWSTR pszPath) {
-    LPCSTR redirected;
-    if (redirect_path_w(pszPath, &redirected)) {
-        return TrueDeleteFileA(redirected);
-    }
+    MiceFSRedirectPathW(pszPath, &pszPath);
     return TrueDeleteFileW(pszPath);
 }
 
@@ -387,36 +321,33 @@ BOOL WINAPI FakeCloseHandle(HANDLE hObject) {
 }
 
 int WINAPIV Fake_stat64i32(const char* path, struct _stat64i32* buffer) {
-    redirect_path((char*)path, &path);
+    MiceFSRedirectPathA((char*)path, &path);
     return True_stat64i32(path, buffer);
 };
 
 DWORD WINAPI FakeGetFileAttributesA(LPCSTR lpFileName) {
     // The game quits out if MiniDump is present!
-    if (PathEqual(lpFileName, "Y:\\MiniDump\\") == 0) {
+    if (PathEqual(lpFileName, "Y:\\MiniDump\\")) {
         return 0;
     }
-    return (DWORD)-1;
 
-    LPCSTR redirected;
-    if (redirect_path(lpFileName, &redirected)) {
-        return TrueGetFileAttributesA(redirected);
-    }
+    MiceFSRedirectPathA(lpFileName, &lpFileName);
     return TrueGetFileAttributesA(lpFileName);
 }
 DWORD WINAPI FakeGetFileAttributesW(LPCWSTR lpFileName) {
-    LPCSTR redirected;
-    if (redirect_path_w(lpFileName, &redirected)) {
-        return TrueGetFileAttributesA(redirected);
-    }
+    MiceFSRedirectPathW(lpFileName, &lpFileName);
     return TrueGetFileAttributesW(lpFileName);
 }
 HANDLE WINAPI FakeFindFirstFileA(LPCSTR lpFileName, LPWIN32_FIND_DATA lpFindFileData) {
-    LPCSTR redirected;
-    if (redirect_path(lpFileName, &redirected)) {
-        return TrueFindFirstFileA(redirected, lpFindFileData);
-    }
+    MiceFSRedirectPathA(lpFileName, &lpFileName);
     return TrueFindFirstFileA(lpFileName, lpFindFileData);
+}
+
+DWORD WINAPI FakeGetCurrentDirectoryA(DWORD nBufferLength, LPSTR lpBuffer) {
+    strcpy_s(lpBuffer, nBufferLength, MiceFSGetCwd());
+}
+DWORD WINAPI FakeGetCurrentDirectoryW(DWORD nBufferLength, LPWSTR lpBuffer) {
+    MultiByteToWideChar(CP_ACP, 0, MiceFSGetCwd(), -1, lpBuffer, nBufferLength);
 }
 
 void hook_io() {
@@ -436,6 +367,10 @@ void hook_io() {
     hook("Shlwapi.dll", "PathFileExistsW", FakePathFileExistsW, (void**)&TruePathFileExistsW);
     hook("Kernel32.dll", "DeleteFileA", FakeDeleteFileA, (void**)&TrueDeleteFileA);
     hook("Kernel32.dll", "DeleteFileW", FakeDeleteFileW, (void**)&TrueDeleteFileW);
+    hook("Kernel32.dll", "GetCurrentDirectoryA", FakeGetCurrentDirectoryA,
+         (void**)&TrueGetCurrentDirectoryA);
+    hook("Kernel32.dll", "GetCurrentDirectoryW", FakeGetCurrentDirectoryW,
+         (void**)&TrueGetCurrentDirectoryW);
 
     hook("Kernel32.dll", "FindFirstFileA", FakeFindFirstFileA, (void**)&TrueFindFirstFileA);
 

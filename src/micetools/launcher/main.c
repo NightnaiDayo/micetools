@@ -129,7 +129,7 @@ static DWORD WINAPI MiceMailslotWatcher(HANDLE* pSlot) {
                 }
                 if (!inVt100) WriteFile(hLogFile, &(readBuffer[i]), 1, &nWrote, NULL);
             }
-            FlushFileBuffers(hLogFile);
+            // FlushFileBuffers(hLogFile);
         }
     }
 }

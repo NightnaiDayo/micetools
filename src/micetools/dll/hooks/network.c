@@ -5,7 +5,7 @@ int WINAPI Fake_connect(SOCKET s, const SOCKADDR* name, int namelen) {
     USHORT port = _byteswap_ushort(((SOCKADDR_IN*)name)->sin_port);
     // Poorly exclude nxauth and mxgcatcher.
     // TODO: better
-    if (port != 40190 && port != 40110) {
+    if (port != 40190 && port != 40110 && port != 40102 && port != 40103) {
         log_info(plfNetwork, "connect(%hhu.%hhu.%hhu.%hhu:%hu)", (addr >> 24) & 0xff,
                  (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff, port);
     }
@@ -26,7 +26,7 @@ int WINAPI Fake_bind(SOCKET s, const SOCKADDR* name, int namelen) {
 #define MAC_PREFIX_1 0xBB
 #define MAC_PREFIX_2 0xC1
 DWORD WINAPI FakeGetIfTable(PMIB_IFTABLE pIfTable, PULONG pdwSize, BOOL bOrder) {
-    log_info(plfNetwork, "Injecting fake IfTable");
+    log_misc(plfNetwork, "Injecting fake IfTable");
 
     MIB_IFROW* row;
     uint32_t nbytes;

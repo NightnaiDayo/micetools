@@ -23,7 +23,7 @@ void micexkSendPacket(unsigned char* send_data);
 void micexkTransportRecv(unsigned char* buffer, int nbytes);
 void micexkRecvPacket(unsigned char* packet);
 
-static appboot_t APPBOOT;
+static AM_APPBOOT_256 APPBOOT;
 static billing_t BILLING;
 static uint32_t BILLING_PLAYCOUNT;
 

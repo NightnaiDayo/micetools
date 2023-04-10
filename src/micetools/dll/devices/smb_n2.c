@@ -5,6 +5,7 @@
 #include <openssl/rand.h>
 
 #include "../../lib/mxk/mxk.h"
+#include "../../segastructs.h"
 #include "../../sysconf.h"
 #include "_devices.h"
 
@@ -50,36 +51,24 @@ typedef struct {
     DWORD m_Crc;
     BYTE Rsv04[12];
     char m_KeyId[16];
-    struct {
-        DWORD m_Crc;
-        DWORD m_Format;
-        char m_GameId[4];
-        BYTE m_Region;
-        BYTE m_ModelType;
-        BYTE m_SystemFlag;
-        BYTE Rsv0f;
-        //
-        char m_PlatformId[3];
-        BYTE m_DvdFlag;
-        DWORD m_NetworkAddr;
-        BYTE Unk00[88];
-        BYTE m_Seed[16];
-    } m_Appboot;
+    AM_APPBOOT_128 m_Appboot;
 } N2_KEYCHIP_INFO, *PN2_KEYCHIP_INFO;
 #pragma pack(pop)
 
 N2_KEYCHIP_INFO n2_keychip_info = {
     .m_KeyId = KEY_ID,
     .m_Appboot = {
-        .m_Format = 1,
-        .m_GameId = GAME_ID,
-        .m_Region = 0xff,
-        .m_ModelType = 2,
-        .m_SystemFlag = 0x24,
-        .m_PlatformId = HW_ID,
-        .m_DvdFlag = 1,
-        .m_NetworkAddr =
-            (192 << 0) | (168 << 8) | (103 << 16) | (0 << 24),
+        .m_Header = {
+            .m_Format = 1,
+            .m_GameId = GAME_ID,
+            .m_Region = 0xff,
+            .m_ModelType = 2,
+            .m_SystemFlag = 0x24,
+            .m_PlatformId = HW_ID,
+            .m_DvdFlag = 1,
+            .m_NetworkAddr =
+                (192 << 0) | (168 << 8) | (103 << 16) | (0 << 24),
+        },
     },
 };
 
@@ -134,8 +123,8 @@ WORD n2_read_keychip_id(WORD paramSize, LPBYTE dataIn, LPBYTE dataOut, LPWORD nO
 
     *nOut = (nbytes & 0xff) + 2;
 
-    n2_keychip_info.m_Appboot.m_Crc = amiCrc32RCalc(sizeof n2_keychip_info.m_Appboot - 4,
-                                                    (LPBYTE)&n2_keychip_info.m_Appboot + 4, 0);
+    n2_keychip_info.m_Appboot.m_Header.m_Crc = amiCrc32RCalc(
+        sizeof n2_keychip_info.m_Appboot - 4, (LPBYTE)&n2_keychip_info.m_Appboot + 4, 0);
     n2_keychip_info.m_Crc =
         amiCrc32RCalc(sizeof n2_keychip_info - 4, (LPBYTE)&n2_keychip_info + 4, 0);
 

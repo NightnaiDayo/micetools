@@ -53,15 +53,8 @@ dist:
 	@copy /Y "$(BUILD_DIR)/src/micetools/miceboot\TrueCrypt.exe" "$(DIST_DIR)/Execute/TrueCrypt.exe"
 	@copy /Y "$(BUILD_DIR)/src/micetools/miceboot\mxmaster.exe" "$(DIST_DIR)/Execute/S/mxmaster.exe"
 
-#	@copy /Y "$(BUILD_DIR)/src/micetools/micepatch\micepatch.exe" "$(DIST_DIR)/util/micepatch.exe"
-	@copy /Y "$(BUILD_DIR)/src/micetools/util\micedump.exe" "$(DIST_DIR)/util/micedump.exe"
-	@copy /Y "$(BUILD_DIR)/src/micetools/util\micedump.pdb" "$(DIST_DIR)/util/micedump.pdb"
-	@copy /Y "$(BUILD_DIR)/src/micetools/util\micetinker.exe" "$(DIST_DIR)/util/micetinker.exe"
-	@copy /Y "$(BUILD_DIR)/src/micetools/util\micemonitor.exe" "$(DIST_DIR)/util/micemonitor.exe"
-	@copy /Y "$(BUILD_DIR)/src/micetools/util\exio_test.exe" "$(DIST_DIR)/util/exio_test.exe"
-	@copy /Y "$(BUILD_DIR)/src/micetools/util\dongleDecrypt.exe" "$(DIST_DIR)/util/dongleDecrypt.exe"
-	@copy /Y "$(BUILD_DIR)/src/micetools/util\testBin.exe" "$(DIST_DIR)/util/testBin.exe"
-	@copy /Y "$(BUILD_DIR)/src/micetools/util\micegbdisk.exe" "$(DIST_DIR)/util/micegbdisk.exe"
+	@copy /Y "$(BUILD_DIR)/src/micetools/util\*.exe" "$(DIST_DIR)/util/"
+	@copy /Y "$(BUILD_DIR)/src/micetools/util\*.pdb" "$(DIST_DIR)/util/"
 
 	@copy /Y "$(BUILD_DIR)/src/micetools/system_dummy\dummymaster\dummymaster.exe" "$(DIST_DIR)/system_dummy/dummymaster.exe"
 	@copy /Y "$(BUILD_DIR)/src/micetools/system_dummy\dummyinstaller\dummyinstaller.exe" "$(DIST_DIR)/system_dummy/dummyinstaller.exe"

@@ -4,9 +4,12 @@
 #include "../lib/mice/mice.h"
 
 spawn_t mxspawns[3] = {
-    { "keychip", SPAWN_DUMMY, MdkThreadProc, MxkThreadProc },
-    { "master", SPAWN_DUMMY, MdmThreadProc, NULL },
-    { "installer", SPAWN_DUMMY, MdiThreadProc, NULL },
+    // { "keychip", SPAWN_DUMMY, MdkThreadProc, MxkThreadProc },
+    // { "master", SPAWN_DUMMY, MdmThreadProc, NULL },
+    // { "installer", SPAWN_DUMMY, MdiThreadProc, NULL },
+    { "keychip", SPAWN_NONE, MdkThreadProc, MxkThreadProc },
+    { "master", SPAWN_NONE, MdmThreadProc, NULL },
+    { "installer", SPAWN_NONE, MdiThreadProc, NULL },
 };
 
 int mxkMain();

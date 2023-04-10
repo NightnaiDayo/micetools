@@ -1,4 +1,10 @@
 #include "../lib/libpcp/libpcp.h"
+#include "../lib/mice/kcf.h"
+
+#define N2_VERSION 0x0106
+#define PIC_VERSION 0x0104
+
+extern AM_KCF mxkKcfConfig;
 
 pcpa_callback mxkBinaryCallback;
 extern byte BINARY_DATA[4096];

@@ -53,6 +53,26 @@ typedef struct {
 } N2DeviceInfo_t;
 N2DeviceInfo_t N2DeviceInfo;
 
+/**
+ * Device keys for:
+ *
+ * RingEdge:
+ * Key: 76ec42b6ae0cb048105171ad8cb2fb07
+ * IV: 8e300ba42e154baf651532f570041f5b
+ * Auth: 96ed31b2287105a5a330540f25bed851a5c83621
+ *
+ * ELEFUN:
+ * Key: 519aaa25b5ed20b53d28bb56731d7c8d
+ * IV: 40a1bfc5341340d3dfdbd1a12b855700
+ * Auth: 998e952b6a4899ba42d1d0e8a4fdc87775e19c26
+ *
+ * Nu:
+ * Key: c21c966cbd8b00b9cf4c51bab2c3dfa5
+ * IV: 0b137aab20acc7eea0bbec594957dc6d
+ * Auth: 74935ef7e0181c0661f7bb7118c5512a130a5d19
+ */
+
+// Auth = 96ed31b2287105a5a330540f25bed851a5c83621
 unsigned char N2_KEY_HMAC[2][20] = {
     { 0x2c, 0xf8, 0x3e, 0x5e, 0x51, 0xf0, 0x60, 0x1b, 0xf6, 0xb1,
       0x49, 0x11, 0x3a, 0xaf, 0x36, 0xe1, 0x51, 0x1c, 0x16, 0x05 },
@@ -60,6 +80,8 @@ unsigned char N2_KEY_HMAC[2][20] = {
       0x1d, 0x1e, 0x1f, 0x11, 0xee, 0xb0, 0xf4, 0xd4, 0x20, 0x24 }
 };
 
+// Key = 76ec42b6ae0cb048105171ad8cb2fb07
+// IV = 8e300ba42e154baf651532f570041f5b
 AESKey_t N2_KEY_AES[2] = {
     { { 0xd7, 0xf6, 0x86, 0xfb, 0x63, 0x44, 0xff, 0xa5, 0x60, 0x9d, 0x4e, 0xf0, 0x18, 0xe9, 0x45,
         0xb4 },

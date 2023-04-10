@@ -6,6 +6,8 @@ mice_lib = static_library(
         'patch.c',
         'ringbuf.c',
         'config.c',
+        'kcf.c',
+        'micefs.c',
     ],
     link_with: [
         inih.get_variable('lib_inih'),

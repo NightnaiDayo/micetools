@@ -289,7 +289,7 @@ BOOL dump_keychip() {
         printf("Keychip ID:\t%.16s\n", KEYCHIP_ID);
     }
 
-    appboot_t appboot;
+    AM_APPBOOT_256 appboot;
     if (!mxkGetAppBootInfo(mxparallel, &appboot)) {
         puts("Failed to request appboot info!");
     } else {

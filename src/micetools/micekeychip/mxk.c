@@ -1,5 +1,7 @@
 #include "mxk.h"
 
+AM_KCF mxkKcfConfig;
+
 byte SERVER_STATE = 0;
 pcpa_t PCP;
 pcpa_cb_table_t CALLBACK_FUNCTION_BUFFER[40];
@@ -162,12 +164,38 @@ e_pcpa_t mxkPcpServer() {
     return err;
 }
 
+static LPCSTR kcfSearchPaths[] = {
+    "S:\\config.kcf",
+    "C:\\system\\device\\config.kcf",
+};
+
 int mxkMain(void) {
     DWORD dwAttrib = GetFileAttributes(CONFIG_PATH);
     if (dwAttrib == INVALID_FILE_ATTRIBUTES || (dwAttrib & FILE_ATTRIBUTE_DIRECTORY))
         mxkMakeDefaultConfig();
 
     mxkLoadConfig();
+
+    ZeroMemory(&mxkKcfConfig, sizeof mxkKcfConfig);
+    BOOL kcfLoaded = false;
+    if (Config.config_kcf_path && Config.config_kcf_path[0]) {
+        kcfLoaded = MiceParseKcf(Config.config_kcf_path, &mxkKcfConfig);
+    }
+    if (!kcfLoaded) {
+        for (int i = 0; i < _countof(kcfSearchPaths); i++) {
+            kcfLoaded = MiceParseKcf(kcfSearchPaths[i], &mxkKcfConfig);
+            if (kcfLoaded) break;
+        }
+    }
+
+    if (!kcfLoaded) {
+        amiDebugLog("Failed to parse kcf!");
+    } else {
+        amiDebugLog("Loaded KCF for:");
+        amiDebugLog("Game ID    : %.4s", mxkKcfConfig.m_Header.m_GameId);
+        amiDebugLog("Platform   : %.3s", mxkKcfConfig.m_Header.m_PlatformId);
+        amiDebugLog("System Fag : %02x", mxkKcfConfig.m_Header.m_SystemFlag);
+    }
 
     int err = mxkInit();
     if (err != 0) {

@@ -474,7 +474,7 @@ void init_volume(disk_volume_t* vol) {
     StringFromGUID2(&guid, volume_name + 10, MAX_PATH + 1 - 10);
 
     file_hook_t* volume_hook = new_file_hook(volume_name);
-    log_misc(plfDrive, "Creating fake volume: %ls", volume_name);
+    log_misc(plfDrive, "Creating fake volume: %ls (for %s)", volume_name, vol->m_Name);
 
     volume_hook->DeviceIoControl = &volume_DeviceIoControl;
     volume_hook->hook_data = (void*)vol;
@@ -702,7 +702,7 @@ void hook_drives() {
     q_drive->DeviceIoControl = &q_drive_DeviceIoControl;
     q_drive->ReadFile = &q_drive_ReadFile;
     hook_file(q_drive);
-    // ewwwwwwwwwwwwwwwwww
+    // TODO: ewwwwwwwwwwwwwwwwww
     file_hook_t* q_drive_lower = new_file_hook(L"\\\\.\\q:");
     q_drive_lower->DeviceIoControl = &q_drive_DeviceIoControl;
     q_drive_lower->ReadFile = &q_drive_ReadFile;

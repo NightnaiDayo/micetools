@@ -20,7 +20,7 @@ MXK_STATUS mxkGetAppBootInfo(void) {
         return status;
     }
 
-    appboot_t appBoot;
+    AM_APPBOOT_256 appBoot;
     for (int i = 0; i < sizeof appBoot; i += 16) {
         status = mxkRecvPacket((unsigned char*)(&appBoot) + i);
         if (status != MXK_STATUS_OK) {
@@ -30,7 +30,8 @@ MXK_STATUS mxkGetAppBootInfo(void) {
     }
 
     amiCrc32RInit();
-    if (amiCrc32RCalc(sizeof appBoot - 4, (unsigned char*)&appBoot + 4, 0) != appBoot.crc) {
+    if (amiCrc32RCalc(sizeof appBoot - 4, (unsigned char*)&appBoot + 4, 0) !=
+        appBoot.m_Header.m_Crc) {
         amiDebugLog("Error CRC AppBootInfo");
         return MXK_STATUS_ERROR;
     }
@@ -75,11 +76,11 @@ MXK_STATUS mxkAbSystemFlag(MXK_CACHE cache, unsigned char* systemFlag, unsigned 
 
     if (status == MXK_STATUS_OK) {
     LAB_00401d7b:
-        if (AppBoot.m_Cache.format != 1) {
+        if (AppBoot.m_Cache.m_Header.m_Format != 1) {
             *systemFlag = 0;
             return MXK_STATUS_OK;
         }
-        *systemFlag = AppBoot.m_Cache.system_flag;
+        *systemFlag = AppBoot.m_Cache.m_Header.m_SystemFlag;
         return MXK_STATUS_OK;
     }
 
@@ -127,18 +128,18 @@ MXK_STATUS mxkAbGameId(MXK_CACHE cache, char* gameId, unsigned char* err) {
 
     if (status == MXK_STATUS_OK) {
     LAB_00401c7f:
-        if (AppBoot.m_Cache.format != 1) {
+        if (AppBoot.m_Cache.m_Header.m_Format != 1) {
             gameId[0] = '_';
             gameId[1] = '_';
             gameId[2] = '_';
             gameId[3] = '_';
             return MXK_STATUS_OK;
         }
-        if (!mxkValidString(AppBoot.m_Cache.game_id, 4)) {
+        if (!mxkValidString(AppBoot.m_Cache.m_Header.m_GameId, 4)) {
             *err = 55;
             return MXK_STATUS_ERROR;
         }
-        memcpy(gameId, AppBoot.m_Cache.game_id, 4);
+        memcpy(gameId, AppBoot.m_Cache.m_Header.m_GameId, 4);
         return MXK_STATUS_OK;
     }
 LAB_00401c6a:

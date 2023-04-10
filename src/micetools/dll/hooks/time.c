@@ -49,7 +49,6 @@ BOOL WINAPI Fake_GetLocalTime(SYSTEMTIME* lpSystemTime) {
     return TrueGetLocalTime(lpSystemTime);
 }
 BOOL WINAPI Fake_GetSystemTime(SYSTEMTIME* lpSystemTime) {
-    log_trace(plfTime, "GetSystemTime");
     if (stCache) {
         memcpy(lpSystemTime, &systemTime, sizeof systemTime);
         return TRUE;

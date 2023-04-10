@@ -1,5 +1,4 @@
 #pragma once
-#include "../common.h"
 #include "com.h"
 
 #ifndef _MICE_FILES
@@ -41,6 +40,8 @@ _MICE_FILES BOOL(WINAPI* TrueDeleteFileW)(LPCWSTR lpFileName);
 _MICE_FILES HANDLE(WINAPI* TrueFindFirstFileA)(LPCSTR lpFileName, LPWIN32_FIND_DATA lpFindFileData);
 _MICE_FILES DWORD(WINAPI* TrueGetFileAttributesA)(LPCSTR lpFileName);
 _MICE_FILES DWORD(WINAPI* TrueGetFileAttributesW)(LPCWSTR lpFileName);
+_MICE_FILES DWORD(WINAPI* TrueGetCurrentDirectoryA)(DWORD nBufferLength, LPSTR lpBuffer);
+_MICE_FILES DWORD(WINAPI* TrueGetCurrentDirectoryW)(DWORD nBufferLength, LPWSTR lpBuffer);
 
 typedef struct {
     HANDLE m_Handle;
@@ -75,6 +76,10 @@ static int(WINAPIV* True_stat64i32)(const char* path, _stat64i32_t* buffer);
 #define _SetFilePointer (TrueSetFilePointer ? TrueSetFilePointer : SetFilePointer)
 #define _SetFilePointerEx (TrueSetFilePointerEx ? TrueSetFilePointerEx : SetFilePointerEx)
 #define _PathFileExistsA (TruePathFileExistsA ? TruePathFileExistsA : PathFileExistsA)
+#define _GetCurrentDirectoryA \
+    (TrueGetCurrentDirectoryA ? TrueGetCurrentDirectoryA : GetCurrentDirectoryA)
+#define _GetCurrentDirectoryW \
+    (TrueGetCurrentDirectoryW ? TrueGetCurrentDirectoryA : GetCurrentDirectoryA)
 
 typedef struct drive_redirect {
     const CHAR* drive;

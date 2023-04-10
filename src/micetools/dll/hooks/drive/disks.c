@@ -126,8 +126,8 @@ physical_disk_t APM_HDD = {
 physical_disk_t* PHYSICAL_DISKS[] = {
     &SSD,
     &UPDATE_USB,
-    &APM_HDD,
+    // &APM_HDD,
 
-    &LOG_USB,
+    // &LOG_USB,
     // &ALPHA_DVD,
 };

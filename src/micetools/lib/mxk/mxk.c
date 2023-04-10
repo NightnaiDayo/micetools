@@ -199,7 +199,7 @@ MXK_STATUS mxkGetKeychipIdFromN2(void) {
 
     amiCrc32RInit();
     uint32_t crcCalc = amiCrc32RCalc((sizeof kcId.m_AppBoot) - 4, (LPBYTE)&kcId.m_AppBoot + 4, 0);
-    if (crcCalc != kcId.m_AppBoot.m_Crc) {
+    if (crcCalc != kcId.m_AppBoot.m_Header.m_Crc) {
         amiDebugLog("Error AppBootInfo CRC!!!");
         return MXK_STATUS_ERROR;
     }
@@ -213,16 +213,16 @@ MXK_STATUS mxkGetKeychipIdFromN2(void) {
     // N2 keychip ID is a smaller, more compact, format than normal appboot. Restructure it to match
     // before committing it to memory!
     unsigned char keyId[16];
-    appboot_t appboot;
+    AM_APPBOOT_256 appboot;
 
     memcpy_s(keyId, sizeof keyId, kcId.m_KeyId, sizeof kcId.m_KeyId);
     memcpy_s(&appboot, sizeof appboot, &kcId.m_AppBoot,
              sizeof kcId.m_AppBoot - sizeof kcId.m_AppBoot.m_Seed);
-    memcpy_s(appboot.seed, sizeof appboot.seed, kcId.m_AppBoot.m_Seed,
+    memcpy_s(appboot.m_Seed, sizeof appboot.m_Seed, kcId.m_AppBoot.m_Seed,
              sizeof kcId.m_AppBoot.m_Seed);
 
     printf("Got N2 key ID: %.16s\n", keyId);
-    printf("Got N2 game ID: %.4s\n", kcId.m_AppBoot.m_GameId);
+    printf("Got N2 game ID: %.4s\n", kcId.m_AppBoot.m_Header.m_GameId);
 
     // ...but we're not actually committing it to memory at the moment!
     // memcpy_s(&APPBOOT, 256, &appboot, sizeof appboot);
