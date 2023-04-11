@@ -15,14 +15,6 @@ executable(
 )
 
 executable(
-    'truecrypt',
-    win_subsystem: subsystem,
-    sources: [
-        'truecrypt.c',
-    ],
-)
-
-executable(
     'mxmaster',
     win_subsystem: subsystem,
     sources: [

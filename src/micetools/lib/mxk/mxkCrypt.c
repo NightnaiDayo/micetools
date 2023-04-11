@@ -268,7 +268,7 @@ void mxkSignValue(unsigned int value, unsigned char* signature) {
     mxkSign(&hash_data, sizeof hash_data, signature);
 }
 
-int mxkCryptCalcHashWithHmacSha1(void* key, unsigned char* md, size_t* nbuffer,
+int mxkCryptCalcHashWithHmacSha1(PHmacKey_t key, PHmacSum_t md, size_t* nbuffer,
                                  unsigned char* buffer, size_t nin) {
     if (key == NULL || buffer == NULL || md == NULL || nbuffer == NULL) {
         amiDebugLog("Error: Invalid param.");
@@ -290,17 +290,17 @@ int mxkCryptCalcHashWithHmacSha1(void* key, unsigned char* md, size_t* nbuffer,
     HMAC_CTX_init(&hmac_ctx);
     HMAC_Init_ex(&hmac_ctx, key, 20, EVP_sha1(), NULL);
     HMAC_Update(&hmac_ctx, buffer, nin);
-    HMAC_Final(&hmac_ctx, md, nbuffer);
+    HMAC_Final(&hmac_ctx, (unsigned char*)md, nbuffer);
     HMAC_CTX_cleanup(&hmac_ctx);
 
     return 0;
 }
 
-void mxkCryptCalcHashWithSha1(unsigned char* data, size_t nbytes, unsigned char* sum) {
+void mxkCryptCalcHashWithSha1(unsigned char* data, size_t nbytes, PSha1Sum_t sum) {
     EVP_MD_CTX* ctx = EVP_MD_CTX_create();
     EVP_DigestInit(ctx, EVP_sha1());
     EVP_DigestUpdate(ctx, data, nbytes);
     unsigned int outlen;
-    EVP_DigestFinal_ex(ctx, sum, &outlen);
+    EVP_DigestFinal_ex(ctx, (unsigned char*)sum, &outlen);
     EVP_MD_CTX_destroy(ctx);
 }

@@ -71,7 +71,7 @@ bool load_patches_file(const char* filename) {
                     printf("Invalid address length: %d\n", rbPtr);
                     return false;
                 }
-                hex_to_int(&(size_t)patch->address, readBuffer);
+                hex_to_int(&(patch->address), readBuffer);
 
                 state = parse_patches_state_colon;
                 rbPtr = 0;

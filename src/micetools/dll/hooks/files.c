@@ -345,9 +345,11 @@ HANDLE WINAPI FakeFindFirstFileA(LPCSTR lpFileName, LPWIN32_FIND_DATA lpFindFile
 
 DWORD WINAPI FakeGetCurrentDirectoryA(DWORD nBufferLength, LPSTR lpBuffer) {
     strcpy_s(lpBuffer, nBufferLength, MiceFSGetCwd());
+    return strnlen_s(lpBuffer, nBufferLength);
 }
 DWORD WINAPI FakeGetCurrentDirectoryW(DWORD nBufferLength, LPWSTR lpBuffer) {
     MultiByteToWideChar(CP_ACP, 0, MiceFSGetCwd(), -1, lpBuffer, nBufferLength);
+    return wcsnlen_s(lpBuffer, nBufferLength);
 }
 
 void hook_io() {

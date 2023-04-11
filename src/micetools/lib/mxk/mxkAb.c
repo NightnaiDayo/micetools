@@ -142,7 +142,7 @@ MXK_STATUS mxkAbGameId(MXK_CACHE cache, char* gameId, unsigned char* err) {
         memcpy(gameId, AppBoot.m_Cache.m_Header.m_GameId, 4);
         return MXK_STATUS_OK;
     }
-LAB_00401c6a:
+// LAB_00401c6a:
     KEYCHIP_ERROR = 2;
     KEYCHIP_STATUS = 2;
     *err = 2;

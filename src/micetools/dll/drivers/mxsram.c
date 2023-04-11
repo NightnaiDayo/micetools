@@ -23,8 +23,9 @@ void build_sram() {
     log_info(plfMxSram, "Building default SRAM file");
 
     memset(SRAM_DATA, 0xff, SRAM_SIZE);
-    return;
 
+    // TODO: Do we want to re-enable this with actual values
+#if false
     AM_SYSDATAwH_BACKUP Backup = { 0 };
     fix_crc(Backup);
     memcpy(SRAM_DATA + ADDR_BACKUP, (unsigned char*)&Backup, sizeof Backup);
@@ -44,6 +45,7 @@ void build_sram() {
     fix_crc(ErrorLog);
     memcpy(SRAM_DATA + ADDR_ERROR_LOG, (unsigned char*)&ErrorLog, sizeof ErrorLog);
     memcpy(SRAM_DATA + ADDR_ERROR_LOG + ADDR_DUP, (unsigned char*)&ErrorLog, sizeof ErrorLog);
+#endif
 
     return;
 }

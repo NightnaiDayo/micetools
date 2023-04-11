@@ -16,6 +16,7 @@ typedef enum e_pcpp {
     e_pcpp_already_open = -3,
     e_pcpp_param_invalid = -5,
     e_pcpp_timeout_closed = -6,
+    e_pcpp_data_format_error = -9,
     e_pcpp_recv_unset = -10,
     e_pcpp_no_server = -11,
     e_pcpp_timeout_open = -12,
@@ -25,7 +26,6 @@ typedef enum e_pcpp {
 
     e_pcpp_uk1 = -14,
     e_pcpp_uk2 = -13,
-    e_pcpp_uk4 = -9,
     e_pcpp_uk5 = -8,
     e_pcpp_uk6 = -7,
     e_pcpp_uk7 = -4,
@@ -76,7 +76,7 @@ typedef struct pcpp {
     char send_buf[PCP_SEND_BUF_MAX];
     size_t send_buf_len;
     uint field_0x1e8;
-    unsigned char* send_binary_buf;
+    const unsigned char* send_binary_buf;
     uint field_0x1f0;
     unsigned char* recv_binary_buf;
     size_t field_0x1f8;
@@ -86,7 +86,7 @@ typedef struct pcpp {
     uint field_0x204;
     uint field_0x208;
     uint field_0x20c;
-    uint field_0x210;
+    timeout_t field_0x210;
     int field_0x214;
     int open;
 } pcpp_t;
@@ -99,7 +99,7 @@ uint pcppCheckStr(char* param_1, uint* pcp_len, int* pcp_overflow);
 void pcppClose(pcpp_t* stream);
 void pcppCloseBinary(pcpp_t* stream);
 e_pcpp_t pcppGetBlockingTime(uint param_1, timeout_t param_2, pcpp_t* stream, int param_4,
-                             uint* blocking_time);
+                             timeout_t* blocking_time);
 char* pcppGetCommand(pcp_parse_data_t* pcpa, char* command);
 char* pcppGetKeyword(pcp_parse_data_t* recvData, uint keyword_num);
 SOCKET pcppGetServerSocket(pcpp_t* stream, int which);
@@ -109,12 +109,12 @@ e_pcpp_t pcppOpenClient(pcpp_t* stream, char* ipAddr, ushort port, uint param_4,
 e_pcpp_t pcppOpenBinaryServer(pcpp_t* stream, int open_mode, ushort port);
 e_pcpp_t pcppOpenServer(pcpp_t* stream, int open_mode, ushort port, undefined4 param_4);
 e_pcpp_t pcppRecvAllMsg(pcpp_t* stream, uint param_1, bool* bReRecv);
-e_pcpp_t pcppRecvBinary(pcpp_t* stream, unsigned char* recv_buf, size_t buf_len, uint param_4);
+e_pcpp_t pcppRecvBinary(pcpp_t* stream, unsigned char* recv_buf, size_t buf_len, timeout_t param_4);
 uint pcppRecvCheck(char* buf, int* found_at);
-e_pcpp_t pcppRecvPrompt(pcpp_t* stream, undefined4 param_2, int param_3);
+e_pcpp_t pcppRecvPrompt(pcpp_t* stream, undefined4 param_2, timeout_t param_3);
 e_pcpp_t pcppRecvRequest(pcpp_t* stream, pcp_parse_data_t* recv_data, timeout_t timeout);
 e_pcpp_t pcppRecvRequestMain(pcpp_t* stream, bool* bReRecv, undefined4 param_3);
-e_pcpp_t pcppSendBinary(pcpp_t* stream, unsigned char* send_binary_buffer, size_t param_3,
+e_pcpp_t pcppSendBinary(pcpp_t* stream, const unsigned char* send_binary_buffer, size_t param_3,
                         uint param_4);
 e_pcpp_t pcppSendPrompt(pcpp_t* stream, uint param_2, timeout_t timeout_ms);
 e_pcpp_t pcppSendRequestMain(pcpp_t* stream, undefined4 param_2, timeout_t timeout_ms);
@@ -123,7 +123,7 @@ e_pcpp_t pcppSendResponse(pcpp_t* stream, pcp_send_data_t* resp_buffer, size_t b
 e_pcpp_t pcppSendResponseTable(pcpp_t* stream, pcp_send_data_t* data, timeout_t timeout_ms);
 pcp_send_data_t* pcppSetSendPacket(pcp_send_data_t* send_data, char* keyword, char* value);
 e_pcpp_t pcpp_something(amtime_t* now, timeout_t timeout, pcpp_t* stream, pcpt_t* sock,
-                        unsigned char* send_buf, size_t* send_len, undefined4 param_7,
+                        const unsigned char* send_buf, size_t* send_len, undefined4 param_7,
                         undefined4 param_8, e_pcpp_t fallback_err);
 void pcppResetRead(pcpp_t* param_1);
 e_pcpp_t pcppSendRequestTable(pcpp_t* stream, pcp_send_data_t* request_buffer, timeout_t timeout);
@@ -131,4 +131,4 @@ e_pcpp_t pcppSendRequest(pcpp_t* stream, pcp_send_data_t* request_buffer, uint n
                          timeout_t timeout);
 e_pcpp_t pcppRecvResponse(pcpp_t* stream, pcp_parse_data_t* buffer, timeout_t timeout);
 e_pcpp_t pcppOpenBinaryClient(pcpp_t* stream, char* ipAddr, ushort port, timeout_t timeout);
-SOCKADDR* pcppGetSockAddr(pcpp_t* stream, bool is_data);
+SOCKADDR_IN* pcppGetSockAddr(pcpp_t* stream, bool is_data);

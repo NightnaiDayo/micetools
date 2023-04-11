@@ -99,7 +99,7 @@ SECTION(keys, "Raw keybinding data. Edit this using the built in binding tool!")
 CFG_int(keys, test, 0, "")
 CFG_int(keys, service, 0, "")
 CFG_int(keys, board_count, 1, "")
-CFG_str(keys, keys, 0, "")
+CFG_str(keys, keys, "", "")
 ENDSECTION(keys)
 
 SECTION(devices, "Register attached hardware devices. COM4 is reserved for JVS.")

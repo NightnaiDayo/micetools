@@ -14,6 +14,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#define GLUT_DISABLE_ATEXIT_HACK
 #include "freeglut_std.h"
 #include "freeglut_ext.h"
 

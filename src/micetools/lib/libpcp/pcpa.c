@@ -137,7 +137,7 @@ e_pcpa_t pcpaOpenClient(pcpa_t *stream, char *ipAddr, ushort port, uint param_4,
 }
 
 e_pcpa_t pcpaOpenServerWithBinary(pcpa_t *stream, int open_mode, u_short port, u_short binary_port,
-                                  undefined4 param_5) {
+                                  timeout_t param_5) {
     e_pcpa_t err;
 
     if (stream == NULL) {
@@ -524,7 +524,7 @@ LAB_00454d84:
     return stream->err;
 }
 
-e_pcpa_t pcpaRecvBinary(pcpa_t *stream, uint something) {
+e_pcpa_t pcpaRecvBinary(pcpa_t *stream, timeout_t something) {
     if (stream == NULL) {
         amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
@@ -545,7 +545,7 @@ e_pcpa_t pcpaRecvBinary(pcpa_t *stream, uint something) {
     return err;
 }
 
-e_pcpa_t pcpaSendBinary(pcpa_t *stream, uint param_2) {
+e_pcpa_t pcpaSendBinary(pcpa_t *stream, timeout_t param_2) {
     if (stream == NULL) {
         amiDebugLog("error PCPA stream isn't set");
         return e_pcpa_stream_unset;
@@ -678,7 +678,7 @@ e_pcpa_t pcpaIsBusy(pcpa_t *pcpa, timeout_t timeout) {
         pcpa->state = 12;
         if (timeout != TIMEOUT_NONE) {
             amiTimerGet(&now);
-            uint dt = _amTimeDelta(now, start);
+            timeout_t dt = _amTimeDelta(now, start);
             if (dt < timeout) {
                 timeout -= dt;
             } else {
@@ -692,7 +692,7 @@ e_pcpa_t pcpaIsBusy(pcpa_t *pcpa, timeout_t timeout) {
         pcpa->state = 14;
         if (timeout != TIMEOUT_NONE) {
             amiTimerGet(&now);
-            uint dt = _amTimeDelta(now, start);
+            timeout_t dt = _amTimeDelta(now, start);
             if (dt < timeout) {
                 timeout -= dt;
             } else {
@@ -764,6 +764,8 @@ e_pcpa_t pcpaOpenBinaryClient(pcpa_t *stream, ushort port, timeout_t timeout) {
 
     SOCKADDR_IN *addr = (SOCKADDR_IN *)pcppGetSockAddr(&stream->pcpp, false);
     stream->state = pcpa_state_open_binary;
+    // We can't use inet_ntop because we target XP
+#pragma warning(suppress : 4996)
     char *ipAddr = inet_ntoa(addr->sin_addr);
 
     e_pcpa_t pcpa_err =
@@ -799,7 +801,7 @@ e_pcpa_t pcpaAccessClient(pcpa_t *stream, timeout_t timeout) {
 
         if (timeout != TIMEOUT_NONE) {
             amiTimerGet(&now);
-            uint delta = amiTimerDiffMsec(&start, &now);
+            timeout_t delta = amiTimerDiffMsec(&start, &now);
             if (delta < timeout) {
                 timeout -= delta;
             } else {

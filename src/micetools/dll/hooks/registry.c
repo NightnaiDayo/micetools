@@ -29,7 +29,7 @@ LSTATUS WINAPI FakeRegEnumKeyExA(HKEY hKey, DWORD dwIndex, LPSTR lpName, LPDWORD
                                  PFILETIME lpftLastWriteTime) {
     log_misc(plfRegistry, "RegEnumKeyExA %08x[%d]", hKey, dwIndex);
     if (dwIndex == 0 && !bHALDeleted) {
-        strcpy(lpName, "Direct3D HAL");
+        strcpy_s(lpName, RSIZE_MAX, "Direct3D HAL");
         return ERROR_SUCCESS;
     }
     return ERROR_NO_MORE_ITEMS;

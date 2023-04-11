@@ -4,10 +4,10 @@
 #define ZERO_BUF(x) memset((x), 0, sizeof(*x))
 
 #include <Winsock2.h>
-#include <ws2ipdef.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ws2ipdef.h>
 
 #include "../ami/ami.h"
 
@@ -29,7 +29,7 @@ typedef unsigned char byte;
 typedef unsigned short ushort;
 typedef unsigned int uint;
 
-typedef unsigned int timeout_t;
+typedef int timeout_t;
 
 #define PCP_BUF_MAX 256
 #define PCP_CMDS_MAX 64
@@ -57,11 +57,6 @@ typedef enum binary_mode {
     binary_mode_send = 1,
     binary_mode_recv = 2,
 } binary_mode_t;
-
-#define PCPT_CONFIG_0 0
-#define PCPT_CONFIG_1 1
-#define PCPT_SO_LINGER 2
-#define PCPT_TCP_NODELAY 3
 
 #define SOCKET_INVAL ((SOCKET)-1)
 #define HANDLE_INVAL -1

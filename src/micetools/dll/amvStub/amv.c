@@ -16,7 +16,7 @@ __declspec(dllexport) int amvGetConnectedDisplaysEx_Nvidia(LPVOID pGpuHandle, DW
     return 0;
 }
 __declspec(dllexport) int amvGetConnectedDisplays_Nvidia(LPBYTE displayType) {
-    return amvGetConnectedDisplays_Nvidia(NULL, 4, displayType);
+    return amvGetConnectedDisplaysEx_Nvidia(NULL, 4, displayType);
 }
 __declspec(dllexport) int amvGetCurrentPstateEx_Nvidia(LPVOID pGpuHandle, DWORD dwGpuHandleSize,
                                                        DWORD* pPstate) {

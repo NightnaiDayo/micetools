@@ -46,8 +46,10 @@ unsigned char hex_value(char c) {
             return 0xFF;
     }
 }
-int hex_to_bin(char *hex, unsigned char *bin, int hex_len) {
+int hex_to_bin(char *hex, void *bin, int hex_len) {
     if (hex_len == 0) return 1;
+
+    unsigned char *lpucBin = (unsigned char *)bin;
 
     int work_len = 0;
     for (int hex_ptr = 0; hex_ptr < hex_len; hex_ptr += 2, work_len++) {
@@ -73,21 +75,23 @@ int hex_to_bin(char *hex, unsigned char *bin, int hex_len) {
         else
             return 0;
 
-        bin[work_len] = msn << 4 | lsn;
+        lpucBin[work_len] = msn << 4 | lsn;
     }
     return 1;
 }
-void bin_to_hex(char *hex, unsigned char *bin, int nbytes) {
-    for (int i = 0; i < nbytes; i++) {
-        if ((bin[i] & 0xf0) > 0x90)
-            hex[i * 2] = ((bin[i] & 0xf0) >> 4) - 0x0a + 'a';
-        else
-            hex[i * 2] = ((bin[i] & 0xf0) >> 4) + '0';
+void bin_to_hex(char *hex, void *bin, int nbytes) {
+    unsigned char *lpucBin = (unsigned char *)bin;
 
-        if ((bin[i] & 0x0f) > 0x09)
-            hex[i * 2 + 1] = (bin[i] & 0x0f) - 0x0a + 'a';
+    for (int i = 0; i < nbytes; i++) {
+        if ((lpucBin[i] & 0xf0) > 0x90)
+            hex[i * 2] = ((lpucBin[i] & 0xf0) >> 4) - 0x0a + 'a';
         else
-            hex[i * 2 + 1] = (bin[i] & 0x0f) + '0';
+            hex[i * 2] = ((lpucBin[i] & 0xf0) >> 4) + '0';
+
+        if ((lpucBin[i] & 0x0f) > 0x09)
+            hex[i * 2 + 1] = (lpucBin[i] & 0x0f) - 0x0a + 'a';
+        else
+            hex[i * 2 + 1] = (lpucBin[i] & 0x0f) + '0';
     }
     hex[nbytes * 2] = '\0';
 }

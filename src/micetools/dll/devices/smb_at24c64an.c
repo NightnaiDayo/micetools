@@ -48,8 +48,7 @@ void set_eeprom_static_config() {
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_STATIC_DUP], &Static, sizeof Static);
 }
 
-void build_eeprom() {
-    return;
+void build_eeprom() {    // return;
     log_info(plfEeprom, "Building default EEPROM file");
 
     memset(EEPROM_DATA, 0xff, EEPROM_SIZE);

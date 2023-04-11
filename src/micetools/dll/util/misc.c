@@ -1,3 +1,6 @@
+// Windows XP does not have RtlCaptureStackBackTrace. This is an awful workaround.
+// TODO: Reimplement this ourselves so we can print stacks on XP
+#undef _WIN32_WINNT
 #define _WIN32_WINNT 0x0600
 #include <Windows.h>
 #include <dbghelp.h>
@@ -22,7 +25,7 @@ void PrintStack(void) {
 
     for (i = 0; i < frames; i++) {
         SymFromAddr(process, (DWORD64)(stack[i]), 0, symbol);
-        printf("%i: %s - 0x%0X\n", frames - i - 1, symbol->Name, symbol->Address);
+        printf("%i: %s - 0x%0X\n", frames - i - 1, symbol->Name, (unsigned int)symbol->Address);
     }
 
     free(symbol);
@@ -118,7 +121,7 @@ HANDLE GetDummyHandle() {
 
 void BytesToHex(char* hex_buffer, BYTE* bytes, DWORD nbytes) {
     for (size_t i = 0; i < nbytes; i++) {
-        sprintf(hex_buffer + i * 3, "%02x ", bytes[i]);
+        sprintf_s(hex_buffer + i * 3, RSIZE_MAX, "%02x ", bytes[i]);
     }
     hex_buffer[nbytes * 3] = '\0';
 }
@@ -153,13 +156,17 @@ void make_dirs(const char* path) {
     free(temp);
 }
 
-void* open_mapped_file(LPCWSTR path, DWORD size, HANDLE* file, HANDLE* file_mapping) {
-    make_dirs(path);
-    *file = _CreateFileW(path, GENERIC_READ | GENERIC_WRITE,
+void* open_mapped_file(LPCWSTR lpFilename, DWORD size, HANDLE* file, HANDLE* file_mapping) {
+    char szFileName[MAX_PATH] = { 0 };
+    WideCharToMultiByte(CP_ACP, 0, lpFilename, wcslen(lpFilename), szFileName, sizeof szFileName,
+                        NULL, NULL);
+    make_dirs(szFileName);
+
+    *file = _CreateFileW(lpFilename, GENERIC_READ | GENERIC_WRITE,
                          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_ALWAYS,
                          FILE_ATTRIBUTE_NORMAL, NULL);
     if (*file == INVALID_HANDLE_VALUE) {
-        log_error(plfMisc, "Failed to CreateFileW(%ls): %d", path, GetLastError());
+        log_error(plfMisc, "Failed to CreateFileW(%ls): %d", lpFilename, GetLastError());
         return NULL;
     }
 

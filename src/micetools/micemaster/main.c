@@ -266,6 +266,8 @@ void mxMasterFdcProcessesStart(MX_MASTER* mxMaster) {
 
     if (mxMaster->m_kcReady) {
         char* format;
+        // We can't use inet_ntop because we target XP
+#pragma warning(suppress : 4996)
         char* networkAddr = inet_ntoa(mxMaster->m_networkAddr);
 
         if (mxMaster->m_develop == 0) {

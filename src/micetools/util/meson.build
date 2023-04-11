@@ -37,14 +37,6 @@ executable(
 )
 
 executable(
-    'micemonitor',
-    win_subsystem: subsystem,
-    sources: [
-        'micemonitor.c',
-    ],
-)
-
-executable(
     'exio_test',
     win_subsystem: subsystem,
     sources: [
@@ -65,13 +57,6 @@ executable(
 )
 
 executable(
-    'testBin',
-    win_subsystem: subsystem,
-    sources: [
-        'test.c',
-    ],
-)
-executable(
     'micegbdisk',
     win_subsystem: subsystem,
     sources: [
@@ -79,16 +64,5 @@ executable(
     ],
     link_with: [
         amiDebug,
-    ],
-)
-
-executable(
-    'micefs_test',
-    win_subsystem: subsystem,
-    sources: [
-        'micefs_test.c',
-    ],
-    link_with: [
-        mice_lib,
     ],
 )

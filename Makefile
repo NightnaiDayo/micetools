@@ -19,8 +19,8 @@ mice:
 	-@subst $(BUILD_DRIVE) .
 	@cd /D $(BUILD_DRIVE) \
 	& $(VCVARS) \
-	& meson setup --cross cross-32.ini $(BUILD_DRIVE)\$(BUILD_DIR) \
-	& meson compile -C $(BUILD_DRIVE)\$(BUILD_DIR)
+	& meson.py setup --cross cross-32.ini $(BUILD_DRIVE)\$(BUILD_DIR) \
+	& meson.py compile -C $(BUILD_DRIVE)\$(BUILD_DIR)
 	@subst $(BUILD_DRIVE) /D
 
 .PHONY: clean
@@ -50,18 +50,10 @@ dist:
 
 	@copy /Y "$(BUILD_DIR)/src/micetools/miceboot\miceprestartup.exe" "$(DIST_DIR)/Execute/miceprestartup.exe"
 	@copy /Y "$(BUILD_DIR)/src/micetools/miceboot\micestartup.exe" "$(DIST_DIR)/Execute/micestartup.exe"
-	@copy /Y "$(BUILD_DIR)/src/micetools/miceboot\TrueCrypt.exe" "$(DIST_DIR)/Execute/TrueCrypt.exe"
 	@copy /Y "$(BUILD_DIR)/src/micetools/miceboot\mxmaster.exe" "$(DIST_DIR)/Execute/S/mxmaster.exe"
 
 	@copy /Y "$(BUILD_DIR)/src/micetools/util\*.exe" "$(DIST_DIR)/util/"
 	@copy /Y "$(BUILD_DIR)/src/micetools/util\*.pdb" "$(DIST_DIR)/util/"
 
-	@copy /Y "$(BUILD_DIR)/src/micetools/system_dummy\dummymaster\dummymaster.exe" "$(DIST_DIR)/system_dummy/dummymaster.exe"
-	@copy /Y "$(BUILD_DIR)/src/micetools/system_dummy\dummyinstaller\dummyinstaller.exe" "$(DIST_DIR)/system_dummy/dummyinstaller.exe"
-	@copy /Y "$(BUILD_DIR)/src/micetools/system_dummy\dummykeychip\dummykeychip.exe" "$(DIST_DIR)/system_dummy/dummykeychip.exe"
-
-	@copy /Y "src/micetools/miceboot\TrueCrypt.cmd" "$(DIST_DIR)/Execute/TrueCrypt.cmd"
-
 	@xcopy /E /H /C /R /Q /Y src\system "$(DIST_DIR)\system/*"
-	@xcopy /E /H /C /R /Q /Y src\tools "$(DIST_DIR)\tools/*"
 	@xcopy /E /H /C /R /Q /Y src\patches "$(DIST_DIR)\patches/*"

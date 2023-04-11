@@ -153,22 +153,22 @@ int __stdcall Fake_socket(int domain, int type, int protocol) {
     return sock;
 }
 
-static struct sockaddr pingSentTo;
+static SOCKADDR pingSentTo;
 static unsigned char pingInfo[4];
 
-static struct sockaddr_in toLocalhost = {
-    .sin_addr = 0x0100007f,
+static SOCKADDR_IN toLocalhost = {
+    .sin_addr.S_un.S_addr = 0x0100007f,
     .sin_family = AF_INET,
     .sin_port = 24,
     .sin_zero = 0,
 };
 
-int __stdcall Fake_sendto(SOCKET s, const char* buf, int len, int flags, const struct sockaddr* to,
+int __stdcall Fake_sendto(SOCKET s, const char* buf, int len, int flags, const PSOCKADDR to,
                           int tolen) {
     // Hardcoded ICMP4 ping "detection"
     // TODO: Only do this if the socket is using the ICMP protocol
     if (len == 8 && buf[0] == 0x08 && buf[1] == 0x00) {
-        uint32_t addr = ((struct sockaddr_in*)to)->sin_addr.S_un.S_addr;
+        uint32_t addr = ((PSOCKADDR_IN)to)->sin_addr.S_un.S_addr;
 
         memcpy(&pingSentTo, to, sizeof pingSentTo);
 
@@ -178,11 +178,12 @@ int __stdcall Fake_sendto(SOCKET s, const char* buf, int len, int flags, const s
 
         memcpy(&toLocalhost, to, sizeof toLocalhost);
         toLocalhost.sin_addr.S_un.S_addr = 0x0100007f;  // 127.0.0.1
-        to = &toLocalhost;
 
         log_warning(plfNetwork, "(probable) Ping to: %d.%d.%d.%d (%d). Redirecting to localhost",
                     addr & 0xff, (addr >> 8) & 0xff, (addr >> 16) & 0xff, addr >> 24,
-                    ((struct sockaddr_in*)to)->sin_port, seq);
+                    ((PSOCKADDR_IN)to)->sin_port, seq);
+
+        return True_sendto(s, buf, len, flags, (PSOCKADDR)&toLocalhost, tolen);
     }
 
     return True_sendto(s, buf, len, flags, to, tolen);

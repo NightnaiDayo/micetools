@@ -80,6 +80,7 @@
 #           if FREEGLUT_LIB_PRAGMAS
 // Disabled! We're going to to load freeglut in at runtime!
 // #             pragma comment (lib, "freeglut.lib")
+#undef FGAPI
 #           define FGAPI extern
 #           endif
 

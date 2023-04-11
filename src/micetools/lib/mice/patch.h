@@ -8,7 +8,7 @@ bool load_patches_file(const char* filename);
 bool load_patches(char* indexPath, char* exeName);
 
 typedef struct _patch {
-    void* address;
+    size_t address;
     size_t count;
     unsigned char* match;
     unsigned char* replace;

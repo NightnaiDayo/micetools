@@ -14,7 +14,9 @@ config_t MiceConfig = {
 #define CFG_bool(s, n, default, comment) .n = default,
 #define CFG_int(s, n, default, comment) .n = default,
 #define CFG_hex(s, n, precision, default, comment) .n = 0x##default,
-#define CFG_ipv4(s, n, a, b, c, d, comment) .n = (a << 24) | (b << 16) | (c << 8) | d,
+#define CFG_ipv4(s, n, a, b, c, d, comment)                                   \
+    .n = (unsigned int)(((unsigned char)a << 24) | ((unsigned char)b << 16) | \
+                        ((unsigned char)c << 8) | (unsigned char)d),
 #define ENDSECTION(s) \
     }                 \
     ,
@@ -98,7 +100,7 @@ void save_current_config() {
     }
     keybindBuffer[i] = '\0';
     free(MiceConfig.keys.keys);
-    MiceConfig.keys.keys = strdup(keybindBuffer);
+    MiceConfig.keys.keys = _strdup(keybindBuffer);
 
     FILE *config_file;
     fopen_s(&config_file, CONFIG_PATH, "w");
@@ -167,14 +169,15 @@ static int handler(void *user, const char *section, const char *name, const char
         cfg->s.n = strtol(value, &end, 16);                                          \
         if (end == value || *end != '\0' || errno == ERANGE) cfg->s.n = 0x##default; \
     }
-#define CFG_ipv4(s, n, a, b, c, d, comment)                                          \
-    else if (_stricmp(section, #s) == 0 && _stricmp(name, #n) == 0) {                \
-        cfg->s.n = strtol(value, &end, 16);                                          \
-        unsigned char ip_a, ip_b, ip_c, ip_d;                                        \
-        if (sscanf_s(value, "%hhu.%hhu.%hhu.%hhu", &ip_a, &ip_b, &ip_c, &ip_d) == 4) \
-            cfg->s.n = (ip_a << 24) | (ip_b << 16) | (ip_c << 8) | ip_d;             \
-        else                                                                         \
-            cfg->s.n = (a << 24) | (b << 16) | (c << 8) | d;                         \
+#define CFG_ipv4(s, n, a, b, c, d, comment)                                                 \
+    else if (_stricmp(section, #s) == 0 && _stricmp(name, #n) == 0) {                       \
+        cfg->s.n = strtol(value, &end, 16);                                                 \
+        unsigned char ip_a, ip_b, ip_c, ip_d;                                               \
+        if (sscanf_s(value, "%hhu.%hhu.%hhu.%hhu", &ip_a, &ip_b, &ip_c, &ip_d) == 4)        \
+            cfg->s.n = (unsigned int)((ip_a << 24) | (ip_b << 16) | (ip_c << 8) | ip_d);    \
+        else                                                                                \
+            cfg->s.n = (unsigned int)(((unsigned char)a << 24) | ((unsigned char)b << 16) | \
+                                      ((unsigned char)c << 8) | (unsigned char)d);          \
     }
 
 #include "config.def"

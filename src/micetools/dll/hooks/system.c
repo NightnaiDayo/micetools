@@ -71,7 +71,7 @@ HMODULE WINAPI FakeLoadLibraryA(LPCSTR lpLibFileName) {
     }
     return TrueLoadLibraryA(lpLibFileName);
 }
-#define WIDEN2(x) L ## x
+#define WIDEN2(x) L##x
 #define WIDEN(x) WIDEN2(x)
 HMODULE WINAPI FakeLoadLibraryW(LPCWSTR lpLibFileName) {
     if (wcscmp(lpLibFileName, L"libamv_nvidia.dll") == 0) {
@@ -107,10 +107,13 @@ void hook_system() {
          "UeI3d2jT+Fw1dgRn7wIDAQAB\r\n"
          "-----END PUBLIC KEY-----\r\n");
 
-    hook_file_with_buffer(L"C:\\System\\SystemVersion.txt", SystemVersion,
+    // We're going to violate the non-const data requirements for these files,
+    // because we're only allowing GENERIC_READ. In the future this may be made
+    // more generic.
+    hook_file_with_buffer(L"C:\\System\\SystemVersion.txt", (LPBYTE)SystemVersion,
                           strlen(SystemVersion) + 1, GENERIC_READ);
-    hook_file_with_buffer(L"C:\\System\\UpdateVersion.txt", UpdateVersion,
+    hook_file_with_buffer(L"C:\\System\\UpdateVersion.txt", (LPBYTE)UpdateVersion,
                           strlen(UpdateVersion) + 1, GENERIC_READ);
-    hook_file_with_buffer(L"c:\\System\\Execute\\ringmaster_pub.pem", RingmasterPub,
+    hook_file_with_buffer(L"c:\\System\\Execute\\ringmaster_pub.pem", (LPBYTE)RingmasterPub,
                           strlen(RingmasterPub) + 1, GENERIC_READ);
 }

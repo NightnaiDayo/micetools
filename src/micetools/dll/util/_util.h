@@ -12,6 +12,10 @@ void SetDataForHandle(HANDLE hObject, DWORD type, PVOID pData, BOOL isHeap);
 BOOL RemoveDataForHandle(HANDLE hObject, DWORD type);
 HANDLE GetDummyHandle();
 void BytesToHex(char* hex_buffer, BYTE* bytes, DWORD nbytes);
+
+/**
+ * WARNING: This function will not work on XP machines!!
+ */
 void PrintStack(void);
 
 BOOL PathEqual(LPCSTR path1, LPCSTR path2);

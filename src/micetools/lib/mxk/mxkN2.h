@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdint.h>
-#include <varargs.h>
 
 #include "mxkCrypt.h"
 #include "../../segastructs.h"

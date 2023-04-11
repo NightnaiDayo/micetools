@@ -303,7 +303,7 @@ int exio_mac_test(byte* buffer) {
 
 int keychip_ds_eeprom_dump(void) {
     byte pageData[32];
-    for (int page = 0; page < 4; page++) {
+    for (byte page = 0; page < 4; page++) {
         printf("Page %d\n", page);
         if (mxkDsKeychipReadEeprom(pageData, page)) {
             puts("Read failed");

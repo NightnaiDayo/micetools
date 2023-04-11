@@ -125,8 +125,8 @@ e_pcpt_t pcptAcceptServer(pcpt_t *stream, timeout_t timeout_ms) {
     e_pcpt_t err = pcptCheckEvent(stream->server_event, timeout_ms, stream->server_sock, FD_ACCEPT);
     if (err != e_pcpt_ok) return err;
 
-    int addrlen = 16;
-    SOCKET client = accept(stream->server_sock, &stream->client_addr, &addrlen);
+    int addrlen = sizeof stream->client_addr;
+    SOCKET client = accept(stream->server_sock, (PSOCKADDR)&stream->client_addr, &addrlen);
     stream->client_sock = client;
     if (client == SOCKET_INVAL) return _errW2T(GetLastError());
 
@@ -148,8 +148,8 @@ e_pcpt_t pcptAcceptServer(pcpt_t *stream, timeout_t timeout_ms) {
 }
 
 e_pcpt_t pcptCheckConnectAble(pcpt_t *stream, timeout_t timeout_ms) {
-    DWORD DVar1;
-    uint uVar3;
+    timeout_t DVar1;
+    timeout_t uVar3;
     HANDLE event;
     bool bVar5;
     e_pcpt_t local_44;
@@ -224,7 +224,7 @@ e_pcpt_t pcptCheckEvent(HANDLE event, timeout_t timeout_ms, SOCKET socket, uint 
     amiTimerGet(&start);
     now.seconds = start.seconds;
     now.microseconds = start.microseconds;
-    DWORD wait_timeout = timeout_ms;
+    timeout_t wait_timeout = timeout_ms;
     if (timeout_ms == TIMEOUT_NONE) wait_timeout = TIMEOUT_NONE;
 
     if (event == NULL) {
@@ -235,7 +235,7 @@ e_pcpt_t pcptCheckEvent(HANDLE event, timeout_t timeout_ms, SOCKET socket, uint 
     event_mask &= 0xffffffdf;
 
     while (1) {
-        DWORD err = WaitForSingleObject(event, wait_timeout);
+        DWORD err = WaitForSingleObject(event, (DWORD)wait_timeout);
         if ((err != WAIT_TIMEOUT && err != 0) || FAILED(err)) {
             return e_pcpt_wsa2_generic;
         }
@@ -345,7 +345,7 @@ e_pcpt_t pcptOpenServer(pcpt_t *stream, int open_mode, ushort port) {
 
 e_pcpt_t pcptOpenClient(pcpt_t *stream, char *ipAddr, ushort port, timeout_t timeout) {
     pcpt_t *pcpt;
-    uint uVar6;
+    timeout_t uVar6;
     amtime_t start;
     amtime_t now;
 
@@ -366,6 +366,8 @@ e_pcpt_t pcptOpenClient(pcpt_t *stream, char *ipAddr, ushort port, timeout_t tim
     SOCKADDR_IN *pAddr = &stream->client_addr;
     pAddr->sin_port = ntohs(port);
     pAddr->sin_family = AF_INET;
+// We can't use inet_pton because we target XP
+#pragma warning(suppress : 4996)
     pAddr->sin_addr.s_addr = inet_addr(ipAddr);
 
     SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
@@ -393,7 +395,8 @@ e_pcpt_t pcptOpenClient(pcpt_t *stream, char *ipAddr, ushort port, timeout_t tim
         }
         WSAEventSelect(pcpt->client_sock, client_event, 0x30);
 
-        if (connect(pcpt->client_sock, &stream->client_addr, 0x10) != -1) {
+        if (connect(pcpt->client_sock, (PSOCKADDR)&stream->client_addr,
+                    sizeof stream->client_addr) != -1) {
             WSAEventSelect(pcpt->client_sock, 0, 0);
             WSACloseEvent(pcpt->client_event);
             pcpt->client_event = 0;
@@ -503,7 +506,7 @@ e_pcpt_t pcptRecv(pcpt_t *sock, unsigned char *recv_buf, size_t *recv_buf_len,
 
         if (timeout_ms != TIMEOUT_NONE) {
             amiTimerGet(&now);
-            uint elapsed = _amTimeDelta(now, start);
+            timeout_t elapsed = _amTimeDelta(now, start);
 
             if (elapsed < timeout_ms)
                 timeout_ms = timeout_ms - elapsed;
@@ -535,7 +538,7 @@ e_pcpt_t pcptRecv(pcpt_t *sock, unsigned char *recv_buf, size_t *recv_buf_len,
     return sock->err;
 }
 
-e_pcpt_t pcptSend(pcpt_t *sock, unsigned char *send_buf, size_t *send_len, uint param_4,
+e_pcpt_t pcptSend(pcpt_t *sock, const unsigned char *send_buf, size_t *send_len, uint param_4,
                   timeout_t timeout_ms) {
     e_pcpt_t err;
     amtime_t now;
@@ -569,7 +572,7 @@ e_pcpt_t pcptSend(pcpt_t *sock, unsigned char *send_buf, size_t *send_len, uint 
 
         if (err == e_pcpt_ok) {
             amiTimerGet(&now);
-            uint elapsed = _amTimeDelta(now, start_time);
+            timeout_t elapsed = _amTimeDelta(now, start_time);
             if (timeout_ms != TIMEOUT_NONE) {
                 if (elapsed < timeout_ms)
                     timeout_ms = timeout_ms - elapsed;
@@ -622,10 +625,10 @@ e_pcpt_t pcptSendAllMsg(pcpt_t *sock, timeout_t timeout_ms) {
 
         bVar2 = false;
         amiTimerGet(&now);
-        uint elapsed = _amTimeDelta(now, start);
+        timeout_t elapsed = _amTimeDelta(now, start);
         if (timeout_ms != TIMEOUT_NONE && timeout_ms < elapsed) return e_pcpt_to;
 
-        uint wait_time;
+        timeout_t wait_time;
         if (bVar3) {
             wait_time = timeout_ms;
             if (timeout_ms != TIMEOUT_NONE) wait_time = timeout_ms - elapsed;
@@ -662,7 +665,7 @@ e_pcpt_t pcptSendAllMsg(pcpt_t *sock, timeout_t timeout_ms) {
     }
 }
 
-void pcptSetConfig(pcpt_t *stream, uint config, uint value) {
+void pcptSetConfig(pcpt_t *stream, pcpt_config_t config, int value) {
     if (stream == NULL) {
         amiDebugLog("error don't set stream");
         return;
@@ -681,6 +684,25 @@ void pcptSetConfig(pcpt_t *stream, uint config, uint value) {
         case PCPT_TCP_NODELAY:
             stream->tcp_nodelay = value;
             break;
+    }
+}
+int pcptGetConfig(pcpt_t *stream, pcpt_config_t config) {
+    if (stream == NULL) {
+        amiDebugLog("error don't set stream");
+        return -1;
+    }
+
+    switch (config) {
+        case 0:
+            return stream->config_0;
+        case 1:
+            return stream->config_1;
+        case 2:
+            return stream->so_linger;
+        case 3:
+            return stream->tcp_nodelay;
+        default:
+            return 0;
     }
 }
 
@@ -772,7 +794,8 @@ e_pcpt_t pcptIsBusy(pcpt_t *sock, timeout_t timeout_ms) {
                         return sock->err;
                     }
                     WSAEventSelect(sock->client_sock, event, FD_CONNECT | FD_CLOSE);
-                    iVar7 = connect(sock->client_sock, &sock->client_addr, 16);
+                    iVar7 = connect(sock->client_sock, (PSOCKADDR)&sock->client_addr,
+                                    sizeof sock->client_addr);
                     if (iVar7 != -1) {
                         WSAEventSelect(sock->client_sock, 0, 0);
                         WSACloseEvent(sock->client_event);

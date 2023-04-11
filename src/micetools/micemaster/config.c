@@ -55,8 +55,8 @@ static void make_default_config() {
     if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment); \
     fprintf(config_file, "%s = %d\n", #n, default);
 
-#define CFG_hex(s, n, precision, default, comment)                                              \
-    if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment);                       \
+#define CFG_hex(s, n, precision, default, comment)                             \
+    if (strlen(comment) != 0) fprintf_prefix(config_file, "; ", comment);      \
     fprintf(config_file, "%s = %.*X\n", #n, precision, 0x##default, precision, \
             precision == 1 ? "" : "s");
 
@@ -81,8 +81,6 @@ static void make_default_config() {
 static int handler(void *user, const char *section, const char *name, const char *value) {
     config_t *cfg = (config_t *)user;
 
-    char *end;
-
     if (false)
         ;
 #define CFG_str(s, n, default, comment) \
@@ -92,16 +90,19 @@ static int handler(void *user, const char *section, const char *name, const char
         strcmp(value, "true") == 0;
 #define CFG_int(s, n, default, comment)                                          \
     else if (_stricmp(section, #s) == 0 && _stricmp(name, #n) == 0) {            \
+        char *end;                                                               \
         cfg->s.n = strtol(value, &end, 10);                                      \
         if (end == value || *end != '\0' || errno == ERANGE) cfg->s.n = default; \
     }
 #define CFG_hex(s, n, precision, default, comment)                                   \
     else if (_stricmp(section, #s) == 0 && _stricmp(name, #n) == 0) {                \
+        char *end;                                                                   \
         cfg->s.n = strtol(value, &end, 16);                                          \
         if (end == value || *end != '\0' || errno == ERANGE) cfg->s.n = 0x##default; \
     }
 #define CFG_ipv4(s, n, a, b, c, d, comment)                                          \
     else if (_stricmp(section, #s) == 0 && _stricmp(name, #n) == 0) {                \
+        char *end;                                                                   \
         cfg->s.n = strtol(value, &end, 16);                                          \
         unsigned char ip_a, ip_b, ip_c, ip_d;                                        \
         if (sscanf_s(value, "%hhu.%hhu.%hhu.%hhu", &ip_a, &ip_b, &ip_c, &ip_d) == 4) \

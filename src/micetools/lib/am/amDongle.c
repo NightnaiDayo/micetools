@@ -44,8 +44,7 @@ AM_DONGLE_STATUS amDongleInit(void) {
     }
     if (pcpa_err != e_pcpa_ok) {
         if (amDongleDebugLevel > 0) {
-            amiDebugLog("Error: System error happened in pcp stream. ErrorCode = %d.",
-                            pcpa_err);
+            amiDebugLog("Error: System error happened in pcp stream. ErrorCode = %d.", pcpa_err);
         }
         return AM_DONGLE_STATUS_ERR_SYS;
     }
@@ -160,8 +159,7 @@ AM_DONGLE_STATUS amDongleSetupKeychip(void) {
             pcpa_err = pcpaOpenClient(&amDongle.pcpa, "127.0.0.1", amDongle.ctrl_port, 90000, 0);
             if (pcpa_err != e_pcpa_ok) {
                 if (pcpa_err != e_pcpa_to) {
-                    if (amDongleDebugLevel > 0)
-                        amiDebugLog("Error : pcpaOpenClient(%d)", pcpa_err);
+                    if (amDongleDebugLevel > 0) amiDebugLog("Error : pcpaOpenClient(%d)", pcpa_err);
 
                     amDongle.setupSeq = AM_DONGLE_SETUP_SEQ_ERR;
                     return AM_DONGLE_STATUS_PENDING;
@@ -387,10 +385,12 @@ AM_DONGLE_STATUS amDongleResponseCheck(void) {
             return AM_DONGLE_STATUS_OK;
         case AM_DONGLE_REQUEST_GET_PLATFORM_ID:
             if (strcmp(keyword, "keychip.appboot.platformid") || command == NULL) break;
-            strcpy_s(amDongle.valueBuffer, 4, command);
+            strcpy_s((char *)amDongle.valueBuffer, 4, command);
             return AM_DONGLE_STATUS_OK;
         case AM_DONGLE_REQUEST_GET_NETWORK_ADDRESS:
             if (strcmp(keyword, "keychip.appboot.networkaddr") || command == NULL) break;
+                // We can't use inet_pton because we target XP
+#pragma warning(suppress : 4996)
             if (amDongle.valueBuffer != NULL) *(uint *)amDongle.valueBuffer = inet_addr(command);
             return AM_DONGLE_STATUS_OK;
         case AM_DONGLE_REQUEST_GET_VERSION:
@@ -401,27 +401,27 @@ AM_DONGLE_STATUS amDongleResponseCheck(void) {
             return AM_DONGLE_STATUS_OK;
         case AM_DONGLE_REQUEST_BILLING_GET_KEYCHIP_ID:
             if (strcmp(keyword, "keychip.billing.keyid") || command == NULL) break;
-            strcpy_s(amDongle.valueBuffer, 0x11, command);
+            strcpy_s((char *)amDongle.valueBuffer, 17, command);
             return AM_DONGLE_STATUS_OK;
         case AM_DONGLE_REQUEST_BILLING_GET_MAIN_ID:
             if (strcmp(keyword, "keychip.billing.mainid") || command == NULL) break;
-            strcpy_s(amDongle.valueBuffer, 0xc, command);
+            strcpy_s((char *)amDongle.valueBuffer, 12, command);
             return AM_DONGLE_STATUS_OK;
         case AM_DONGLE_REQUEST_BILLING_GET_PLAYCOUNT:
             if (strcmp(keyword, "keychip.billing.playcount") || command == NULL) break;
-            hex_to_int(amDongle.valueBuffer, command);
+            hex_to_int((unsigned int *)amDongle.valueBuffer, command);
             return AM_DONGLE_STATUS_OK;
         case AM_DONGLE_REQUEST_BILLING_ADD_PLAYCOUNT:
             if (strcmp(keyword, "keychip.billing.playcount") || command == NULL) break;
-            hex_to_int(amDongle.valueBuffer, command);
+            hex_to_int((unsigned int *)amDongle.valueBuffer, command);
             return AM_DONGLE_STATUS_OK;
         case AM_DONGLE_REQUEST_BILLING_GET_PLAYLIMIT:
             if (strcmp(keyword, "keychip.billing.playlimit") || command == NULL) break;
-            hex_to_int(amDongle.valueBuffer, command);
+            hex_to_int((unsigned int *)amDongle.valueBuffer, command);
             return AM_DONGLE_STATUS_OK;
         case AM_DONGLE_REQUEST_BILLING_GET_NEARFULL:
             if (strcmp(keyword, "keychip.billing.nearfull") || command == NULL) break;
-            hex_to_int(amDongle.valueBuffer, command);
+            hex_to_int((unsigned int *)amDongle.valueBuffer, command);
             return AM_DONGLE_STATUS_OK;
         case AM_DONGLE_REQUEST_BILLING_TD_RESTORE:
             if (strcmp(keyword, "keychip.tracedata.restore") || command == NULL) break;
@@ -1133,8 +1133,7 @@ AM_DONGLE_STATUS amDongleSetIv(AM_DONGLE_BLOCKING blocking) {
     if (!amDongle.done_init || !amDongle.available) return AM_DONGLE_STATUS_NG;
     if (amDongle.seq != AM_DONGLE_SEQ_NONE) return AM_DONGLE_STATUS_BUSY;
 
-    pcp_send_data_t *send_data =
-        pcpaSetSendPacket(&amDongle.pcpa, "keychip.setiv", "?");
+    pcp_send_data_t *send_data = pcpaSetSendPacket(&amDongle.pcpa, "keychip.setiv", "?");
     if (send_data == NULL && amDongleDebugLevel > 0) {
         amiDebugLog("Error: pcpaSetSendPacket return NULL");
     }
@@ -1146,15 +1145,14 @@ AM_DONGLE_STATUS amDongleSetIv(AM_DONGLE_BLOCKING blocking) {
     return amDongleOpen();
 }
 
-AM_DONGLE_STATUS amDongleGetSeed(unsigned char* seed, AM_DONGLE_BLOCKING blocking) {
+AM_DONGLE_STATUS amDongleGetSeed(unsigned char *seed, AM_DONGLE_BLOCKING blocking) {
     if (!amDongle.m_init) return AM_DONGLE_STATUS_ERR_NO_INIT;
     if (!amDongle.auth_ready) return AM_DONGLE_STATUS_ERR_AUTH_READY;
     if (!amDongle.done_init || !amDongle.available) return AM_DONGLE_STATUS_NG;
     if (amDongle.seq != AM_DONGLE_SEQ_NONE) return AM_DONGLE_STATUS_BUSY;
     if (seed == NULL) return AM_DONGLE_STATUS_ERR_INVALID_PARAM;
 
-    pcp_send_data_t *send_data =
-        pcpaSetSendPacket(&amDongle.pcpa, "keychip.appboot.seed", "?");
+    pcp_send_data_t *send_data = pcpaSetSendPacket(&amDongle.pcpa, "keychip.appboot.seed", "?");
     if (send_data == NULL && amDongleDebugLevel > 0) {
         amiDebugLog("Error: pcpaSetSendPacket return NULL");
     }
