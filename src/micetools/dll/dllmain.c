@@ -165,6 +165,8 @@ void init_injection(HMODULE hModule) {
     if (MiceConfig.drivers.mxsmbus) setup_mxsmbus();
     // MX Parallel: The parallel port (i.e. keychip)
     if (MiceConfig.drivers.mxparallel) setup_mxparallel();
+    // CrackProof
+    if (MiceConfig.drivers.htsysmnt) setup_htsysmnt();
 
     if (MiceConfig.drivers.platform) {
         if (!add_fake_device(&PLATFORM_GUID, L"\\\\.\\platform")) {

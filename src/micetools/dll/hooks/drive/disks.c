@@ -28,7 +28,6 @@ physical_disk_t SSD = {
         { 0x403947, MBR_FS_FAT16, SPD_Patch1, .m_ReadFunc = NULL },  // 2GB patch1
         { 0x48ed459, MBR_FS_NTFS, SPD_AppData, .m_ReadFunc = NULL }, // 40GB something
         {
-            // mxinstaller.exe -cmdport 40102 -bindport 40103
             // 16GB partition for the game
             // The real value here should be "0x20014aa,"
             0x20014aa,  // 16GB, FiNALE

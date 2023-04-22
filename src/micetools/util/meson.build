@@ -66,3 +66,14 @@ executable(
         amiDebug,
     ],
 )
+executable(
+    'storagecraft',
+    win_subsystem: subsystem,
+    sources: [
+        'storagecraft.c',
+    ],
+    link_with: [
+        amiCrc,
+        amiDebug,
+    ],
+)

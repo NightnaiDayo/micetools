@@ -26,3 +26,6 @@ void setup_columba();
 
 FnDeviceIoControl mxparallel_DeviceIoControl;
 void setup_mxparallel();
+
+FnDeviceIoControl htsysmnt_DeviceIoControl;
+void setup_htsysmnt();

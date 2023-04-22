@@ -78,6 +78,7 @@ CFG_bool(drivers, mxjvs, true, "")
 CFG_bool(drivers, mxhwreset, true, "")
 CFG_bool(drivers, mxsmbus, true, "")
 CFG_bool(drivers, mxparallel, true, "")
+CFG_bool(drivers, htsysmnt, true, "")
 CFG_bool(drivers, platform, true, "")
 ENDSECTION(drivers)
 

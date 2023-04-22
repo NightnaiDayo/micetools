@@ -6,4 +6,5 @@ drivers_files = files(
     'mxsmbus.c',
     'mxsram.c',
     'mxsuperio.c',
+    'htsysmnt.c',
 )
