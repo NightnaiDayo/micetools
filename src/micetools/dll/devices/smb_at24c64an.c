@@ -42,13 +42,16 @@ void set_eeprom_static_config() {
         .m_Region = MiceConfig.sysconf.region & (1 | 2 | 4 | 8),
         .m_Rental = MiceConfig.sysconf.rental,
     };
-    strcpy_s(Static.m_strSerialId, sizeof Static.m_strSerialId, MiceConfig.sysconf.serial);
+    ZeroMemory(Static.m_strSerialId, sizeof Static.m_strSerialId);
+    DWORD len = strlen(MiceConfig.sysconf.serial);
+    if (len > sizeof Static.m_strSerialId - 1) len = sizeof Static.m_strSerialId - 1;
+    memcpy(Static.m_strSerialId, MiceConfig.sysconf.serial, len);
     fix_crc(Static);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_STATIC_REG], &Static, sizeof Static);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_STATIC_DUP], &Static, sizeof Static);
 }
 
-void build_eeprom() {    // return;
+void build_eeprom() {  // return;
     log_info(plfEeprom, "Building default EEPROM file");
 
     memset(EEPROM_DATA, 0xff, EEPROM_SIZE);
@@ -97,10 +100,10 @@ void eeprom_fixup() {
     set_eeprom_static_config();
     set_eeprom_network_config();
 
-    AmHistory.m_Region = MiceConfig.sysconf.region & (1 | 2 | 4 | 8);
-    fix_crc(AmHistory);
-    memcpy(&EEPROM_DATA[AM_SYSDATAwH_HISTORY_REG], &AmHistory, sizeof AmHistory);
-    memcpy(&EEPROM_DATA[AM_SYSDATAwH_HISTORY_DUP], &AmHistory, sizeof AmHistory);
+    // AmHistory.m_Region = MiceConfig.sysconf.region & (1 | 2 | 4 | 8);
+    // fix_crc(AmHistory);
+    // memcpy(&EEPROM_DATA[AM_SYSDATAwH_HISTORY_REG], &AmHistory, sizeof AmHistory);
+    // memcpy(&EEPROM_DATA[AM_SYSDATAwH_HISTORY_DUP], &AmHistory, sizeof AmHistory);
 }
 
 void ensure_valid_eeprom() {

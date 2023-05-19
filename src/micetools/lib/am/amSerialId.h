@@ -6,7 +6,7 @@
 
 AM_LIB_H_HEADER(amSerialId, AM_SERIAL_ID)
 
-typedef struct _AM_SERIAL_ID {
+typedef struct AM_SERIAL_ID {
     unsigned char Rsv00;
 } AM_SERIAL_ID;
 

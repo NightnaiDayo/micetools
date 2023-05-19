@@ -26,7 +26,7 @@ typedef struct {
     int WriteTimeout;
 } AM_EEPROM_TIMEOUT;
 
-typedef struct _AM_EEPROM {
+typedef struct AM_EEPROM {
     BOOL m_init;
     AM_EEPROM_TIMEOUT m_timeout;
     HANDLE m_mutex;

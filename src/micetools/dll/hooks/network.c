@@ -75,7 +75,7 @@ DWORD WINAPI FakeGetIfTable(PMIB_IFTABLE pIfTable, PULONG pdwSize, BOOL bOrder) 
 
 typedef struct {
     char* name;
-    unsigned int* address;
+    const unsigned int* address;
 } dns;
 
 dns INTERCEPT_DNS[] = {
@@ -114,7 +114,7 @@ DNS_STATUS WINAPI FakeDnsQuery_A(PCSTR pszName, WORD wType, DWORD Options, PVOID
             }
         }
     }
-    log_warning(plfNetwork, "DNS passthrough for %s", pszName);
+    log_info(plfNetwork, "DNS passthrough for %s", pszName);
     return TrueDnsQuery_A(pszName, wType, Options, pExtra, ppQueryResults, pReserved);
 };
 
@@ -129,15 +129,39 @@ INT WSAAPI FakeWSAStringToAddressA(LPSTR AddressString, INT AddressFamily,
 
             lpAddress->sa_family = AF_INET;
             PULONG addr = &(((SOCKADDR_IN*)lpAddress)->sin_addr.S_un.S_addr);
-            *addr = _byteswap_ulong(
-                *INTERCEPT_DNS[i]
-                     .address);  //(192UL) | (168UL << 8) | (103UL << 16) | (200UL << 24);
+            *addr = _byteswap_ulong(*INTERCEPT_DNS[i].address);
             return ERROR_SUCCESS;
         }
     }
-    log_warning(plfNetwork, "WSA DNS passthrough for %s", AddressString);
+    log_info(plfNetwork, "WSA DNS passthrough for %s", AddressString);
     return TrueWSAStringToAddressA(AddressString, AddressFamily, lpProtocolInfo, lpAddress,
                                    lpAddressLength);
+}
+
+INT WINAPI Fake_getaddrinfo(PCSTR pNodeName, PCSTR pServiceName, const ADDRINFOA* pHints,
+                            PADDRINFOA* ppResult) {
+    if (!pNodeName) return True_getaddrinfo(pNodeName, pServiceName, pHints, ppResult);
+
+    for (size_t i = 0; i < sizeof INTERCEPT_DNS / sizeof INTERCEPT_DNS[0]; i++) {
+        if (strcmp(pNodeName, INTERCEPT_DNS[i].name) == 0) {
+            char szNewAddress[16];
+            sprintf_s(szNewAddress, sizeof szNewAddress, "%d.%d.%d.%d",
+                      (*INTERCEPT_DNS[i].address >> 24) & 0xff,
+                      (*INTERCEPT_DNS[i].address >> 16) & 0xff,
+                      (*INTERCEPT_DNS[i].address >> 8) & 0xff, *INTERCEPT_DNS[i].address & 0xff);
+            szNewAddress[sizeof szNewAddress - 1] = '\0';
+
+            log_info(plfNetwork, "GAI DNS Replacing %s with %s:%s", pNodeName, szNewAddress,
+                     pServiceName);
+            return True_getaddrinfo(szNewAddress, pServiceName, pHints, ppResult);
+        }
+    }
+
+    // Exclude a few known services
+    if (strcmp(pNodeName, "0.0.0.0") != 0 && strcmp(pNodeName, "127.0.0.0") != 0 &&
+        strcmp(pNodeName, "240.0.0.0") != 0)
+        log_info(plfNetwork, "GAI DNS passthrough for %s:%s", pNodeName, pServiceName);
+    return True_getaddrinfo(pNodeName, pServiceName, pHints, ppResult);
 }
 
 int __stdcall Fake_socket(int domain, int type, int protocol) {
@@ -179,9 +203,9 @@ int __stdcall Fake_sendto(SOCKET s, const char* buf, int len, int flags, const P
         memcpy(&toLocalhost, to, sizeof toLocalhost);
         toLocalhost.sin_addr.S_un.S_addr = 0x0100007f;  // 127.0.0.1
 
-        log_warning(plfNetwork, "(probable) Ping to: %d.%d.%d.%d (%d). Redirecting to localhost",
-                    addr & 0xff, (addr >> 8) & 0xff, (addr >> 16) & 0xff, addr >> 24,
-                    ((PSOCKADDR_IN)to)->sin_port, seq);
+        log_info(plfNetwork, "(probable) Ping to: %d.%d.%d.%d (%d). Redirecting to localhost",
+                 addr & 0xff, (addr >> 8) & 0xff, (addr >> 16) & 0xff, addr >> 24,
+                 ((PSOCKADDR_IN)to)->sin_port, seq);
 
         return True_sendto(s, buf, len, flags, (PSOCKADDR)&toLocalhost, tolen);
     }
@@ -189,13 +213,32 @@ int __stdcall Fake_sendto(SOCKET s, const char* buf, int len, int flags, const P
     return True_sendto(s, buf, len, flags, to, tolen);
 }
 
+ULONG WINAPI FakeGetAdaptersAddresses(ULONG Family, ULONG Flags, PVOID Reserved,
+                                      PIP_ADAPTER_ADDRESSES AdapterAddresses, PULONG SizePointer) {
+    if (SizePointer == NULL || *SizePointer < sizeof *AdapterAddresses) {
+        if (SizePointer != NULL) *SizePointer = sizeof *AdapterAddresses;
+        return ERROR_BUFFER_OVERFLOW;
+    }
+    AdapterAddresses->PhysicalAddressLength = 6;
+    AdapterAddresses->PhysicalAddress[0] = MAC_PREFIX_0;
+    AdapterAddresses->PhysicalAddress[1] = MAC_PREFIX_1;
+    AdapterAddresses->PhysicalAddress[2] = MAC_PREFIX_2;
+    AdapterAddresses->PhysicalAddress[3] = (MiceConfig.network.mac >> 16) & 0xff;
+    AdapterAddresses->PhysicalAddress[4] = (MiceConfig.network.mac >> 8) & 0xff;
+    AdapterAddresses->PhysicalAddress[5] = MiceConfig.network.mac & 0xff;
+
+    return ERROR_SUCCESS;
+};
+
 void hook_network() {
     hook("Ws2_32.dll", "connect", Fake_connect, (void**)&True_connect);
     hook("Ws2_32.dll", "socket", Fake_socket, (void**)&True_socket);
     hook("Ws2_32.dll", "bind", Fake_bind, (void**)&True_bind);
-    hook("Ws2_32.dll", "sendto", Fake_sendto, (void**)&True_sendto);
+    hook("Ws2_32.dll", "getaddrinfo", Fake_getaddrinfo, (void**)&True_getaddrinfo);
+    // hook("Ws2_32.dll", "sendto", Fake_sendto, (void**)&True_sendto);
     hook("Ws2_32.dll", "WSAStringToAddressA", FakeWSAStringToAddressA,
          (void**)&TrueWSAStringToAddressA);
     hook("Iphlpapi.dll", "GetIfTable", FakeGetIfTable, (void**)&TrueGetIfTable);
     hook("Dnsapi.dll", "DnsQuery_A", FakeDnsQuery_A, (void**)&TrueDnsQuery_A);
+    hook("Iphlpapi.dll", "GetAdaptersAddresses", FakeGetAdaptersAddresses, NULL);
 }

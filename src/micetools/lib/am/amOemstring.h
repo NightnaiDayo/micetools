@@ -14,7 +14,7 @@ typedef struct {
     DWORD m_elementCount;
 } AM_COLUMBA_REQUEST;
 
-typedef struct _AM_OEMSTRING {
+typedef struct AM_OEMSTRING {
     BOOL m_loaded;
     CHAR m_biosVersion[32];
     CHAR m_biosDate[11];

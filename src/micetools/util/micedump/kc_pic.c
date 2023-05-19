@@ -5,14 +5,14 @@
 #include "../lib/am/amSerialId.h"
 #include "../lib/mxk/mxk.h"
 
-void miceDumpKCPIC() {
+BOOL miceDumpKCPIC() {
     fprintf(stderr, "Dumping dongle using mxk\n");
 
     MXK_STATUS status;
     status = mxkInit();
     if (status != MXK_STATUS_OK) {
         amiDebugLog("Failed to mxkInit(): %d", status);
-        return;
+        return FALSE;
     }
 
     /**
@@ -45,4 +45,6 @@ void miceDumpKCPIC() {
     char gameId[4];
     mxkAbGameId(MXK_CACHE_USE, gameId, &err);
     printf("   Game ID: %.*s\n", 4, gameId);
+
+    return TRUE;
 }

@@ -6,7 +6,7 @@
 
 AM_LIB_H_HEADER(amSram, AM_SRAM)
 
-typedef struct _AM_SRAM {
+typedef struct AM_SRAM {
     DWORD m_init;
     HANDLE m_handle;
     LARGE_INTEGER m_size;

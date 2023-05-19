@@ -1,5 +1,24 @@
-void amDipswCreateDeviceFile(void);
-void amDipswCreateMutex(void);
+#pragma once
+
+#include <Windows.h>
+
+#include "../_am.h"
+
+AM_LIB_H_HEADER(amDipsw, AM_DIPSW)
+
+typedef struct AM_DIPSW {
+    BOOL m_Init;
+    HANDLE m_Mutex;
+    HANDLE m_Handle;
+    BYTE m_Addr;
+    //
+    OVERLAPPED m_Overlapped;
+    PSID m_Sid;
+} AM_DIPSW;
+
+int amDipswCreateMutex(AM_DIPSW *this);
+HANDLE amDipswCreateDeviceFile(GUID *guid, DWORD memberIndex, char *name);
+
 void amDipswExit(void);
 void amDipswGetDriverVerision(void);
 void amDipswInit(void);

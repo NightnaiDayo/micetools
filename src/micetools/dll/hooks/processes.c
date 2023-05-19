@@ -15,8 +15,9 @@ BOOL WINAPI FakeCreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine,
                                   lpProcessInformation);
     }
 
-    if (strcmp(lpCommandLine, "s:\\mxkeychip.exe") == 0 ||
-        strcmp(lpCommandLine, "C:\\WINDOWS\\system32\\regini.exe S:\\default_regset.txt") == 0) {
+    if (lpCommandLine &&
+        (strcmp(lpCommandLine, "s:\\mxkeychip.exe") == 0 ||
+         strcmp(lpCommandLine, "C:\\WINDOWS\\system32\\regini.exe S:\\default_regset.txt") == 0)) {
         if (lpProcessInformation) {
             lpProcessInformation->hProcess = CreateEventA(NULL, FALSE, TRUE, NULL);
             lpProcessInformation->hThread = CreateEventA(NULL, FALSE, TRUE, NULL);
@@ -51,7 +52,11 @@ BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
                                LPPROCESS_INFORMATION lpProcessInformation) {
     log_info(plfProcesses, "CreateProcessW %ls %ls", lpApplicationName, lpCommandLine);
 
-    if (wcsncmp(lpCommandLine, L"chkdsk.exe", wcslen(L"chkdsk.exe")) == 0) {
+    // if (lpCommandLine && (wcscmp(lpCommandLine, L"chkdsk.exe") == 0 ||
+    //                       wcscmp(lpCommandLine, L"ALLNetProc_Win.exe") == 0 ||
+    //                       wcscmp(lpCommandLine, L"ALLNetProc_Ring.exe") == 0 ||
+    //                       wcscmp(lpCommandLine, L"ALLNetProc.exe") == 0)) {
+    if (lpCommandLine && (wcscmp(lpCommandLine, L"chkdsk.exe") == 0)) {
         if (lpProcessInformation) {
             lpProcessInformation->hProcess = CreateEventA(NULL, FALSE, TRUE, NULL);
             lpProcessInformation->hThread = CreateEventA(NULL, FALSE, TRUE, NULL);

@@ -158,12 +158,12 @@ AM_PLATFORM_STATUS amPlatformGetPlatformId(AM_PLATFORM_PLATFORM_ID *platformId) 
             strncpy_s(amPlatform.m_platformId.strPlatformId,
                       sizeof amPlatform.m_platformId.strPlatformId, oemstringPlatform, 0xffffffff);
         } else if (amOemstringGetManufacturer(oemstringManufacturer) == AM_OEMSTRING_STATUS_OK) {
-            if (strcmp(oemstringManufacturer, "NEC") == 0) {
+            if (strcmp(oemstringManufacturer, MANUFACTURER_RE) == 0) {
                 strncpy_s(amPlatform.m_platformId.strPlatformId,
                           sizeof amPlatform.m_platformId.strPlatformId, PLATFORM_RINGEDGE,
                           0xffffffff);
-            } else if (strcmp(oemstringManufacturer, "Supermicro") == 0 ||
-                       strcmp(oemstringManufacturer, "Advantech") == 0) {
+            } else if (strcmp(oemstringManufacturer, MANUFACTURER_RW_1) == 0 ||
+                       strcmp(oemstringManufacturer, MANUFACTURER_RW_2) == 0) {
                 strncpy_s(amPlatform.m_platformId.strPlatformId,
                           sizeof amPlatform.m_platformId.strPlatformId, PLATFORM_RINGWIDE,
                           0xffffffff);
@@ -198,9 +198,9 @@ AM_PLATFORM_STATUS amPlatformGetBoardType(AM_PLATFORM_BOARD_TYPE *boardType) {
     }
 
     if (strcmp(platformId.strPlatformId, PLATFORM_RINGWIDE) == 0) {
-        if (strcmp(oemstringManufacturer, "Supermicro") == 0) {
+        if (strcmp(oemstringManufacturer, MANUFACTURER_RW_1) == 0) {
             *boardType = amPlatform.m_boardType = AM_PLATFORM_BOARD_TYPE_RW_SPEC_1;
-        } else if (strcmp(oemstringManufacturer, "Advantech") == 0) {
+        } else if (strcmp(oemstringManufacturer, MANUFACTURER_RW_2) == 0) {
             *boardType = amPlatform.m_boardType = AM_PLATFORM_BOARD_TYPE_RW_SPEC_2;
         } else {
             *boardType = amPlatform.m_boardType = AM_PLATFORM_BOARD_TYPE_UNKNOWN;
@@ -211,7 +211,7 @@ AM_PLATFORM_STATUS amPlatformGetBoardType(AM_PLATFORM_BOARD_TYPE *boardType) {
     }
 
     if (strcmp(platformId.strPlatformId, PLATFORM_RINGEDGE) == 0) {
-        if (strcmp(oemstringManufacturer, "NEC") == 0) {
+        if (strcmp(oemstringManufacturer, MANUFACTURER_RE) == 0) {
             ZeroMemory(oemstring4, sizeof oemstring4);
 
             if (amOemstringGetOemstring(oemstring4, 4) != AM_OEMSTRING_STATUS_OK) {

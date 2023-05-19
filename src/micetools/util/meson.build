@@ -11,6 +11,7 @@ executable(
         'micedump/platform.c',
         'micedump/sram.c',
         # 'micedump/superio.c',
+        'micedump/cmos.c',
     ],
     link_with: [
         mxklib,
@@ -21,6 +22,7 @@ executable(
         amPlatform,
         amDongle,
         amSerialId,
+        amCmos,
     ],
 )
 
@@ -75,5 +77,17 @@ executable(
     link_with: [
         amiCrc,
         amiDebug,
+    ],
+)
+executable(
+    'micereset',
+    win_subsystem: subsystem,
+    sources: [
+        'micereset.c',
+    ],
+    link_with: [
+        amiTimer,
+        amEeprom,
+        amSram,
     ],
 )

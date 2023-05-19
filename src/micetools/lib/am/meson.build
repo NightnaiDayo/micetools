@@ -68,3 +68,13 @@ amInstall = static_library(
         libpcp,
     ],
 )
+
+amCmos = static_library(
+    'amCmos',
+    sources: [
+        'amCmos.c',
+    ],
+    link_with: [
+        amiDebug,
+    ],
+)

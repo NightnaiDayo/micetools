@@ -144,7 +144,7 @@ typedef enum {
     AM_INSTALL_REQUEST_18 = 18,
 } AM_INSTALL_REQUEST;
 
-typedef struct _AM_INSTALL {
+typedef struct AM_INSTALL {
     BOOL m_init;
     AM_INSTALL_SEQ m_nextSeq;
     AM_INSTALL_REQUEST m_requestCode;

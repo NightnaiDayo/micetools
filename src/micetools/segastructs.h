@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #pragma pack(push, 1)
-typedef struct _AM_APPBOOT {
+typedef struct AM_APPBOOT {
     uint32_t m_Crc;
     uint32_t m_Format;
     char m_GameId[4];
@@ -16,13 +16,13 @@ typedef struct _AM_APPBOOT {
     uint32_t m_NetworkAddr;
 } AM_APPBOOT;
 
-typedef struct _AM_APPBOOT_128 {
+typedef struct AM_APPBOOT_128 {
     AM_APPBOOT m_Header;
     uint8_t Rsv18[88];
     uint8_t m_Seed[16];
 } AM_APPBOOT_128;
 
-typedef struct _AM_APPBOOT_256 {
+typedef struct AM_APPBOOT_256 {
     AM_APPBOOT m_Header;
     uint8_t Rsv18[216];
     uint8_t m_Seed[16];

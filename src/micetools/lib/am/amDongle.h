@@ -5,12 +5,12 @@
 #include "../_am.h"
 #include "../libpcp/pcpa.h"
 
-typedef struct _AM_DONGLE_DS_CHALLENGE {
+typedef struct AM_DONGLE_DS_CHALLENGE {
     byte challenge[7];
     byte pages[4][20];
 } AM_DONGLE_DS_CHALLENGE;
 
-typedef struct _AM_DONGLE_SSD_CHALLENGE {
+typedef struct AM_DONGLE_SSD_CHALLENGE {
     byte challenge[16];
     byte response[16];
 } AM_DONGLE_SSD_CHALLENGE;
@@ -25,7 +25,7 @@ typedef enum {
     AM_DONGLE_SEQ_DONE = 8,
 } AM_DONGLE_SEQ;
 
-typedef struct _AM_DONGLE {
+typedef struct AM_DONGLE {
     BOOL m_init;
     BOOL done_init;
     BOOL available;

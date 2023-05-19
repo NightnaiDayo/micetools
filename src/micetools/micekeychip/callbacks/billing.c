@@ -78,26 +78,31 @@ byte CA_CERTIFICATION[CA_CERT_BUF_MAX];
 int CA_CERT_LEN = 0;
 void mxkPcpPbCaCertification(pcpa_t* stream, void* data) {
     if (CA_CERT_LEN == 0) {
-        FILE* fCert;
-        fopen_s(&fCert, Config.billing_cacert, "r");
-        if (fCert == NULL)
-            CA_CERT_LEN = -1;
-        else {
-            fseek(fCert, 0, SEEK_END);
-            CA_CERT_LEN = ftell(fCert);
+        HANDLE hFile = CreateFileA(Config.billing_cacert, GENERIC_READ, FILE_SHARE_READ, NULL,
+                                   OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+
+        if (hFile == INVALID_HANDLE_VALUE) {
+            CA_CERT_LEN = 0;
+        } else {
+            CA_CERT_LEN = GetFileSize(hFile, NULL);
             if (CA_CERT_LEN > CA_CERT_BUF_MAX) CA_CERT_LEN = CA_CERT_BUF_MAX;
-            rewind(fCert);
 
-            fread(CA_CERTIFICATION, CA_CERT_LEN, 1, fCert);
-            fclose(fCert);
+            DWORD numberOfBytesRead;
+            int read_remaining = CA_CERT_LEN;
+            int read_offset = 0;
+            while (read_remaining) {
+                printf("Remaining: %d, offset: %d\n", read_remaining, read_offset);
+                if (!ReadFile(hFile, CA_CERTIFICATION, CA_CERT_BUF_MAX, &numberOfBytesRead, NULL)) {
+                    printf("Read failed: %d", GetLastError());
+                }
+                // int nread = fread(&CA_CERTIFICATION[read_offset], 1, read_remaining, fCert);
+                read_remaining -= numberOfBytesRead;
+                read_offset += numberOfBytesRead;
+            }
+            printf("Read done %d\n", CA_CERT_LEN);
+
+            CloseHandle(hFile);
         }
-    }
-
-    if (CA_CERT_LEN == -1) {
-        // TODO: Fix this maybe?
-        pcpaSetBinaryMode(stream, binary_mode_none);
-        pcpaSetSendPacket(stream, BIL_CACERT, "-1");
-        return;
     }
 
     pcpaSetBinaryMode(stream, binary_mode_send);

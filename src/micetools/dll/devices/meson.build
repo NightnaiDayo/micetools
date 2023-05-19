@@ -1,6 +1,8 @@
 devices_files = files(
     '_ds_sha.c',
     '_devices.c',
+    'nfc/felica.c',
+    'nfc/bng.c',
     # Serial devices
     'ser_led_bd.c',
     'ser_maitouch.c',

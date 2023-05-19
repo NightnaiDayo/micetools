@@ -8,6 +8,10 @@ mice_lib = static_library(
         'config.c',
         'kcf.c',
         'micefs.c',
+        'des.c',
+        'blowfish.c',
+        'solitaire.c',
+        'spad.c',
     ],
     link_with: [
         inih.get_variable('lib_inih'),

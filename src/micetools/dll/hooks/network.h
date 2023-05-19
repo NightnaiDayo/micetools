@@ -6,6 +6,8 @@ static int(WINAPI* True_connect)(SOCKET s, const SOCKADDR* name, int namelen);
 static int(WINAPI* True_bind)(SOCKET s, const SOCKADDR* addr, int namelen);
 static int(WINAPI* True_sendto)(SOCKET s, const char* buf, int len, int flags,
                                 const struct sockaddr* to, int tolen);
+static INT(WINAPI* True_getaddrinfo)(PCSTR pNodeName, PCSTR pServiceName, const ADDRINFOA* pHints,
+                                     PADDRINFOA* ppResult);
 
 static DWORD(WINAPI* TrueGetIfTable)(PMIB_IFTABLE pIfTable, PULONG pdwSize, BOOL bOrder);
 

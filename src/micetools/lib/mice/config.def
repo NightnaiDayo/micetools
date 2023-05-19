@@ -114,6 +114,13 @@ CFG_str(devices, com7, "", "")
 CFG_str(devices, com8, "", "")
 ENDSECTION(devices)
 
+SECTION(aime, "Aime cards used when a TN32MSEC reader is attached\nSpecify either an access code or FeliCa ID")
+CFG_str(aime, player1_card, "", "")
+CFG_str(aime, player1_cardfile, "aime1.txt", "")
+CFG_str(aime, player2_card, "", "")
+CFG_str(aime, player2_cardfile, "aime2.txt", "")
+ENDSECTION(aime)
+
 #undef CFG_str
 #undef CFG_int
 #undef CFG_bool

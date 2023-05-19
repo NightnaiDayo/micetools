@@ -7,7 +7,7 @@ static const char* sBoardType[] = {
     "RingEdge", "RingWide (Spec 1)", "RingWide (Spec 2)", "RingEdge 2", "Unknown",
 };
 
-void miceDumpPlatform(void) {
+BOOL miceDumpPlatform(void) {
     fprintf(stderr, "Dumping platform information using %s\n", amPlatformVersion);
 
     AM_PLATFORM_BOARD_TYPE boardType;
@@ -17,4 +17,6 @@ void miceDumpPlatform(void) {
 
     printf("Board type: %s\n", sBoardType[boardType]);
     printf("Platform ID: %s\n", platformId.strPlatformId);
+
+    return TRUE;
 }

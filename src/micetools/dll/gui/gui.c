@@ -76,6 +76,7 @@ static bool showFps = false;
 static bool showEeprom = false;
 static bool showSram = false;
 static bool showControl = false;
+static bool showCardP1 = false;
 
 void InitImGui(unsigned int hookType, IDirect3DDevice9* pDevice) {
     if (hookType == UI_HOOK_DX9) {
@@ -115,6 +116,34 @@ void InitImGui(unsigned int hookType, IDirect3DDevice9* pDevice) {
         glutSpecialFunc(ImGui_ImplGLUT_SpecialFunc);
         glutSpecialUpFunc(ImGui_ImplGLUT_SpecialUpFunc);
     }
+}
+
+extern BYTE cardLED_RGB_P1[3];
+extern BYTE cardLED_RGB_P2[3];
+void hud_card(ImGuiKey open_key) {
+    if (igIsKeyPressed_Bool(open_key, false)) showCardP1 = !showCardP1;
+    if (!showCardP1) return;
+
+    igBegin("Card Reader", NULL, 0);
+
+    ImVec4 col;
+    col.w = 1.0f;
+
+    col.x = cardLED_RGB_P1[0] / 511.0f;
+    col.y = cardLED_RGB_P1[1] / 511.0f;
+    col.z = cardLED_RGB_P1[2] / 511.0f;
+    igPushStyleColor_Vec4(ImGuiCol_Button, col);
+    igButton("Insert card P1", vec0);
+    igPopStyleColor(1);
+
+    col.x = cardLED_RGB_P2[0] / 511.0f;
+    col.y = cardLED_RGB_P2[1] / 511.0f;
+    col.z = cardLED_RGB_P2[2] / 511.0f;
+    igPushStyleColor_Vec4(ImGuiCol_Button, col);
+    igButton("Insert card P2", vec0);
+    igPopStyleColor(1);
+
+    igEnd();
 }
 
 void hud_fps() {
@@ -898,6 +927,26 @@ void tab_main_keybinds() {
     }
 }
 
+void tab_main_aime_cards() {
+    igText(
+        "Specify the cards to be inserted when using the TN32MSEC AiMe reader module.\nCards can be "
+        "specified as either an NFC ID or an access code.\nIf a card file is present, it will be "
+        "used preferentially.");
+
+    igColumns(2, "AimeWindow", true);
+    igSeparator();
+
+    bool changed = false;
+    changed |= AddSettingString("Player 1 Card ID", NULL, &MiceConfig.aime.player1_card);
+    changed |= AddSettingString("Player 2 Card ID", NULL, &MiceConfig.aime.player2_card);
+    changed |= AddSettingString("Player 1 Card File", NULL, &MiceConfig.aime.player1_cardfile);
+    changed |= AddSettingString("Player 2 Card File", NULL, &MiceConfig.aime.player2_cardfile);
+
+    igEndColumns();
+
+    if (changed) save_current_config();
+}
+
 void hud_control(ImGuiKey open_key) {
     if (igIsKeyPressed_Bool(open_key, false)) showControl = !showControl;
     if (!showControl) return;
@@ -919,6 +968,12 @@ void hud_control(ImGuiKey open_key) {
             igEndChild();
             igEndTabItem();
         }
+        if (igBeginTabItem("AiMe Cards", NULL, 0)) {
+            igBeginChild_Str("AiMe Cards", vec0, FALSE, 0);
+            tab_main_aime_cards();
+            igEndChild();
+            igEndTabItem();
+        }
         if (igBeginTabItem("Settings", NULL, 0)) {
             igBeginChild_Str("Settings", vec0, FALSE, 0);
             tab_main_settings();
@@ -935,7 +990,7 @@ void hud_control(ImGuiKey open_key) {
 
 void __stdcall hud_gui(unsigned int hookType, IDirect3DDevice9* dev) {
     static bool lastAnyOpen = false;
-    bool anyOpen = showControl || showEeprom || showSram;
+    bool anyOpen = showControl || showEeprom || showSram || showCardP1;
     if (anyOpen != lastAnyOpen) {
         changeCursorState = anyOpen ? 1 : 0;
         lastAnyOpen = anyOpen;
@@ -964,6 +1019,7 @@ void __stdcall hud_gui(unsigned int hookType, IDirect3DDevice9* dev) {
     hud_eeprom(ImGuiKey_F11);
     hud_sram(ImGuiKey_F10);
     hud_control(ImGuiKey_F4);
+    hud_card(ImGuiKey_F5);
 
     if (hookType == UI_HOOK_DX9) {
         igEndFrame();

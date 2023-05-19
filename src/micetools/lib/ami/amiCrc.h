@@ -6,7 +6,7 @@
 
 AM_LIB_H_HEADER(amiCrc, AMI_CRC)
 
-typedef struct _AMI_CRC {
+typedef struct AMI_CRC {
     uint32_t m_init;
     uint32_t m_table[256];
 } AMI_CRC;

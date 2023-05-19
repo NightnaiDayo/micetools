@@ -89,6 +89,7 @@ BOOL WINAPI FakeGetVolumeInformationA(LPCSTR lpRootPathName, LPSTR lpVolumeNameB
                                       LPDWORD lpMaximumComponentLength, LPDWORD lpFileSystemFlags,
                                       LPSTR lpFileSystemNameBuffer, DWORD nFileSystemNameSize) {
     disk_volume_t* volume = getVolumeByPath(lpRootPathName, VOL_MATCH_ALL);
+    log_game(plfDrive, "GetVolumeInformationA(%s) = %p", lpRootPathName, volume);
     if (volume == NULL) return FALSE;
 
     if (lpVolumeSerialNumber) *lpVolumeSerialNumber = volume->m_pDrive->m_SerialNumber;
@@ -130,7 +131,8 @@ BOOL WINAPI FakeGetVolumeNameForVolumeMountPointA(LPCSTR lpszVolumeMountPoint, L
                                                   DWORD cchBufferLength) {
     log_trace(plfDrive, "GetVolumeNameForVolumeMountPointA(%s)", lpszVolumeMountPoint);
 
-    disk_volume_t* volume = getVolumeByPath(lpszVolumeMountPoint, VOL_MATCH_PATH);
+    disk_volume_t* volume =
+        getVolumeByPath(lpszVolumeMountPoint, VOL_MATCH_PATH | VOL_MATCH_DOS_DEVICE);
     if (volume == NULL) {
         SetLastError(ERROR_FILE_NOT_FOUND);
         return FALSE;
@@ -141,7 +143,7 @@ BOOL WINAPI FakeGetVolumeNameForVolumeMountPointA(LPCSTR lpszVolumeMountPoint, L
 }
 BOOL WINAPI FakeGetVolumePathNamesForVolumeNameA(LPCSTR lpszVolumeName, LPCH lpszVolumePathNames,
                                                  DWORD cchBufferLength, PDWORD lpcchReturnLength) {
-    log_trace(plfDrive, "GetVolumeNameForVolumeMountPointA(%s)", lpszVolumeName);
+    log_trace(plfDrive, "FakeGetVolumePathNamesForVolumeNameA(%s)", lpszVolumeName);
 
     disk_volume_t* volume = getVolumeByPath(lpszVolumeName, VOL_MATCH_GUID);
     if (volume == NULL) {

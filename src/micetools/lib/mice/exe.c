@@ -11,7 +11,7 @@ bool inject_debug_wait(HANDLE process) {
     do {
         Sleep(1000);
         if (FAILED(CheckRemoteDebuggerPresent(process, &present))) {
-            log_error(plfBoot, "Fatal: CheckRemoteDebuggerPresent failed: %d", GetLastError());
+            log_error(plfBoot, "CheckRemoteDebuggerPresent failed: %d", GetLastError());
             return false;
         }
     } while (!present);
@@ -24,33 +24,33 @@ bool remote_call(HANDLE process, LPVOID function, LPCSTR argument, DWORD* result
     LPVOID arg_addr =
         VirtualAllocEx(process, NULL, nchars + 1, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (arg_addr == NULL) {
-        log_error(plfProcesses, "Fatal: VirtualAllocEx failed: %d", GetLastError());
+        log_error(plfProcesses, "VirtualAllocEx failed: %d", GetLastError());
         return false;
     }
 
     if (FAILED(WriteProcessMemory(process, arg_addr, argument, nchars + 1, NULL))) {
-        log_error(plfProcesses, "Fatal: WriteProcessMemory failed: %d", GetLastError());
+        log_error(plfProcesses, "WriteProcessMemory failed: %d", GetLastError());
         return false;
     }
 
     HANDLE remote_thread =
         CreateRemoteThread(process, NULL, 0, (LPTHREAD_START_ROUTINE)function, arg_addr, 0, NULL);
     if (remote_thread == INVALID_HANDLE_VALUE) {
-        log_error(plfProcesses, "Fatal: CreateRemoteThread failed: %d", GetLastError());
+        log_error(plfProcesses, "CreateRemoteThread failed: %d", GetLastError());
         return false;
     }
 
     if (WaitForSingleObject(remote_thread, INFINITE) != WAIT_OBJECT_0) {
-        log_error(plfProcesses, "Fatal: WaitForSingleObject failed: %d", GetLastError());
+        log_error(plfProcesses, "WaitForSingleObject failed: %d", GetLastError());
         return false;
     }
 
     if (FAILED(GetExitCodeThread(remote_thread, result))) {
-        log_error(plfProcesses, "Fatal: GetExitCodeThread failed: %d", GetLastError());
+        log_error(plfProcesses, "GetExitCodeThread failed: %d", GetLastError());
         return false;
     }
     if (*result == 0) {
-        log_error(plfProcesses, "Fatal: GetExitCodeThread failed: result == 0");
+        log_error(plfProcesses, "GetExitCodeThread failed: result == 0");
         return false;
     }
 
@@ -59,13 +59,13 @@ bool remote_call(HANDLE process, LPVOID function, LPCSTR argument, DWORD* result
 bool inject_dll(HANDLE process, LPCSTR inject) {
     HMODULE kernel32 = GetModuleHandleA("kernel32.dll");
     if (kernel32 == NULL) {
-        log_error(plfProcesses, "Fatal: GetModuleHandleA failed: %d", GetLastError());
+        log_error(plfProcesses, "GetModuleHandleA failed: %d", GetLastError());
         return false;
     }
 
     LPVOID addr_LoadLibraryA = (LPVOID)GetProcAddress(kernel32, "LoadLibraryA");
     if (addr_LoadLibraryA == NULL) {
-        log_error(plfProcesses, "Fatal: GetProcAddress failed: %d", GetLastError());
+        log_error(plfProcesses, "GetProcAddress failed: %d", GetLastError());
         return false;
     }
 
@@ -90,14 +90,14 @@ BOOL start_and_inject(HANDLE hJob, LPCSTR path, LPSTR cmdline, LPCSTR inject, BO
     // Does the exe we're starting exist?
     found = SearchPathA(NULL, path, NULL, 0, NULL, NULL);
     if (found == 0) {
-        log_error(plfProcesses, "Fatal: Cannot start %s: not found", path);
+        log_error(plfProcesses, "Cannot start %s: not found", path);
         goto abort;
     }
     if (inject != NULL) {
         // Does the DLL we want to inject exist?
         found = SearchPathA(NULL, inject, NULL, 0, NULL, NULL);
         if (found == 0) {
-            log_error(plfProcesses, "Fatal: Cannot inject %s: not found", inject);
+            log_error(plfProcesses, "Cannot inject %s: not found", inject);
             goto abort;
         }
     }
@@ -106,7 +106,7 @@ BOOL start_and_inject(HANDLE hJob, LPCSTR path, LPSTR cmdline, LPCSTR inject, BO
     flags |= CREATE_SUSPENDED;
     if (!CreateProcessA(path, cmdline, NULL, NULL, FALSE, flags, NULL, NULL, &startupInfo,
                         &processInformation)) {
-        log_error(plfProcesses, "Fatal: CreateProcessA(%s, %s) failed: %d", path, cmdline,
+        log_error(plfProcesses, "CreateProcessA(%s, %s) failed: %d", path, cmdline,
                   GetLastError());
         goto abort;
     }
@@ -140,7 +140,7 @@ BOOL start_and_inject(HANDLE hJob, LPCSTR path, LPSTR cmdline, LPCSTR inject, BO
 
     // Injection completed, let the program continue execution
     if (FAILED(ResumeThread(processInformation.hThread))) {
-        log_error(plfProcesses, "Fatal: ResumeThread failed: %d", GetLastError());
+        log_error(plfProcesses, "ResumeThread failed: %d", GetLastError());
         goto abort;
     }
 
@@ -153,14 +153,14 @@ BOOL start_and_inject(HANDLE hJob, LPCSTR path, LPSTR cmdline, LPCSTR inject, BO
 abort:
     if (processInformation.hProcess && processInformation.hProcess != INVALID_HANDLE_VALUE) {
         if (!CloseHandle(processInformation.hThread) && GetLastError() != ERROR_INVALID_HANDLE)
-            log_error(plfProcesses, "Fatal: CloseHandle(hProcess) failed: %d", GetLastError());
+            log_error(plfProcesses, "CloseHandle(hProcess) failed: %d", GetLastError());
 
         if (!TerminateProcess(processInformation.hProcess, 1))
-            log_error(plfProcesses, "Fatal: TerminateProcess failed: %d", GetLastError());
+            log_error(plfProcesses, "TerminateProcess failed: %d", GetLastError());
     }
     if (processInformation.hThread && processInformation.hThread != INVALID_HANDLE_VALUE) {
         if (!CloseHandle(processInformation.hThread) && GetLastError() != ERROR_INVALID_HANDLE)
-            log_error(plfProcesses, "Fatal: CloseHandle(hThread) failed: %d", GetLastError());
+            log_error(plfProcesses, "CloseHandle(hThread) failed: %d", GetLastError());
     }
 
     return FALSE;

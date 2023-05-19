@@ -5,7 +5,7 @@
 #include "../../segastructs.h"
 
 #pragma pack(push, 1)
-typedef struct _AM_KCF {
+typedef struct AM_KCF {
     AM_APPBOOT m_Header;
     BYTE m_AppData[216];
     BYTE m_Seed[16];

@@ -17,6 +17,8 @@ int main(int argc, char** argv) {
             miceDumpKCMxkeychip();
         else if (strcmp(argv[i], "kcpic") == 0)
             miceDumpKCPIC();
+        else if (strcmp(argv[i], "cmos") == 0)
+            miceDumpCMOS();
         else
             printf("Unknown dump type: %s\n", argv[i]);
     }

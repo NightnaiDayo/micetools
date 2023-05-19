@@ -366,6 +366,8 @@ inline static BOOL matchVolume(disk_volume_t* volume, LPCSTR lpRootPathName, DWO
     if (match & VOL_MATCH_DOS_DEVICE && volume->m_MountPoint) {
         if (char_lower(volume->m_MountPoint) == char_lower(lpRootPathName[0])) {
             if (lpRootPathName[1] == ':' && lpRootPathName[2] == '\0') return TRUE;
+            if (lpRootPathName[1] == ':' && lpRootPathName[2] == '\\' && lpRootPathName[3] == '\0')
+                return TRUE;
         }
     }
     return FALSE;

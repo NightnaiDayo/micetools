@@ -24,8 +24,19 @@ void mxkPcpTdPut(pcpa_t* stream, void* data) {
     pcpaSetSendPacket(stream, TRA_PUT, "0");
 }
 void mxkPcpTdGet(pcpa_t* stream, void* data) {
-    // TODO: lol
-    pcpaSetSendPacket(stream, TRA_GET, "");
+    char* sPut = pcpaGetCommand(stream, TRA_GET);
+    pcpaSetSendPacket(stream, TRA_GET, "0");
+    if (sPut && strcmp(sPut, "?") == 0) {
+        pcpaAddSendPacket(stream, "address", "0");
+    } else {
+        pcpaSetBinaryMode(stream, binary_mode_send);
+        pcpaSetBeforeBinaryModeCallBackFunc(stream, mxkBinaryCallback, NULL);
+
+        BINARY_DATA_LEN = 0;
+        pcpaSetRecvBinaryBuffer(stream, BINARY_DATA, BINARY_DATA_LEN);
+        pcpaAddSendPacket(stream, "port", "40107");
+        pcpaAddSendPacket(stream, "size", "0");
+    }
 }
 void mxkPcpTdLogicalErase(pcpa_t* stream, void* data) {
     pcpaSetSendPacket(stream, TRA_LOGICALERASE, "");

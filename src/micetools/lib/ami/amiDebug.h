@@ -6,7 +6,7 @@
 
 #include "../_am.h"
 
-typedef struct _AM_DEBUG {
+typedef struct AM_DEBUG {
     unsigned char Rsv00;
 } AM_DEBUG;
 AM_LIB_H_HEADER(amiDebug, AM_DEBUG)

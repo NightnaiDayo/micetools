@@ -24,7 +24,7 @@ static void print_help(char* exe) {
 
 static bool parse_cmdline(int argc, char* argv[]) {
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-h") == 0) {
+        if (strcmp(argv[i], "--mice-h") == 0) {
             print_help(argv[0]);
         } else if (strcmp(argv[i], "-b") == 0) {
             if (i + 1 == argc) print_help(argv[0]);
@@ -92,7 +92,7 @@ static DWORD WINAPI MiceMailslotWatcher(HANDLE* pSlot) {
 
     HANDLE hLogFile = INVALID_HANDLE_VALUE;
     if (MiceConfig.mice.log_to_file) {
-        hLogFile = CreateFileA(MiceConfig.mice.log_file, GENERIC_WRITE, FILE_SHARE_READ, NULL,
+        hLogFile = CreateFileA(MiceConfig.mice.log_file, GENERIC_WRITE, FILE_SHARE_WRITE, NULL,
                                CREATE_ALWAYS, 0, NULL);
         if (hLogFile == INVALID_HANDLE_VALUE) {
             fprintf(stderr, "Failed to initialise logging: open %s failed: %d",
@@ -174,7 +174,41 @@ BOOL WINAPI MiceHandlerRoutine(DWORD CtrlType) {
     ExitProcess(terminate(0));
 }
 
+#include "../lib/mice/spad.h"
+
 int main(int argc, char* argv[]) {
+    // unsigned char spad_new_bytes[16] = {
+    //     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x52, 0x06,
+    //     0x94, 0x87, 0x82, 0x60, 0x37, 0x73, 0x12, 0x13,
+    // };
+    // unsigned char spn[16];
+    // Spad0Encrypt(spn, spad_new_bytes);
+    // for (int i = 0; i < 8; i++) printf("%02x", spn[i]);
+    // puts("");
+    // for (int i = 8; i < 16; i++) printf("%02x", spn[i]);
+    // puts("");
+
+    // puts("--");
+
+    // unsigned char back_out[16];
+    // Spad0Decrypt(back_out, spn);
+    // for (int i = 0; i < 8; i++) printf("%02x", back_out[i]);
+    // puts("");
+    // for (int i = 8; i < 16; i++) printf("%02x", back_out[i]);
+    // puts("");
+
+    // unsigned char bng[16] = {
+    //     0xE6, 0xBC, 0x6D, 0x56, 0x83, 0xF6, 0xB6, 0x48,
+    //     0x4C, 0x24, 0xE4, 0x83, 0xD5, 0xE8, 0x93, 0x7F,
+    // };
+    // Spad0Decrypt(back_out, bng);
+    // for (int i = 0; i < 8; i++) printf("%02x", back_out[i]);
+    // puts("");
+    // for (int i = 8; i < 16; i++) printf("%02x", back_out[i]);
+    // puts("");
+
+    // return -1;
+
     load_mice_config();
     if (!setup_mailslot()) return 1;
     setup_logging();

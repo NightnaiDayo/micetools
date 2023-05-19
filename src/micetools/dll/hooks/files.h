@@ -5,6 +5,20 @@
 #define _MICE_FILES extern
 #endif
 
+typedef struct {
+    unsigned int st_dev;
+    unsigned short st_ino;
+    unsigned short st_mode;
+    short st_nlink;
+    short st_uid;
+    short st_gid;
+    unsigned int st_rdev;
+    long st_size;
+    __time64_t st_atime;
+    __time64_t st_mtime;
+    __time64_t st_ctime;
+} _stat64i32_t;
+
 _MICE_FILES HANDLE(WINAPI* TrueCreateFileA)(LPCSTR lpFileName, DWORD dwDesiredAccess,
                                             DWORD dwShareMode,
                                             LPSECURITY_ATTRIBUTES lpSecurityAttributes,
@@ -40,6 +54,11 @@ _MICE_FILES BOOL(WINAPI* TrueDeleteFileW)(LPCWSTR lpFileName);
 _MICE_FILES HANDLE(WINAPI* TrueFindFirstFileA)(LPCSTR lpFileName, LPWIN32_FIND_DATA lpFindFileData);
 _MICE_FILES DWORD(WINAPI* TrueGetFileAttributesA)(LPCSTR lpFileName);
 _MICE_FILES DWORD(WINAPI* TrueGetFileAttributesW)(LPCWSTR lpFileName);
+_MICE_FILES BOOL(WINAPI* TrueCreateDirectoryA)(LPCSTR lpFileName,
+                                               LPSECURITY_ATTRIBUTES lpSecurityAttributes);
+_MICE_FILES BOOL(WINAPI* TrueCreateDirectoryW)(LPCWSTR lpFileName,
+                                               LPSECURITY_ATTRIBUTES lpSecurityAttributes);
+
 _MICE_FILES DWORD(WINAPI* TrueGetCurrentDirectoryA)(DWORD nBufferLength, LPSTR lpBuffer);
 _MICE_FILES DWORD(WINAPI* TrueGetCurrentDirectoryW)(DWORD nBufferLength, LPWSTR lpBuffer);
 
@@ -65,7 +84,6 @@ typedef BOOL(FnReadFile)(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBy
 
 typedef BOOL(FnGetFileSizeEx)(file_context_t* ctx, PLARGE_INTEGER lpFileSize);
 
-typedef struct _stat64i32 _stat64i32_t;
 static int(WINAPIV* True_stat64i32)(const char* path, _stat64i32_t* buffer);
 
 #define _WriteFile (TrueWriteFile ? TrueWriteFile : WriteFile)

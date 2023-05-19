@@ -13,3 +13,4 @@ void amNetworkResponseCheck(void);
 void amNetworkSendAndRecvEx(void);
 void amNetworkSendRequest(void);
 void amNetworkSetCommandModifyProperty(void);
+void amNetworkPcpAddCommandInterface(void);

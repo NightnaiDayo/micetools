@@ -113,20 +113,24 @@ void hook_drives();
 #define MBR_FS_NTFS 0x07
 #define MBR_FS_EXT_LBA 0x0F
 
+#define MBR_BOOTSTRAP_SIZE 446
+
 #pragma pack(push, 1)
-typedef struct mbr {
-    BYTE bootstrap_code[446];
-    struct {
-        BYTE status;
-        BYTE start_chs[3];
-        BYTE type;
-        BYTE end_chs[3];
-        DWORD lba;
-        DWORD sectors;
-    } partitions[4];
+typedef struct MBR_PARTITION {
+    BYTE status;
+    BYTE start_chs[3];
+    BYTE type;
+    BYTE end_chs[3];
+    DWORD lba;
+    DWORD sectors;
+} MBR_PARTITION, *PMBR_PARTITION;
+typedef struct MBR_HEADER {
+    BYTE bootstrap_code[MBR_BOOTSTRAP_SIZE];
+    MBR_PARTITION partitions[4];
     BYTE sig[2];
-} mbr_t;
+} MBR_HEADER, *PMBR_HEADER;
 #pragma pack(pop)
+typedef MBR_HEADER mbr_t;
 
 #define IOCTL_CDROM_GET_DRIVE_GEOMETRY 0x2404c  // #include <Ntddcdrm.h> causes errors
 

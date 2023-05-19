@@ -118,6 +118,8 @@ BOOL MiceFSAddDevLayers(VOID) {
 
     BOOL success = TRUE;
     for (int i = 0; i < 26; i++) {
+        if (i == 2) continue;  // TODO: DON'T SKIP C
+
         szMountPoint[0] = 'A' + (char)i;
         szMountPoint[1] = ':';
         szMountPoint[2] = '\\';
@@ -134,7 +136,7 @@ BOOL MiceFSAddRingedgeLayers(BOOL bIsOsupdate) {
 
     // Windows file systems
     success &= MiceFSAddLayer(RING_MOUNT_OS, "mount/os");
-    success &= MiceFSAddLayer(RING_MOUNT_EXTEND, "mount/extend");
+    // success &= MiceFSAddLayer(RING_MOUNT_EXTEND, "mount/extend");
     success &= MiceFSAddLayer(RING_MOUNT_RECOVERY, "mount/os_recovery");
 
     // TrueCrypt Volumes
@@ -145,8 +147,8 @@ BOOL MiceFSAddRingedgeLayers(BOOL bIsOsupdate) {
         success &= MiceFSAddLayer(RING_MOUNT_OS_UPDATE, "mount/os_update");
         success &= MiceFSAddLayer(RING_MOUNT_OS_DEFAULT_DRVIERS, "mount/os_default_drivers");
     } else {
-        success &= MiceFSAddLayer(RING_MOUNT_EXTEND_VOL, "mount/extend/extend");
-        success &= MiceFSAddLayer(RING_MOUNT_EXTEND2_VOL, "mount/extend/extend2");
+        // success &= MiceFSAddLayer(RING_MOUNT_EXTEND_VOL, "mount/extend/extend");
+        // success &= MiceFSAddLayer(RING_MOUNT_EXTEND2_VOL, "mount/extend/extend2");
     }
 
     // geminifs

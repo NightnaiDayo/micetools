@@ -6,7 +6,7 @@
 
 AM_LIB_H_HEADER(amiTimer, AMI_TIMER)
 
-typedef struct _AMI_TIMER {
+typedef struct AMI_TIMER {
     unsigned char Rsv00;
 } AMI_TIMER;
 

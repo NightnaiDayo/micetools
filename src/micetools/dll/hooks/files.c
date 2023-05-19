@@ -128,7 +128,10 @@ HANDLE WINAPI FakeCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD d
     MiceFSRedirectPathW(lpFileName, &lpFileName);
     handle = TrueCreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                              dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-    log_misc(plfHooks, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
+    if (handle == INVALID_HANDLE_VALUE)
+        log_warning(plfHooks, "CreateFileW(%ls) failed", lpFileName);
+    else
+        log_misc(plfHooks, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
 
     return handle;
 }
@@ -149,7 +152,10 @@ HANDLE WINAPI FakeCreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
     MiceFSRedirectPathA(lpFileName, &lpFileName);
     HANDLE handle = TrueCreateFileA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                                     dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-    log_misc(plfHooks, "CreateFileA(%s) -> 0x%p", lpFileName, handle);
+    if (handle == INVALID_HANDLE_VALUE)
+        log_warning(plfHooks, "CreateFileA(%s) failed", lpFileName);
+    else
+        log_misc(plfHooks, "CreateFileA(%s) -> 0x%p", lpFileName, handle);
     return handle;
 }
 
@@ -320,17 +326,33 @@ BOOL WINAPI FakeCloseHandle(HANDLE hObject) {
     return TrueCloseHandle(hObject);
 }
 
-int WINAPIV Fake_stat64i32(const char* path, struct _stat64i32* buffer) {
-    MiceFSRedirectPathA((char*)path, &path);
-    return True_stat64i32(path, buffer);
-};
+
+void FileTimeToTimet(__time64_t* t, LPFILETIME pft) {
+    ULARGE_INTEGER time_value;
+    time_value.HighPart = pft->dwHighDateTime;
+    time_value.LowPart = pft->dwLowDateTime;
+    *t = (time_value.QuadPart - 116444736000000000LL) / 10000000LL;
+}
+
+int WINAPIV Fake_stat64i32(const char* path, _stat64i32_t* buffer) {
+    MiceFSRedirectPathA(path, &path);
+
+    // NOTE: We can't use True_stat64i32 because it has issues with another other than dir-relative
+    // child paths
+
+    WIN32_FILE_ATTRIBUTE_DATA fileInformation;
+    if (!GetFileAttributesEx(path, GetFileExInfoStandard, &fileInformation)) return -1;
+
+    // TODO: Populate other values. ALLNetProc and OpenSSL only need st_size. atime/ctime are free
+    // so were added too.
+    buffer->st_size = fileInformation.nFileSizeLow;
+    FileTimeToTimet(&buffer->st_atime, &fileInformation.ftLastAccessTime);
+    FileTimeToTimet(&buffer->st_ctime, &fileInformation.ftCreationTime);
+
+    return 0x800;
+}
 
 DWORD WINAPI FakeGetFileAttributesA(LPCSTR lpFileName) {
-    // The game quits out if MiniDump is present!
-    if (PathEqual(lpFileName, "Y:\\MiniDump\\")) {
-        return 0;
-    }
-
     MiceFSRedirectPathA(lpFileName, &lpFileName);
     return TrueGetFileAttributesA(lpFileName);
 }
@@ -338,18 +360,36 @@ DWORD WINAPI FakeGetFileAttributesW(LPCWSTR lpFileName) {
     MiceFSRedirectPathW(lpFileName, &lpFileName);
     return TrueGetFileAttributesW(lpFileName);
 }
+BOOL WINAPI FakeCreateDirectoryA(LPCSTR lpFileName, LPSECURITY_ATTRIBUTES lpSecurityAttributes) {
+    MiceFSRedirectPathA(lpFileName, &lpFileName);
+    return TrueCreateDirectoryA(lpFileName, lpSecurityAttributes);
+}
+BOOL WINAPI FakeCreateDirectoryW(LPCWSTR lpFileName, LPSECURITY_ATTRIBUTES lpSecurityAttributes) {
+    MiceFSRedirectPathW(lpFileName, &lpFileName);
+    return TrueCreateDirectoryW(lpFileName, lpSecurityAttributes);
+}
 HANDLE WINAPI FakeFindFirstFileA(LPCSTR lpFileName, LPWIN32_FIND_DATA lpFindFileData) {
     MiceFSRedirectPathA(lpFileName, &lpFileName);
     return TrueFindFirstFileA(lpFileName, lpFindFileData);
 }
 
 DWORD WINAPI FakeGetCurrentDirectoryA(DWORD nBufferLength, LPSTR lpBuffer) {
-    strcpy_s(lpBuffer, nBufferLength, MiceFSGetCwd());
-    return strnlen_s(lpBuffer, nBufferLength);
+    LPCSTR cwd = MiceFSGetCwd();
+    DWORD length = strlen(cwd);
+    if (nBufferLength < length + 1) {
+        return length + 1;
+    }
+    strcpy_s(lpBuffer, nBufferLength, cwd);
+    return length;
 }
 DWORD WINAPI FakeGetCurrentDirectoryW(DWORD nBufferLength, LPWSTR lpBuffer) {
-    MultiByteToWideChar(CP_ACP, 0, MiceFSGetCwd(), -1, lpBuffer, nBufferLength);
-    return wcsnlen_s(lpBuffer, nBufferLength);
+    LPCSTR cwd = MiceFSGetCwd();
+    DWORD length = strlen(cwd);
+    if (nBufferLength < (length + 1) * 2) {
+        return (length + 1) * 2;
+    }
+    MultiByteToWideChar(CP_ACP, 0, cwd, -1, lpBuffer, nBufferLength);
+    return length;
 }
 
 void hook_io() {
@@ -380,6 +420,10 @@ void hook_io() {
          (void**)&TrueGetFileAttributesA);
     hook("Kernel32.dll", "GetFileAttributesW", FakeGetFileAttributesW,
          (void**)&TrueGetFileAttributesW);
+    hook("Kernel32.dll", "CreateDirectoryA", FakeCreateDirectoryA,
+         (void**)&TrueCreateDirectoryA);
+    hook("Kernel32.dll", "CreateDirectoryW", FakeCreateDirectoryW,
+         (void**)&TrueCreateDirectoryW);
 
     hook("MSVCR90.DLL", "_stat64i32", Fake_stat64i32, (void**)&True_stat64i32);
 }

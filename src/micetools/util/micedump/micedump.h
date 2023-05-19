@@ -1,8 +1,11 @@
-void miceDumpDMI(void);
-void miceDumpEEPROM(void);
-void miceDumpKCMxkeychip(void);
-void miceDumpKCN2(void);
-void miceDumpKCPIC(void);
-void miceDumpPlatform(void);
-void miceDumpSRAM(void);
-void miceDumpSuperIO(void);
+#include <Windows.h>
+
+BOOL miceDumpDMI(void);
+BOOL miceDumpEEPROM(void);
+BOOL miceDumpKCMxkeychip(void);
+BOOL miceDumpKCN2(void);
+BOOL miceDumpKCPIC(void);
+BOOL miceDumpPlatform(void);
+BOOL miceDumpSRAM(void);
+BOOL miceDumpSuperIO(void);
+BOOL miceDumpCMOS(void);

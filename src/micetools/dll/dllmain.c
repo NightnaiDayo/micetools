@@ -143,7 +143,7 @@ void init_injection(HMODULE hModule) {
 
     if (success) success &= MiceFSAddDevLayers();
 
-    MiceFSSetCwd(RING_MOUNT_GAME);
+    MiceFSSetCwd(RING_MOUNT_GAME "\\");
 
     // Setup default COM devices
     init_com_devices();
@@ -187,8 +187,10 @@ void init_injection(HMODULE hModule) {
         // OPENSSL_add_all_algorithms_noconf (old exe)
         // ((void (*)(void))(0x00459770 + imageOffset))();
 
-        // OPENSSL_add_all_algorithms_noconf (new exe)
-        ((void (*)(void))(0x00463480 + imageOffset))();
+        // OPENSSL_add_all_algorithms_noconf (pink exe)
+        // ((void (*)(void))(0x00463480 + imageOffset))();
+
+        // TODO: Find finale offset
     }
 
     setup_hooks();

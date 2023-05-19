@@ -62,6 +62,26 @@ physical_disk_t UPDATE_USB = {
     },
     .m_Extended = {{ 0 }},
 };
+physical_disk_t DOWNLOAD_USB = {
+    .m_BusType = BusTypeUsb,
+    .m_VID = "13FE",
+    .m_PID = "4200",
+    .m_BlockSize = BLOCK_SIZE_FLASH,
+    .m_TotalSize = 64 * 1024 * ((1024 * 1024) / BLOCK_SIZE_FLASH),
+    .m_IsFormatted = true,
+    .m_DiskType = DiskType_Flash,
+    .m_Partitions = {
+        // 59050 MB update partitions
+        {
+            .m_Size = 0xe6b410,
+            .m_Filesystem = MBR_FS_NTFS,
+            .m_Volume = {
+                .m_Name = "SEGA_DL",
+            },
+        },
+    },
+    .m_Extended = {{ 0 }},
+};
 physical_disk_t LOG_USB = {
     .m_BusType = BusTypeUsb,
     .m_VID = "13FE",
@@ -78,6 +98,27 @@ physical_disk_t LOG_USB = {
             .m_Volume = {
                 .m_Name = "SEGA_AM_LOG",
                 .m_MountPoint = 'L',
+            },
+        },
+    },
+    .m_Extended = {{ 0 }},
+};
+physical_disk_t MAI_USB_DONGLE = {
+    .m_BusType = BusTypeUsb,
+    .m_VID = "13FE",
+    .m_PID = "4200",
+    .m_BlockSize = BLOCK_SIZE_FLASH,
+    .m_TotalSize = 16 * 1024 * ((1024 * 1024) / BLOCK_SIZE_FLASH),
+    .m_IsFormatted = true,
+    .m_DiskType = DiskType_Flash,
+    .m_Partitions = {
+        // 4 GB partition
+        {
+            .m_Size = 0x100000,
+            .m_Filesystem = MBR_FS_NTFS,
+            .m_Volume = {
+                .m_Name = "USBDONGLE",
+                .m_MountPoint = 'U',
             },
         },
     },
@@ -124,8 +165,11 @@ physical_disk_t APM_HDD = {
 
 physical_disk_t* PHYSICAL_DISKS[] = {
     &SSD,
-    &UPDATE_USB,
+    // &UPDATE_USB,
+    // &DOWNLOAD_USB,
     // &APM_HDD,
+
+    // &MAI_USB_DONGLE,
 
     // &LOG_USB,
     // &ALPHA_DVD,

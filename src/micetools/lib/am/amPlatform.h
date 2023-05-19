@@ -10,6 +10,10 @@ AM_LIB_H_HEADER(amPlatform, AM_PLATFORM)
 #define PLATFORM_RINGEDGE "AAL"
 #define PLATFORM_RINGEDGE2 "AAL2"  // Also AAS in places
 
+#define MANUFACTURER_RE "NEC"
+#define MANUFACTURER_RW_1 "Supermicro"
+#define MANUFACTURER_RW_2 "Advantech"
+
 typedef struct {
     char strPlatformId[4];
 } AM_PLATFORM_PLATFORM_ID;
@@ -22,7 +26,7 @@ typedef enum {
     AM_PLATFORM_BOARD_TYPE_UNKNOWN = 4,
 } AM_PLATFORM_BOARD_TYPE;
 
-typedef struct _AM_PLATFORM {
+typedef struct AM_PLATFORM {
     BOOL m_boardTypeCached;
     AM_PLATFORM_BOARD_TYPE m_boardType;
     BOOL m_platformIdCached;

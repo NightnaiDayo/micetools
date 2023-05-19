@@ -53,7 +53,7 @@ AM_DONGLE_STATUS amlib_init_dongle(void) {
     return AM_DONGLE_STATUS_OK;
 }
 
-void miceDumpKCMxkeychip(void) {
+BOOL miceDumpKCMxkeychip(void) {
     amDongleDebugLevel = 1;
 
     fprintf(stderr, "Dumping dongle using %s\n", amDongleVersion);
@@ -61,7 +61,7 @@ void miceDumpKCMxkeychip(void) {
     WSADATA wsaData;
     if (WSAStartup(2, &wsaData)) {
         puts("Failed to WSAStartup");
-        return;
+        return FALSE;
     }
 
     AM_DONGLE_STATUS err;
@@ -69,7 +69,7 @@ void miceDumpKCMxkeychip(void) {
     if (err != AM_DONGLE_STATUS_OK) {
         printf("Failed to init dongle:%d\n", err);
         amDongleExit();
-        return;
+        return FALSE;
     }
 
     printf("Keychip ID: %s\n", amlibDongle.keychipId);
@@ -108,4 +108,5 @@ void miceDumpKCMxkeychip(void) {
     puts("");
 
     amDongleExit();
+    return TRUE;
 }
