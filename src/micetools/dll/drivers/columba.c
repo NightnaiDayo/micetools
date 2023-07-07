@@ -1,5 +1,5 @@
 #include "../lib/am/amOemstring.h"
-#include "../lib/dmi/dmi.h"
+#include "../lib/mice/dmi.h"
 #include "mx.h"
 
 #define DMI_HEADER_START 0x000f0000

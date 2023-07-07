@@ -15,17 +15,12 @@
 #include "disks.h"
 #include "irb.h"
 
-#define DISK_PATH "dev/disk/"
-#define SPD_PATH (DISK_PATH "spd.bin")
-#define SBR0_PATH (DISK_PATH "sbr0.bin")
-#define SBR1_PATH (DISK_PATH "sbr1.bin")
-#define ORIGINAL0_PATH (DISK_PATH "original0.bin")
-#define PATCH0_PATH (DISK_PATH "patch0.bin")
-
-extern physical_disk_t SSD;
-extern physical_disk_t UPDATE_USB;
-extern physical_disk_t LOG_USB;
-extern physical_disk_t ALPHA_DVD;
+#define DISK_PATH MiceIpcRelativePath("disk\\"
+#define SPD_PATH DISK_PATH "spd.bin")
+#define SBR0_PATH DISK_PATH "sbr0.bin")
+#define SBR1_PATH DISK_PATH "sbr1.bin")
+#define ORIGINAL0_PATH DISK_PATH "original0.bin")
+#define PATCH0_PATH DISK_PATH "patch0.bin")
 
 extern sbr_t SegaBootRecordDefault;
 extern sbr_t SegaBootRecord0;
@@ -35,6 +30,9 @@ extern sbr_t SegaBootRecord1;
 void init_volume(disk_volume_t* vol);
 void init_pd(physical_disk_t* pd);
 void init_all_pd();
+BOOL attach_disk(virtual_disk_t* lpDisk);
+BOOL detach_disk(virtual_disk_t* lpDisk);
+physical_disk_t* _GetDisk0();
 
 mice_partition_read_function_t ReadFunc_Original0;
 mice_partition_write_function_t WriteFunc_Original0;

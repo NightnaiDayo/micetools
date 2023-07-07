@@ -2,8 +2,8 @@
 #include "../../maiBackupStructs.h"
 #include "mx.h"
 
-#define SRAM_PATH L"dev/sram.bin"
-#define SRAM_SIZE 1024 * 2084
+// The size of RingEdge[2], which is larger than RingWide needs
+#define SRAM_SIZE_MAX 1024 * 2084
 LPBYTE SRAM_DATA = NULL;
 HANDLE SRAM_FILE = INVALID_HANDLE_VALUE;
 HANDLE SRAM_FILE_MAPPING = INVALID_HANDLE_VALUE;
@@ -20,9 +20,9 @@ HANDLE SRAM_FILE_MAPPING = INVALID_HANDLE_VALUE;
     } while (0)
 
 void build_sram() {
-    log_info(plfMxSram, "Building default SRAM file");
+    log_warning(plfMxSram, "Building default SRAM file");
 
-    memset(SRAM_DATA, 0xff, SRAM_SIZE);
+    memset(SRAM_DATA, 0xff, SRAM_SIZE_MAX);
 
     // TODO: Do we want to re-enable this with actual values
 #if false
@@ -52,12 +52,12 @@ void build_sram() {
 
 void ensure_valid_sram() {
     if (!SRAM_DATA) {
-        BOOL isNew = !FileExists(SRAM_PATH);
+        BOOL isNew = !FileExistsA(SRAM_PATH);
 
-        SRAM_DATA = open_mapped_file(SRAM_PATH, SRAM_SIZE, &SRAM_FILE, &SRAM_FILE_MAPPING);
+        SRAM_DATA = open_mapped_file(SRAM_PATH, SRAM_SIZE_MAX, &SRAM_FILE, &SRAM_FILE_MAPPING);
         if (SRAM_DATA == NULL) {
             log_error(plfMxSram, "SRAM will be memory-backed and not syncronised!");
-            SRAM_DATA = malloc(SRAM_SIZE);
+            SRAM_DATA = malloc(SRAM_SIZE_MAX);
         }
 
         if (isNew) build_sram();
@@ -68,7 +68,7 @@ BOOL WINAPI mxsram_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, L
                                    DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
                                    LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     DWORD SRAM_VERSION = 0x01000001;
-    DWORD SRAM_SECTOR_SIZE = 4;  // Max is 0x800
+    DWORD SRAM_SECTOR_SIZE = MiceConfig.sysconf.platform == MICE_PLATFORM_RINGEDGE2 ? 4 : 512;
 
     switch (dwIoControlCode) {
         case IOCTL_MXSRAM_PING:  // Get version
@@ -88,6 +88,8 @@ BOOL WINAPI mxsram_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, L
 
             PDISK_GEOMETRY out = (PDISK_GEOMETRY)lpOutBuffer;
             memset(out, 0, sizeof *out);
+            // I'm unsure how these values change specifically for RW, RE1, RE2
+            // I'm also unsure (ie highly doubtful) it truly matters.
             out->Cylinders.QuadPart = 256;
             out->MediaType = FixedMedia;
             out->TracksPerCylinder = 2;
@@ -119,8 +121,8 @@ BOOL mxsram_WriteFile(file_context_t* ctx, LPCVOID lpBuffer, DWORD nNumberOfByte
                       LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped) {
     log_misc(plfMxSram, "sram write 0x%04x bytes at 0x%04x", nNumberOfBytesToWrite,
              ctx->m_Pointer.LowPart);
-    if (ctx->m_Pointer.LowPart + nNumberOfBytesToWrite >= SRAM_SIZE) {
-        nNumberOfBytesToWrite = SRAM_SIZE - ctx->m_Pointer.LowPart;
+    if (ctx->m_Pointer.LowPart + nNumberOfBytesToWrite >= SRAM_SIZE_MAX) {
+        nNumberOfBytesToWrite = SRAM_SIZE_MAX - ctx->m_Pointer.LowPart;
     }
     ensure_valid_sram();
     memcpy(SRAM_DATA + ctx->m_Pointer.LowPart, lpBuffer, nNumberOfBytesToWrite);
@@ -132,8 +134,8 @@ BOOL mxsram_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytesT
                      LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped) {
     log_misc(plfMxSram, "sram read 0x%04x bytes at 0x%04x", nNumberOfBytesToRead,
              ctx->m_Pointer.LowPart);
-    if (ctx->m_Pointer.LowPart + nNumberOfBytesToRead >= SRAM_SIZE) {
-        nNumberOfBytesToRead = SRAM_SIZE - ctx->m_Pointer.LowPart;
+    if (ctx->m_Pointer.LowPart + nNumberOfBytesToRead >= SRAM_SIZE_MAX) {
+        nNumberOfBytesToRead = SRAM_SIZE_MAX - ctx->m_Pointer.LowPart;
     }
     ensure_valid_sram();
     memcpy((LPVOID)lpBuffer, SRAM_DATA + ctx->m_Pointer.LowPart, nNumberOfBytesToRead);

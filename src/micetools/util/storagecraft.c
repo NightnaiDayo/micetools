@@ -60,20 +60,24 @@ physical_disk_t newSSD = {
     .m_TotalSize = 0,  // Force re-calculation
     .m_DiskType = DiskType_HardDisk,
     .m_IsFormatted = true,
+    // .m_Partitions = {
+    //     // 1.5GB boot partition
+    //     { .m_Size = _GMKiB(1, 513, 450.5), .m_Filesystem = MBR_FS_NTFS },
+    //     // 1.5GB OS recovery
+    //     { .m_Size = _GMKiB(1, 513, 482), .m_Filesystem = MBR_FS_NTFS },
+    // },
+    // .m_Extended = {
+    //     { _GMKiB(0, 517, 705.5), MBR_FS_FAT16, SPD_OS },      // 512MB OS update
+    //     { _GMKiB(0, 2055, 163.5), MBR_FS_FAT16, SPD_Patch0 },  // 2GB patch0
+    //     { _GMKiB(0, 2055, 163.5), MBR_FS_FAT16, SPD_Patch1 },  // 2GB patch1
+    //     { _GMKiB(36, 474, 556.5), MBR_FS_NTFS, SPD_AppData }, // 40GB appdata
+    //     { _GMKiB(16, 2, 597), MBR_FS_FAT16, SPD_Original0 }, // 16GB original0
+    //     { 0 },  // End of table
+    // },
     .m_Partitions = {
-        // 1.5GB boot partition
-        { .m_Size = _GMKiB(1, 513, 450.5), .m_Filesystem = MBR_FS_NTFS },
-        // 1.5GB OS recovery
-        { .m_Size = _GMKiB(1, 513, 482), .m_Filesystem = MBR_FS_NTFS },
+        { .m_Size = 40960, .m_Filesystem = MBR_FS_NTFS },
     },
-    .m_Extended = {
-        { _GMKiB(0, 517, 705.5), MBR_FS_FAT16, SPD_OS },      // 512MB OS update
-        { _GMKiB(0, 2055, 163.5), MBR_FS_FAT16, SPD_Patch0 },  // 2GB patch0
-        { _GMKiB(0, 2055, 163.5), MBR_FS_FAT16, SPD_Patch1 },  // 2GB patch1
-        { _GMKiB(36, 474, 556.5), MBR_FS_NTFS, SPD_AppData }, // 40GB appdata
-        { _GMKiB(16, 2, 597), MBR_FS_FAT16, SPD_Original0 }, // 16GB original0
-        { 0 },  // End of table
-    },
+    .m_Extended = { 0 },
 };
 
 sbr_t SegaBootRecord0 = { 0 };
@@ -328,8 +332,8 @@ void write_pd(HANDLE hDisk, physical_disk_t* pConfig) {
 
 void print_bar(LONGLONG nCurrent, LONGLONG nMax) {
     printf("[");
-    DWORD filled = ((float)nCurrent / (float)nMax) * 40;
-    int i = 0;
+    DWORD filled = (DWORD)(((float)nCurrent / (float)nMax) * 40);
+    DWORD i = 0;
     for (; i < filled; i++) printf("=");
     for (; i < 40; i++) printf(" ");
     printf("] %3.2f%%\r", (float)nCurrent / (float)nMax * 100);
@@ -351,7 +355,7 @@ BOOL mount_OSR(LPSTR lpOSRPath) {
 }
 BOOL dismount_OSR() {
     char szTcCommand[1024];
-    sprintf_s(szTcCommand, sizeof szTcCommand, "%s /q /d %s", TRUECRYPT, OSR_MOUNTPOINT, OSR_FLAGS);
+    sprintf_s(szTcCommand, sizeof szTcCommand, "%s /q /d %s", TRUECRYPT, OSR_MOUNTPOINT);
 
     int dTcRet = system(szTcCommand);
     if (dTcRet != 0) {
@@ -418,13 +422,14 @@ end:
     CloseHandle(hOSR);
     dismount_OSR();
 }
-void install_OSR_xcopy(LPSTR lpDiskPath, LPSTR lpOSRPath) {
-    if (!mount_OSR(lpOSRPath)) return;
+BOOL install_OSR_xcopy(LPSTR lpDiskPath, LPSTR lpOSRPath) {
+    if (!mount_OSR(lpOSRPath)) return FALSE;
 
     printf("Installing OS using xcopy %s -> %s\n", OSR_MOUNTPOINT, lpDiskPath);
 
     char szXcCommand[1024];
-    sprintf_s(szXcCommand, sizeof szXcCommand, "xcopy %s %s /e /c /h /y /q", OSR_MOUNTPOINT, lpDiskPath);
+    sprintf_s(szXcCommand, sizeof szXcCommand, "xcopy %s %s /e /c /h /y /q", OSR_MOUNTPOINT,
+              lpDiskPath);
 
     int dTcRet = system(szXcCommand);
     if (dTcRet != 0) {
@@ -432,9 +437,9 @@ void install_OSR_xcopy(LPSTR lpDiskPath, LPSTR lpOSRPath) {
         printf("Command used was: %s\n", szXcCommand);
         return FALSE;
     }
-    return TRUE;
 
-    dismount_OSR();
+    if (!dismount_OSR()) return FALSE;
+    return TRUE;
 }
 
 int main(int argc, char* argv[]) {
@@ -445,11 +450,12 @@ int main(int argc, char* argv[]) {
     HANDLE hDisk = INVALID_HANDLE_VALUE;
     SetLastError(0);
 
-    // hDisk = CreateFileA("H:\\NewDiskImage.img", GENERIC_READ | GENERIC_WRITE,
-    //                     FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS,
-    //                     FILE_ATTRIBUTE_NORMAL, NULL);
-    hDisk = CreateFileA("\\\\.\\PHYSICALDRIVE4", GENERIC_READ | GENERIC_WRITE,
-                        FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+    hDisk = CreateFileA("H:\\NewDiskImage1.img", GENERIC_READ | GENERIC_WRITE,
+                        FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS,
+                        FILE_ATTRIBUTE_NORMAL, NULL);
+
+    // hDisk = CreateFileA("\\\\.\\PHYSICALDRIVE4", GENERIC_READ | GENERIC_WRITE,
+    //                     FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
 
     if (hDisk == INVALID_HANDLE_VALUE) {
         printf("Failed to open disk! %d\n", GetLastError());
@@ -460,9 +466,10 @@ int main(int argc, char* argv[]) {
 
     // install_OSR(hDisk, "H:\\Arcades\\RingOS\\RecoverOS\\0009\\Minint\\system32\\OSR");
     // install_OSR_xcopy(hDisk, "H:\\Arcades\\RingOS\\RecoverOS\\0009\\Minint\\system32\\OSR");
-    puts("Please mount OS at W:");
-    system("pause");
-    install_OSR_xcopy("W:", "H:\\Arcades\\RingOS\\RecoverOS\\0009\\Minint\\system32\\OSR");
+
+    // puts("Please mount OS at W:");
+    // system("pause");
+    // install_OSR_xcopy("W:", "H:\\Arcades\\RingOS\\RecoverOS\\0009\\Minint\\system32\\OSR");
 
     FlushFileBuffers(hDisk);
     CloseHandle(hDisk);

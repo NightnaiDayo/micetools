@@ -23,8 +23,15 @@
 
 #include "../lib/mice/mice.h"
 #include "./util/_util.h"
+#include "micefs.h"
 
-void mice_got_game_id(char game_id[4]);
+#define size2int(x) ((int)((x) & 0x7fffffff))
+#define size2uint(x) ((unsigned int)((x) & 0xffffffff))
+
+void _MiceGotGameId(char game_id[4]);
+BOOL MiceGuessGameId(char* lpGameId);
 
 extern WCHAR exeName[MAX_PATH + 1];
-extern DWORD imageOffset;
+extern size_t imageOffset;
+
+extern BOOL g_bIsInDllMain;

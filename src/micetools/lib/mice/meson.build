@@ -7,15 +7,20 @@ mice_lib = static_library(
         'ringbuf.c',
         'config.c',
         'kcf.c',
-        'micefs.c',
         'des.c',
         'blowfish.c',
         'solitaire.c',
         'spad.c',
+        'dmi.c',
+        'ipc.c',
+        'serial.c',
     ],
     link_with: [
         inih.get_variable('lib_inih'),
         util_lib,
         amiCrc,
+    ],
+    include_directories: [
+        openssl_inc,
     ],
 )

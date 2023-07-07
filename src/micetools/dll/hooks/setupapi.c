@@ -71,13 +71,13 @@ BOOL WINAPI FakeSetupDiGetDeviceInterfaceDetailA(HDEVINFO DeviceInfoSet, PSP_DEV
             log_misc(plfSetupAPI, "Intercepted SetupDiGetDeviceInterfaceDetailA");
 
             const WCHAR* res = (WCHAR*)DeviceInterfaceData->Reserved;
-            int new_len = (wcslen(res) + 1) * (sizeof *res);
+            size_t new_len = (wcslen(res) + 1) * (sizeof *res);
             char* new_res = (char*)malloc(new_len);
             size_t convertedChars = 0;
             wcstombs_s(&convertedChars, new_res, new_len, res, _TRUNCATE);
 
             size_t len = offsetof(SP_DEVICE_INTERFACE_DETAIL_DATA_W, DevicePath) + convertedChars;
-            if (RequiredSize) *RequiredSize = len;
+            if (RequiredSize) *RequiredSize = len & 0xffffffff;
             if (!DeviceInterfaceDetailData && DeviceInterfaceDetailDataSize < len) {
                 SetLastError(ERROR_INSUFFICIENT_BUFFER);
                 return FALSE;

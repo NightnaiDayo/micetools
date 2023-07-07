@@ -9,15 +9,23 @@ typedef struct {
 } mdi_t;
 
 void mdiPcpRequest(pcpa_t* stream, void* mdi) {
-    char* request = pcpaGetCommand(stream, "request");
-    pcpaSetSendPacket(stream, "response", request);
+    char* szRequest = pcpaGetCommand(stream, "request");
+    pcpaSetSendPacket(stream, "response", szRequest);
 
-    if (strcmp(request, "check_appdata") == 0) {
+    if (strcmp(szRequest, "check_appdata") == 0) {
         pcpaAddSendPacket(stream, "result", "success");
-    } else  if (strcmp(request, "query_appdata_status") == 0) {
+    } else if (strcmp(szRequest, "query_appdata_status") == 0) {
         pcpaAddSendPacket(stream, "result", "success");
         pcpaAddSendPacket(stream, "status", "available");
         pcpaAddSendPacket(stream, "id", "----");
+    } else if (strcmp(szRequest, "format_appdata") == 0) {
+        char* szId = pcpaGetCommand(stream, "id");
+        if (szId) {
+            pcpaAddSendPacket(stream, "gameid", szId);
+            pcpaAddSendPacket(stream, "result", "success");
+        } else {
+            pcpaAddSendPacket(stream, "result", "error");
+        }
     } else {
         pcpaAddSendPacket(stream, "result", "invalid_request");
         // TODO: Remove this once enough has been implemented for most games?
@@ -25,7 +33,7 @@ void mdiPcpRequest(pcpa_t* stream, void* mdi) {
     }
 }
 
-void mdiBeforeCb(pcpa_t* stream, void* data) {  }
+void mdiBeforeCb(pcpa_t* stream, void* data) {}
 
 e_pcpa_t mdiPcpStreamInit(mdi_t* mdi, unsigned short textPort, unsigned short binaryPort,
                           bool global) {

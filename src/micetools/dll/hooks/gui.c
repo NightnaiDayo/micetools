@@ -1,8 +1,12 @@
 #include "gui.h"
 
+#include <detours.h>
+
+#include "../input.h"
+
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-HWND mainWindow;
+HWND mainWindow = NULL;
 
 static unsigned int hookType;
 
@@ -22,41 +26,61 @@ HWND GetProcessWindow() {
     return window;
 }
 
-BOOL UnFrameWindow(HWND hwnd) {
+static const LONG frameFlags = WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU;
+LONG UnFrameWindow(HWND hwnd) {
     SetLastError(ERROR_SUCCESS);
     LONG style = GetWindowLongW(hwnd, GWL_STYLE);
-    if (GetLastError() != ERROR_SUCCESS) return FALSE;
+    if (GetLastError() != ERROR_SUCCESS) return style;
 
     RECT rect;
-    if (!GetClientRect(hwnd, &rect)) return FALSE;
+    if (!GetClientRect(hwnd, &rect)) return style;
 
-    style &= ~(WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU);
-    if (!AdjustWindowRect(&rect, style, FALSE)) return FALSE;
+    // Nothing to style
+    if ((style & frameFlags) == 0) return style;
 
-    SetWindowLongW(hwnd, GWL_STYLE, style);
+    LONG newStyle = style & ~(frameFlags);
+    if (!AdjustWindowRect(&rect, newStyle, FALSE)) return style;
+
+    SetWindowLongW(hwnd, GWL_STYLE, newStyle);
     if (!SetWindowPos(hwnd, HWND_TOP, rect.left, rect.top, rect.right - rect.left,
                       rect.bottom - rect.top, SWP_FRAMECHANGED | SWP_NOMOVE))
-        return FALSE;
-    return TRUE;
+        return style;
+    return newStyle;
 }
 
-BOOL FrameWindow(HWND hwnd) {
+LONG FrameWindow(HWND hwnd) {
     SetLastError(ERROR_SUCCESS);
     LONG style = GetWindowLongW(hwnd, GWL_STYLE);
-    if (GetLastError() != ERROR_SUCCESS) return FALSE;
+    if (GetLastError() != ERROR_SUCCESS) return style;
+
+    // Nothing to do
+    if ((style & frameFlags) == frameFlags) return style;
 
     RECT rect;
-    if (!GetClientRect(hwnd, &rect)) return FALSE;
+    if (!GetClientRect(hwnd, &rect)) return style;
 
-    style |= WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU;
-    if (!AdjustWindowRect(&rect, style, FALSE)) return FALSE;
+    LONG newStyle = style | frameFlags;
+    if (!AdjustWindowRect(&rect, newStyle, FALSE)) return style;
 
-    SetWindowLongW(hwnd, GWL_STYLE, style);
+    SetWindowLongW(hwnd, GWL_STYLE, newStyle);
 
     if (!SetWindowPos(hwnd, HWND_TOP, rect.left, rect.top, rect.right - rect.left,
                       rect.bottom - rect.top, SWP_FRAMECHANGED | SWP_NOMOVE))
-        return FALSE;
-    return TRUE;
+        return style;
+    return newStyle;
+}
+
+BOOL UnadjustWindowRect(LPRECT prc, DWORD dwStyle, BOOL fMenu) {
+    RECT rc;
+    SetRectEmpty(&rc);
+    BOOL fRc = AdjustWindowRect(&rc, dwStyle, fMenu);
+    if (fRc) {
+        prc->left -= rc.left;
+        prc->top -= rc.top;
+        prc->right -= rc.right;
+        prc->bottom -= rc.bottom;
+    }
+    return fRc;
 }
 
 BOOL GetD3D9Device(void** pTable, size_t Size) {
@@ -155,12 +179,19 @@ void post_win_create(HWND hWnd) {
     if (hookType == UI_HOOK_DX9) {
         void* d3d9Device[119];
         if (GetD3D9Device(d3d9Device, sizeof(d3d9Device))) {
-            *((PVOID*)&TrueEndScene) = CreateHook32((PVOID)d3d9Device[42], (PVOID)hkEndScene);
+            TrueEndScene = d3d9Device[42];
+
+            DetourTransactionBegin();
+            DetourUpdateThread(GetCurrentThread());
+            DetourAttach((PVOID*)&TrueEndScene, hkEndScene);
+            DetourTransactionCommit();
         }
 
-        if (hWnd && !SetWindowSubclass(hWnd, WndProc, (int)&WndProc, (DWORD_PTR)NULL)) {
+        if (hWnd && !SetWindowSubclass(hWnd, WndProc, (UINT_PTR)&WndProc, (DWORD_PTR)NULL)) {
             log_error(plfGUI, "failed to SetWindowSubclass(%d)", GetLastError());
         }
+    } else {
+        MiceInputInit(hWnd);
     }
 }
 
@@ -175,6 +206,8 @@ BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMoni
 }
 
 void SetupWindowPosition(LPRECT lpRect, DWORD dwStyle) {
+    UnadjustWindowRect(lpRect, dwStyle, FALSE);
+
     int x = lpRect->left;
     int y = lpRect->top;
     int w = lpRect->right - x;
@@ -191,6 +224,17 @@ void SetupWindowPosition(LPRECT lpRect, DWORD dwStyle) {
     if (MiceConfig.window.centre) {
         x = ((monitorRect.right - monitorRect.left) - w) / 2;
         y = ((monitorRect.bottom - monitorRect.top) - h) / 2;
+
+        // if ((dwStyle & frameFlags) == frameFlags) {
+        //     RECT adjustedRect;
+        //     memcpy(&adjustedRect, lpRect, sizeof *lpRect);
+        //     UnadjustWindowRect(&adjustedRect, dwStyle, FALSE);
+        //     // We're going to only adjust y, on the assumption x is unchanged, and even if it is
+        //     // it'll be symmetic. y has the titlebar to worry about.
+        //     int outerH = adjustedRect.bottom - adjustedRect.top;
+
+        //     y += (outerH - h) / 2;
+        // }
     } else {
         x = MiceConfig.window.x;
         y = MiceConfig.window.y;
@@ -284,12 +328,16 @@ HRESULT STDMETHODCALLTYPE FakeCreateDevice(IDirect3D9* this, UINT Adapter, D3DDE
     Adapter = MiceConfig.window.adaptor;
 
     RECT winRect;
-    GetWindowRect(hFocusWindow, &winRect);
-    DWORD dwStyle = GetWindowLongW(hFocusWindow, GWL_STYLE);
-    SetupWindowPosition(&winRect, dwStyle);
+    if (!GetWindowRect(hFocusWindow, &winRect)) {
+        log_error(plfGUI, "GetWindowRect failed: %d", GetLastError());
+    } else {
+        DWORD dwStyle = GetWindowLongW(hFocusWindow, GWL_STYLE);
+        SetupWindowPosition(&winRect, dwStyle);
 
-    SetWindowPos(hFocusWindow, HWND_TOP, winRect.left, winRect.top, winRect.right - winRect.left,
-                 winRect.bottom - winRect.top, 0);
+        // I have no idea why, but this is causing crashes???
+        SetWindowPos(hFocusWindow, HWND_TOP, winRect.left, winRect.top,
+                     winRect.right - winRect.left, winRect.bottom - winRect.top, 0);
+    }
 
     HRESULT res = TrueCreateDevice(this, Adapter, DeviceType, hFocusWindow, BehaviorFlags,
                                    pPresentationParameters, ppReturnedDeviceInterface);
@@ -313,6 +361,9 @@ HRESULT STDMETHODCALLTYPE FakeCreateDevice(IDirect3D9* this, UINT Adapter, D3DDE
         }
     }
     log_info(plfD3D9, "Device created: %d", res);
+
+    MiceInputInit(hFocusWindow);
+
     return res;
 }
 
@@ -337,12 +388,12 @@ IDirect3D9* WINAPI FakeDirect3DCreate9(UINT SDKVersion) {
     hookType = UI_HOOK_DX9;
 
     TrueCreateDevice = pD3D->lpVtbl->CreateDevice;
-    DWORD patch = (DWORD)&FakeCreateDevice;
-    patch_at(&pD3D->lpVtbl->CreateDevice, (char*)&patch, 4);
+    size_t patch = (size_t)&FakeCreateDevice;
+    MiceHookPatchAt(&pD3D->lpVtbl->CreateDevice, (char*)&patch, sizeof patch);
 
     TrueEnumAdapterModes = pD3D->lpVtbl->EnumAdapterModes;
-    patch = (DWORD)&FakeEnumAdapterModes;
-    patch_at(&pD3D->lpVtbl->EnumAdapterModes, (char*)&patch, 4);
+    patch = (size_t)&FakeEnumAdapterModes;
+    MiceHookPatchAt(&pD3D->lpVtbl->EnumAdapterModes, (char*)&patch, sizeof patch);
 
     return pD3D;
 };
@@ -423,7 +474,7 @@ void hook_gui() {
     hook("User32.dll", "ChangeDisplaySettingsExA", FakeChangeDisplaySettingsExA, NULL);
     hook("User32.dll", "SetCursor", FakeSetCursor, (void**)&TrueSetCursor);
 
-    if (PathFileExistsA("FREEGLUT.DLL")) {
+    if (PathFileExistsA("FREEGLUT.DLL") && FALSE) {
         // Hooked as a way to identify use of GLUT
         hook("FREEGLUT.DLL", "glutInitDisplayMode", Fake_glutInitDisplayMode,
              (void**)&True_glutInitDisplayMode);

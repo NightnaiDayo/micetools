@@ -268,7 +268,7 @@ void mxkSignValue(unsigned int value, unsigned char* signature) {
     mxkSign(&hash_data, sizeof hash_data, signature);
 }
 
-int mxkCryptCalcHashWithHmacSha1(PHmacKey_t key, PHmacSum_t md, size_t* nbuffer,
+int mxkCryptCalcHashWithHmacSha1(PHmacKey_t key, PHmacSum_t md, unsigned int* nbuffer,
                                  unsigned char* buffer, size_t nin) {
     if (key == NULL || buffer == NULL || md == NULL || nbuffer == NULL) {
         amiDebugLog("Error: Invalid param.");

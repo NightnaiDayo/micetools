@@ -43,7 +43,14 @@ static LPCSTR GetCardIdentifier(DWORD player) {
         player == 0 ? MiceConfig.aime.player1_cardfile : MiceConfig.aime.player2_cardfile;
     LPSTR cardIdentifier = player == 0 ? cardIdentifier1P : cardIdentifier2P;
 
-    if (_PathFileExistsA(cardFile)) {
+    const size_t cSize = strlen(cardFile) + 1;
+    wchar_t* wc = malloc(cSize);
+    if (!wc) return NULL;
+    MultiByteToWideChar(0, 0, cardFile, -1, wc, cSize + 1);
+    BOOL exists = FileExistsW(wc);
+    free(wc);
+
+    if (exists) {
         log_info(plfAime, "Reading P%d card from %s", player + 1, cardFile);
 
         HANDLE hFile =
@@ -127,6 +134,13 @@ static CardType TN32GetCardInfo(LPCSTR lpIdentifier, PACCESS_CODE lpAccessCode,
                      &lpFelicaId->m_ID[6], &lpFelicaId->m_ID[7], &nChars) == 8 &&
             nChars == 23)
             return CardType_FeliCa;
+    } else if (len == 23) {
+        if (sscanf_s(lpIdentifier, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx%n",
+                     &lpFelicaId->m_ID[0], &lpFelicaId->m_ID[1], &lpFelicaId->m_ID[2],
+                     &lpFelicaId->m_ID[3], &lpFelicaId->m_ID[4], &lpFelicaId->m_ID[5],
+                     &lpFelicaId->m_ID[6], &lpFelicaId->m_ID[7], &nChars) == 8 &&
+            nChars == 23)
+            return CardType_FeliCa;
     }
     return CardType_Unknown;
 }
@@ -159,8 +173,6 @@ static void MifarePopulate(PNFC_CARD lpCard, PACCESS_CODE lpAccessCode) {
     lpCard->m_Header.m_IdLen = sizeof(lpCard->m_Mifare);
     DWORD nSerial = AccessCodeToSerial(lpAccessCode);
     lpCard->m_Mifare.m_Uid = nSerial;
-
-    printf("Serial: %d\n", nSerial);
 
     // Block 0: Manufacture data (only used by BNG)
 
@@ -536,8 +548,6 @@ DWORD WINAPI aime_bd_thread(com_device_t* dev) {
                     break;
             }
         }
-
-        Sleep(50);
     }
 }
 

@@ -1,6 +1,7 @@
 #include <Windows.h>
 #include <stdio.h>
 
+#include "../lib/mice/ipc.h"
 #include "../lib/mice/mice.h"
 #include "../lib/util/pid.h"
 #include "locate.h"
@@ -10,7 +11,10 @@ bool debug_wait = false;
 int boot_delay = 0;
 char exe_name[MAX_PATH + 1] = "";
 
-size_t nCommandLine = 256;
+BYTE _MiceLauncherNext = 2;
+HANDLE _MiceLauncherNextEvent = INVALID_HANDLE_VALUE;
+
+size_t nCommandLine = 0;
 char* commandLine = NULL;
 
 static void print_help(char* exe) {
@@ -71,19 +75,22 @@ static bool parse_cmdline(int argc, char* argv[]) {
                 return false;
             }
         } else {
-            size_t newLength = nCommandLine + 1 + strlen(argv[i]) + 1;
-            if (newLength > nCommandLine) {
-                nCommandLine = newLength;
+            nCommandLine += 1 + strlen(argv[i]) + 1;
+            if (commandLine == NULL) {
+                commandLine = malloc(nCommandLine);
+                commandLine[0] = '\0';
+            } else {
                 commandLine = realloc(commandLine, nCommandLine);
             }
             strcat_s(commandLine, nCommandLine, " ");
             strcat_s(commandLine, nCommandLine, argv[i]);
+            commandLine[nCommandLine - 1] = '\0';
         }
     }
     return true;
 }
 
-static DWORD WINAPI MiceMailslotWatcher(HANDLE* pSlot) {
+static DWORD WINAPI MiceIpcMessageWatcher(PVOID _) {
     // Enable colour support in conhost
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD dwMode = 0;
@@ -101,132 +108,253 @@ static DWORD WINAPI MiceMailslotWatcher(HANDLE* pSlot) {
         }
     }
 
-    OVERLAPPED ov;
-    HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
-    ov.Offset = ov.OffsetHigh = 0;
-    ov.hEvent = hEvent;
-
-    char readBuffer[4096];
-    DWORD nRead, nBytes;
     while (1) {
-        nRead = nBytes = 0;
-        ReadFile(*pSlot, readBuffer, sizeof readBuffer, &nRead, &ov);
-        GetOverlappedResult(*pSlot, &ov, &nBytes, TRUE);
-        DWORD nWrote;
-        WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), readBuffer, nBytes, &nWrote, NULL);
+        MICE_IPC_MESSAGE message;
+        MiceIpcPopMessage(&message, TRUE);
 
-        if (hLogFile != INVALID_HANDLE_VALUE) {
-            // The only VT100 sequences being used are colours, so this lazy approach works
-            BOOL inVt100 = FALSE;
-            for (unsigned int i = 0; i < nBytes; i++) {
-                if (readBuffer[i] == '\033') {
-                    inVt100 = TRUE;
-                    continue;
+        switch (message.m_Type) {
+            case MICE_IPC_TYPE_LOG:
+                // printf("%s", message.m_Message);
+
+                DWORD nWrote;
+                WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), message.m_Message, message.m_Size,
+                          &nWrote, NULL);
+
+                if (hLogFile != INVALID_HANDLE_VALUE) {
+                    // The only VT100 sequences being used are colours, so this lazy approach works
+                    BOOL inVt100 = FALSE;
+                    for (unsigned int i = 0; i < message.m_Size; i++) {
+                        if (message.m_Message[i] == '\033') {
+                            inVt100 = TRUE;
+                            continue;
+                        }
+                        if (inVt100 && message.m_Message[i] == 'm') {
+                            inVt100 = FALSE;
+                            continue;
+                        }
+                        if (!inVt100)
+                            WriteFile(hLogFile, &(message.m_Message[i]), 1, &nWrote, NULL);
+                    }
+                    // FlushFileBuffers(hLogFile);
                 }
-                if (inVt100 && readBuffer[i] == 'm') {
-                    inVt100 = FALSE;
-                    continue;
-                }
-                if (!inVt100) WriteFile(hLogFile, &(readBuffer[i]), 1, &nWrote, NULL);
-            }
-            // FlushFileBuffers(hLogFile);
+                // FlushFileBuffers(GetStdHandle(STD_OUTPUT_HANDLE));
+
+                break;
         }
     }
 }
 
-static BOOL setup_mailslot(void) {
-    DWORD pid = GetCurrentProcessId();
-    char slotName[MAX_PATH + 1];
-    sprintf_s(slotName, MAX_PATH, "\\\\.\\mailslot\\micelog%d", pid);
-
-    HANDLE* pSlot = malloc(sizeof(HANDLE));
-    if (pSlot == NULL) {
-        fprintf(stderr, "malloc(pSlot) failed\n");
-        return FALSE;
-    }
-    *pSlot = CreateMailslotA(slotName, 0, MAILSLOT_WAIT_FOREVER, NULL);
-    if (*pSlot == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Creation of mailslot failed %d\n", GetLastError());
-        return FALSE;
-    }
-
-    CreateThread(NULL, 0, MiceMailslotWatcher, pSlot, 0, NULL);
-
-    return TRUE;
-}
-
 /**
- * Because logging is via a mailslot, we need to give it a chance to flush messages before
- * terminating. While we could engineer something overly fancy, the only situation this ever occurs
- * is in the main() function just below.
+ * Because logging is via IPC, we need to give it a chance to flush messages before
+ * terminating. While we could engineer something overly fancy, the only situation
+ * this ever occurs is in the main() function just below.
  *
  * I'll let the code speak for itself.
  */
-static int terminate(int err) {
-    Sleep(100);
+static int terminate(int err, char* szMessage) {
+    printf("Mice termination occuring... %d\n", err);
+    log_info(plfBoot, "Terminating");
+    Sleep(1000);
 
+    extern unsigned char g_szFault[255 + 1];
+    extern BYTE g_nFault;
+
+    if (g_nFault) {
+        MessageBeep(MB_ICONERROR);
+        MessageBoxA(NULL, (LPCSTR)g_szFault, "System Fault",
+                    MB_OK | MB_SETFOREGROUND | MB_SYSTEMMODAL);
+    } else if (szMessage) {
+        MessageBeep(MB_ICONERROR);
+        MessageBoxA(NULL, szMessage, "Boot Failed", MB_OK | MB_SETFOREGROUND | MB_SYSTEMMODAL);
+    }
     return err;
 }
 
 HANDLE hJob = INVALID_HANDLE_VALUE;
 BOOL WINAPI MiceHandlerRoutine(DWORD CtrlType) {
     if (hJob != INVALID_HANDLE_VALUE) CloseHandle(hJob);
-    ExitProcess(terminate(0));
+    ExitProcess(terminate(0, NULL));
 }
 
-#include "../lib/mice/spad.h"
+static BOOL StartGame(LPPROCESS_INFORMATION lpPi, LPCSTR args) {
+    // Clear out the next flag. If the game closes without setting this, we don't want to restart
+    // the game.
+    _MiceLauncherNext = 0;
 
+    hJob = CreateJobObject(NULL, NULL);
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION info;
+    info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    SetInformationJobObject(hJob, JobObjectExtendedLimitInformation, &info, sizeof info);
+
+    size_t nFullCommandLine = strlen(exe_name) + 1;
+    if (args != NULL && strlen(args) > 0) nFullCommandLine += 1 + strlen(args);
+    if (nCommandLine > 0) nFullCommandLine += 1 + nCommandLine;
+    char* fullCommandLine = malloc(nFullCommandLine);
+
+    if (args != NULL && nCommandLine > 0) {
+        sprintf_s(fullCommandLine, nFullCommandLine, "%s %s %s", exe_name, args, commandLine);
+    } else if (args == NULL && nCommandLine > 0) {
+        sprintf_s(fullCommandLine, nFullCommandLine, "%s %s", exe_name, commandLine);
+    } else if (args != NULL) {
+        sprintf_s(fullCommandLine, nFullCommandLine, "%s %s", exe_name, args);
+    } else {
+        sprintf_s(fullCommandLine, nFullCommandLine, "%s", exe_name);
+    }
+
+    char* extra_injections = MiceConfig.launcher.inject;
+    if (!start_and_inject(hJob, exe_name, fullCommandLine, _miceIpcData->m_MiceDll, debug_wait,
+                          boot_delay, extra_injections, 0, lpPi)) {
+        free(fullCommandLine);
+        return FALSE;
+    }
+    free(fullCommandLine);
+    return TRUE;
+}
+
+static BOOL _GameIdSearcher(char* lpBasePath, char* lpGameId) {
+    WIN32_FIND_DATAA findFileData;
+
+    CHAR szSearchPath[MAX_PATH + 1];
+    sprintf_s(szSearchPath, _countof(szSearchPath), "%s\\*", lpBasePath);
+
+    // Search for a table in the CWD
+    HANDLE hFind = FindFirstFileA(szSearchPath, &findFileData);
+    do {
+        if (strcmp(findFileData.cFileName, ".") == 0 || strcmp(findFileData.cFileName, "..") == 0)
+            continue;
+
+        if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            sprintf_s(szSearchPath, _countof(szSearchPath), "%s\\%s", lpBasePath,
+                      findFileData.cFileName);
+            if (_GameIdSearcher(szSearchPath, lpGameId)) {
+                FindClose(hFind);
+                return TRUE;
+            }
+        } else {
+            if (strlen(findFileData.cFileName) == strlen("SAAA_Table.dat") &&
+                PathMatchSpecA(findFileData.cFileName, "S*_Table.dat")) {
+                // maimai games have a copy of the R&D table; ignore it.
+                if (strncmp(findFileData.cFileName, "SBRZ", 4) == 0) continue;
+                lpGameId[0] = findFileData.cFileName[0];
+                lpGameId[1] = findFileData.cFileName[1];
+                lpGameId[2] = findFileData.cFileName[2];
+                lpGameId[3] = findFileData.cFileName[3];
+
+                FindClose(hFind);
+                return TRUE;
+            }
+            if (strlen(findFileData.cFileName) == strlen("SAAA_banner.bmp") &&
+                PathMatchSpecA(findFileData.cFileName, "S*_banner.bmp")) {
+                lpGameId[0] = findFileData.cFileName[0];
+                lpGameId[1] = findFileData.cFileName[1];
+                lpGameId[2] = findFileData.cFileName[2];
+                lpGameId[3] = findFileData.cFileName[3];
+
+                FindClose(hFind);
+                return TRUE;
+            }
+            if (strlen(findFileData.cFileName) == strlen("SAAA_main.wmv") &&
+                PathMatchSpecA(findFileData.cFileName, "S*_main.wmv")) {
+                lpGameId[0] = findFileData.cFileName[0];
+                lpGameId[1] = findFileData.cFileName[1];
+                lpGameId[2] = findFileData.cFileName[2];
+                lpGameId[3] = findFileData.cFileName[3];
+
+                FindClose(hFind);
+                return TRUE;
+            }
+        }
+    } while (FindNextFile(hFind, &findFileData));
+    FindClose(hFind);
+    return FALSE;
+}
+
+BOOL MiceGuessGameId(char* lpGameId) {
+    if (_GameIdSearcher(".", lpGameId)) return TRUE;
+
+    // TODO: Some more lookups. Exe name is probably not an awful fallback
+
+    return FALSE;
+}
+
+BOOL g_bIsInDllMain = FALSE;
 int main(int argc, char* argv[]) {
-    // unsigned char spad_new_bytes[16] = {
-    //     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x52, 0x06,
-    //     0x94, 0x87, 0x82, 0x60, 0x37, 0x73, 0x12, 0x13,
-    // };
-    // unsigned char spn[16];
-    // Spad0Encrypt(spn, spad_new_bytes);
-    // for (int i = 0; i < 8; i++) printf("%02x", spn[i]);
-    // puts("");
-    // for (int i = 8; i < 16; i++) printf("%02x", spn[i]);
-    // puts("");
+#if 0
+    // char buffer[] = "41A800003F000000000000006801";
+    char* buffer = argv[1];
+    char local_10[4];
 
-    // puts("--");
+    sscanf_s(buffer, "%08x", local_10, sizeof local_10);
+    float measure_whole = *(float*)(void*)&local_10;
+    printf("measure_whole: %f\n", measure_whole);
+    sscanf_s(buffer + 8, "%08x", local_10, sizeof local_10);
+    float measure_fraction = *(float*)(void*)&local_10;
+    printf("measure_fraction: %f\n", measure_fraction);
+    sscanf_s(buffer + 16, "%08x", local_10, sizeof local_10);
+    float duration = *(float*)(void*)&local_10;
+    printf("duration: %f\n", duration);
+    sscanf_s(buffer + 24, "%01x", local_10, sizeof local_10);
+    unsigned char location = local_10[0];
+    printf("location: %d\n", location);
 
-    // unsigned char back_out[16];
-    // Spad0Decrypt(back_out, spn);
-    // for (int i = 0; i < 8; i++) printf("%02x", back_out[i]);
-    // puts("");
-    // for (int i = 8; i < 16; i++) printf("%02x", back_out[i]);
-    // puts("");
+    sscanf_s(buffer + 25, "%01x", local_10, sizeof local_10);
+    unsigned char type = local_10[0];
 
-    // unsigned char bng[16] = {
-    //     0xE6, 0xBC, 0x6D, 0x56, 0x83, 0xF6, 0xB6, 0x48,
-    //     0x4C, 0x24, 0xE4, 0x83, 0xD5, 0xE8, 0x93, 0x7F,
-    // };
-    // Spad0Decrypt(back_out, bng);
-    // for (int i = 0; i < 8; i++) printf("%02x", back_out[i]);
-    // puts("");
-    // for (int i = 8; i < 16; i++) printf("%02x", back_out[i]);
-    // puts("");
+    printf("Type: %d\n", local_10[0]);
+    if (local_10[0] < '\0') {
+        type = type ^ 0x80;
+        puts("<0");
+        // field_0x42 = 1;
+    }
+    if ((type & 0x40) != 0) {
+        puts("&0x40");
+        type = type ^ 0x40;
+        // field15_0x18 = 0x40000000;
+    }
+    if ((type & 0x20) != 0) {
+        puts("&0x20");
+        type = type ^ 0x20;
+        // field15_0x18 = 0x40800000;
+    }
+    printf("TypeO: %01x\n", type);
 
-    // return -1;
+    return 0;
+#endif
 
     load_mice_config();
-    if (!setup_mailslot()) return 1;
+
+    if (!MiceIpcSetup(TRUE)) return 1;
+    _miceIpcData->m_LauncherIsReady = TRUE;
+    char gameId[4];
+    if (MiceGuessGameId(gameId)) memcpy(_miceIpcData->m_GameId, gameId, 4);
+
+    CreateThread(NULL, 0, MiceIpcMessageWatcher, NULL, 0, NULL);
+
     setup_logging();
 
     log_info(plfBoot, "Micetools version: %s", MICE_VERSION);
-
-    commandLine = malloc(nCommandLine);
-    if (commandLine == NULL) {
-        log_error(plfBoot, "Fatal: Failed to malloc(commandLine)");
-        return terminate(-1);
+    if (_miceIpcData->m_GameId[0] == '\0') {
+        if (MiceConfig.devices.do_auto) {
+            log_error(
+                plfBoot,
+                "Failed to identify game. Please edit [devices].do_auto to false and restart.");
+            log_error(plfBoot, "Please also report this.");
+            return terminate(-1, "Failed to identify game.");
+        }
+        log_warning(plfBoot, "Failed to identify game, but proceeding regardless.");
+    } else {
+        log_info(plfBoot, "Booting game: %.*s", 4, _miceIpcData->m_GameId);
     }
-    commandLine[0] = '\0';
 
-    CHAR workDir[MAX_PATH + 1];
-    GetCurrentDirectory(MAX_PATH, workDir);
-    log_info(plfBoot, "Current directory: %s", workDir);
+    CHAR szPath[MAX_PATH + 1];
+    GetCurrentDirectory(MAX_PATH, szPath);
+    szPath[sizeof szPath - 1] = '\0';
+    log_info(plfBoot, "Current directory: %s", szPath);
 
-    if (!parse_cmdline(argc, argv)) return terminate(0);
+    if (!parse_cmdline(argc, argv)) {
+        puts("parse_cmdline failed");
+        return terminate(-2, "parse_cmdline failed");
+    }
 
     if (exe_name[0] == '\0' && MiceConfig.launcher.game_binary[0] != '\0') {
         snprintf(exe_name, sizeof exe_name, "%s", MiceConfig.launcher.game_binary);
@@ -237,56 +365,89 @@ int main(int argc, char* argv[]) {
     if (exe_name[0] == '\0') {
         if (!locate_game(exe_name, MAX_PATH + 1)) {
             log_error(plfBoot, "Fatal: Failed to locate a game");
-            return terminate(0);
+            return terminate(-3, "Failed to locate a game");
         }
     } else {
         DWORD dwAttrib = GetFileAttributes(exe_name);
         if (dwAttrib == INVALID_FILE_ATTRIBUTES || dwAttrib & FILE_ATTRIBUTE_DIRECTORY) {
             log_error(plfBoot, "Fatal: %s: no such file found", exe_name);
-            return terminate(0);
+            return terminate(-4, "Specified executable not locatable");
         }
     }
+
+    int i;
+    // Build IPC.m_PathPrefix
+    {
+        _miceIpcData->m_PathPrefix[0] = '\0';
+        for (i = 0; i < sizeof _miceIpcData->m_PathPrefix; i++) {
+            _miceIpcData->m_PathPrefix[i] = exe_name[i];
+            if (exe_name[i] == '\0') break;
+        }
+        // Find the final slash in the path
+        for (; i > 0; i--) {
+            if (_miceIpcData->m_PathPrefix[i] == '/' || _miceIpcData->m_PathPrefix[i] == '\\')
+                break;
+        }
+        _miceIpcData->m_PathPrefix[i] = '\0';
+    }
+
+    strcpy_s(_miceIpcData->m_MiceBase, sizeof _miceIpcData->m_MiceBase, szPath);
+
+    if (!SearchPathA(NULL, MiceConfig.launcher.mice_dll, NULL, sizeof _miceIpcData->m_MiceDll,
+                     _miceIpcData->m_MiceDll, NULL)) {
+        log_error(plfBoot, "Unable to locate micelib. Check your mice_dll setting!");
+        return terminate(-5, "Unable to locate micelib");
+    }
+    _miceIpcData->m_MiceDll[sizeof _miceIpcData->m_MiceDll - 1] = '\0';
+
+    _MiceLauncherNextEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+    SetConsoleCtrlHandler(MiceHandlerRoutine, TRUE);
 
     spawn_pcp_processes();
 
     log_info(plfBoot, "exec: %s %s", exe_name, commandLine);
 
-    char micepath[MAX_PATH + 1];
-    if (!locate_library(micepath, MAX_PATH + 1)) {
-        log_error(plfBoot, "Fatal: Failed to locate micelib. Check your mice_dll setting!");
-        return terminate(0);
+    while (1) {
+        if (hJob != INVALID_HANDLE_VALUE) {
+            CloseHandle(hJob);
+            hJob = INVALID_HANDLE_VALUE;
+        }
+
+        PROCESS_INFORMATION pi;
+        if (_MiceLauncherNext == 2) {
+            if (!StartGame(&pi, NULL))
+                return terminate(-6, "Start failed. Check console for errors.");
+        } else if (_MiceLauncherNext == 3 || _MiceLauncherNext == 4) {
+            // TODO: Boot mode 3 is actually system test. We could do something here?
+            if (!StartGame(&pi, "gametest"))
+                return terminate(-7, "Gametest failed. Check console for errors.");
+        } else {
+            log_info(plfBoot, "Boot mode %d not supported. Exiting.", _MiceLauncherNext);
+            return terminate(-8, NULL);
+        }
+
+        HANDLE objects[2];
+        objects[0] = pi.hProcess;
+        objects[1] = _MiceLauncherNextEvent;
+        DWORD waited = WaitForMultipleObjects(_countof(objects), objects, FALSE, INFINITE);
+        if (FAILED(waited)) {
+            log_error(plfBoot, "Fatal: WaitForSingleObject failed: %03x", GetLastError());
+            return terminate(-9, "WFSO failed");
+        }
+        if (waited == WAIT_OBJECT_0) {
+            DWORD exitCode;
+            if (GetExitCodeProcess(pi.hProcess, &exitCode))
+                log_info(plfBoot, "Shutting down (ret:%d)", exitCode);
+            else
+                log_info(plfBoot, "Shutting down (failed to get exit code)");
+            CloseHandle(pi.hProcess);
+            continue;
+            // return terminate(-10);
+        } else if (waited == WAIT_OBJECT_0 + 1) {
+            continue;
+        } else {
+            log_error(plfBoot, "Unknown wait object retured: %d", waited);
+            return terminate(-11, "Unknown wait object!");
+        }
     }
-
-    hJob = CreateJobObject(NULL, NULL);
-    JOBOBJECT_EXTENDED_LIMIT_INFORMATION info;
-    info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-    SetInformationJobObject(hJob, JobObjectExtendedLimitInformation, &info, sizeof info);
-
-    size_t nFullCommandLine = nCommandLine + strlen(exe_name) + 1;
-    char* fullCommandLine = malloc(nFullCommandLine);
-    snprintf(fullCommandLine, nFullCommandLine, "%s %s", exe_name, commandLine);
-    free(commandLine);
-
-    char* extra_injections = MiceConfig.launcher.inject;
-    PROCESS_INFORMATION pi;
-    if (!start_and_inject(hJob, exe_name, fullCommandLine, micepath, debug_wait, boot_delay,
-                          extra_injections, 0, &pi)) {
-        free(fullCommandLine);
-        return terminate(-1);
-    }
-    free(fullCommandLine);
-
-    SetConsoleCtrlHandler(MiceHandlerRoutine, TRUE);
-
-    if (FAILED(WaitForSingleObject(pi.hProcess, INFINITE))) {
-        log_error(plfBoot, "Fatal: WaitForSingleObject failed: %03x", GetLastError());
-    } else {
-        DWORD exitCode;
-        if (GetExitCodeProcess(pi.hProcess, &exitCode))
-            log_info(plfBoot, "Shutting down (ret:%d)", exitCode);
-        else
-            log_info(plfBoot, "Shutting down (failed to get exit code)");
-        CloseHandle(pi.hProcess);
-    }
-    return terminate(0);
 }

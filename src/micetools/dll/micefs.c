@@ -6,9 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// TODO: This is awful
-extern BOOL(WINAPI* TruePathFileExistsA)(LPCSTR pszPath);
-#define _PathFileExistsA (TruePathFileExistsA ? TruePathFileExistsA : PathFileExistsA)
+#include "hooks/files.h"
 
 static char miceFSCwd[MAX_PATH + 1];
 
@@ -51,7 +49,7 @@ static volatile LONG miceFsLockCount = 0;
 
 BOOL MiceFSInit(VOID) {
     // By not using MiceFSSetCwd we can save a buffer allocation
-    GetCurrentDirectoryA(sizeof miceFSCwd, miceFSCwd);
+    _GetCurrentDirectoryA(sizeof miceFSCwd, miceFSCwd);
     return TRUE;
 }
 
@@ -114,57 +112,112 @@ BOOL MiceFSAddDevLayers(VOID) {
     CHAR szMountPoint[4];
     CHAR szTargetPath[MAX_PATH + 1];
     ZeroMemory(szTargetPath, sizeof szTargetPath);
-    strcpy_s(szTargetPath, sizeof szTargetPath, ".\\dev\\x\\");
+    strcpy_s(szTargetPath, sizeof szTargetPath, MiceIpcRelativePath("dev\\x\\"));
+    DWORD index = strlen(szTargetPath) - 2;
+
+    CHAR szCurrentDir[MAX_PATH + 1];
+    _GetCurrentDirectoryA(sizeof szCurrentDir, szCurrentDir);
+
+    // See below TODO
+    if (szCurrentDir[0] == RING_MOUNT_APPDATA[0]) {
+        log_error(plfBoot,
+                  "Booting on the %s drive is currently unsupported. There's a potential for it to "
+                  "do nasty things to your computer at the moment.",
+                  RING_MOUNT_APPDATA);
+        exit(0);
+    }
 
     BOOL success = TRUE;
     for (int i = 0; i < 26; i++) {
-        if (i == 2) continue;  // TODO: DON'T SKIP C
+        // TODO: DON'T SKIP C
+        /**
+         * Note: This is currently skipped because things such as DLLs, COM
+         * registrations, etc. are all stored on C.
+         * I have, however, run into an issue with a game (I forget which)
+         * where _not_ hooking C caused issues.
+         * This will likely require fine-grained whitelists.
+         */
+        if (i == 2) continue;
+        // TODO: Cleaner way to not skip the current drive?
+        // Currently skipped because of games that compile shaders at runtime (eg SDCM), however
+        // this could cause issues if a game is running on a drive letter that we really need to
+        // hook. _Are_ there any drive letters that would prove fatal? Appdata, probably. To
+        // protect users from themselves, we're currently rejecting the use of Y: as a boot drive
+        // entirely. This is ugly, and I hate it very much, but I have bigger fish to fry for now.
+        if (i == szCurrentDir[0] - 'A' || i == szCurrentDir[0] - 'a') continue;
 
         szMountPoint[0] = 'A' + (char)i;
         szMountPoint[1] = ':';
         szMountPoint[2] = '\\';
         szMountPoint[3] = '\0';
 
-        szTargetPath[6] = 'a' + (char)i;
+        szTargetPath[index] = 'a' + (char)i;
 
         success &= MiceFSAddLayer(szMountPoint, szTargetPath);
     }
     return success;
 }
 BOOL MiceFSAddRingedgeLayers(BOOL bIsOsupdate) {
+    /**
+     * Note: Layers are searched in reverse order. Most lookups will be served by:
+     * 1. original
+     * 2. pathch
+     * 3. extend
+     * so those are added last!
+     */
     BOOL success = TRUE;
-
-    // Windows file systems
-    success &= MiceFSAddLayer(RING_MOUNT_OS, "mount/os");
-    // success &= MiceFSAddLayer(RING_MOUNT_EXTEND, "mount/extend");
-    success &= MiceFSAddLayer(RING_MOUNT_RECOVERY, "mount/os_recovery");
-
-    // TrueCrypt Volumes
-    success &= MiceFSAddLayer(RING_MOUNT_SYSTEM, "mount/system");
-    success &= MiceFSAddLayer(RING_MOUNT_ORIGINAL, "mount/original");
-    success &= MiceFSAddLayer(RING_MOUNT_PATCH, "mount/patch");
-    if (bIsOsupdate) {
-        success &= MiceFSAddLayer(RING_MOUNT_OS_UPDATE, "mount/os_update");
-        success &= MiceFSAddLayer(RING_MOUNT_OS_DEFAULT_DRVIERS, "mount/os_default_drivers");
-    } else {
-        // success &= MiceFSAddLayer(RING_MOUNT_EXTEND_VOL, "mount/extend/extend");
-        // success &= MiceFSAddLayer(RING_MOUNT_EXTEND2_VOL, "mount/extend/extend2");
-    }
-
-    // geminifs
-    success &= MiceFSAddLayer(RING_MOUNT_GAME, "mount/original");
-    success &= MiceFSAddLayer(RING_MOUNT_GAME, "mount/patch");
-
-    // External media
-    success &= MiceFSAddLayer(RING_MOUNT_APM, "mount/apm");
-    success &= MiceFSAddLayer(RING_MOUNT_AM_LOG, "mount/am_log");
-    success &= MiceFSAddLayer(RING_MOUNT_DVD, "mount/dvd");
-    success &= MiceFSAddLayer(RING_MOUNT_DEV, "mount/dev");
 
     // TODO: Configurable!
     MiceFSAddLayer("R:", "H:\\Arcades\\USBs\\FiNALE_DL\\usb");
     MiceFSAddLayer("S:", "C:\\Users\\Nathan\\Desktop\\ac_research\\sega\\S-Drive");
     MiceFSAddLayer("C:\\System\\Execute", "C:\\Users\\Nathan\\Desktop\\ac_research\\sega\\S-Drive");
+
+    // Windows file systems
+    // TODO: See note about the C: drive above
+    // success &= MiceFSAddLayer(RING_MOUNT_OS, MiceIpcRelativePath("mount\\os"));
+    // success &= MiceFSAddLayer(RING_MOUNT_APPDATA, MiceIpcRelativePath("mount\\extend"));
+    success &= MiceFSAddLayer(RING_MOUNT_RECOVERY, MiceIpcRelativePath("mount\\os_recovery"));
+
+    // External media
+    success &= MiceFSAddLayer(RING_MOUNT_APM, MiceIpcRelativePath("mount\\apm"));
+    success &= MiceFSAddLayer(RING_MOUNT_AM_LOG, MiceIpcRelativePath("mount\\am_log"));
+    success &= MiceFSAddLayer(RING_MOUNT_DVD, MiceIpcRelativePath("mount\\dvd"));
+    success &= MiceFSAddLayer(RING_MOUNT_DEV, MiceIpcRelativePath("mount\\dev"));
+
+    success &= MiceFSAddLayer("C:\\Documents and Settings\\AppUser",
+                              MiceIpcRelativePath("mount\\appuser"));
+    success &= MiceFSAddLayer("C:\\Documents and Settings\\SystemUser",
+                              MiceIpcRelativePath("mount\\systemuser"));
+
+    success &=
+        MiceFSAddLayer("C:\\DOCUME~1\\SYSTEM~1\\LOCALS~1\\Temp\\", MiceIpcRelativePath("temp"));
+
+    // TrueCrypt Volumes
+    success &= MiceFSAddLayer(RING_MOUNT_SYSTEM, MiceIpcRelativePath("mount\\system"));
+    if (bIsOsupdate) {
+        success &= MiceFSAddLayer(RING_MOUNT_OS_UPDATE, MiceIpcRelativePath("mount\\os_update"));
+        success &= MiceFSAddLayer(RING_MOUNT_OS_DEFAULT_DRVIERS,
+                                  MiceIpcRelativePath("mount\\os_default_drivers"));
+    } else {
+        // success &= MiceFSAddLayer(RING_MOUNT_EXTEND_VOL,
+        // MiceIpcRelativePath("mount\\extend/extend")); success &=
+        // MiceFSAddLayer(RING_MOUNT_EXTEND2_VOL, MiceIpcRelativePath("mount\\extend/extend2"));
+    }
+    success &= MiceFSAddLayer(RING_MOUNT_PATCH, MiceIpcRelativePath("mount\\patch"));
+    success &= MiceFSAddLayer(RING_MOUNT_ORIGINAL, MiceIpcRelativePath("mount\\original"));
+
+    // geminifs
+    success &= MiceFSAddLayer(RING_MOUNT_GAME, MiceIpcRelativePath("mount\\patch"));
+    success &= MiceFSAddLayer(RING_MOUNT_GAME, MiceIpcRelativePath("mount\\original"));
+
+    // Make directories that we're going to need
+    make_dirs(MiceIpcRelativePath("mount\\appuser\\temp"));
+    make_dirs(MiceIpcRelativePath("temp"));
+    // Directories games read and write
+    make_dirs(MiceIpcRelativePath("dev\\w"));
+    make_dirs(MiceIpcRelativePath("dev\\v"));
+    make_dirs(MiceIpcRelativePath("dev\\y"));
+    make_dirs(MiceIpcRelativePath("dev\\x"));
 
     return success;
 }
@@ -288,14 +341,17 @@ BOOL MiceFSRedirectPathA(LPCSTR lpFilename, LPCSTR* pszRedirected) {
 
     PMICE_FS_LAYER layer = miceFsRoot.m_Next;
     CHAR szTail[MAX_PATH + 1];
+    wchar_t szwPath[MAX_PATH + 1];
     BOOL bFound = FALSE;
     while (layer) {
         if (MiceFSMatchPathA(szExpanded, layer->m_lpMountPoint, szTail, sizeof szTail)) {
             _redirected_path[0] = '\0';
             PathCombineA(_redirected_path, layer->m_lpTargetPath, szTail);
-            *pszRedirected = _redirected_path;
+            if (pszRedirected) *pszRedirected = _redirected_path;
 
-            if (_PathFileExistsA(_redirected_path)) {
+            MultiByteToWideChar(0, 0, _redirected_path, -1, szwPath, _countof(szwPath));
+
+            if (FileExistsW(szwPath)) {
                 MiceReleaseLockShared(miceFsLockCount);
                 return TRUE;
             }
@@ -320,6 +376,56 @@ BOOL MiceFSRedirectPathW(LPCWSTR lpFileName, LPCWSTR* pszRedirected) {
     if (!bRedirected) return FALSE;
 
     MultiByteToWideChar(CP_ACP, 0, szRedirected, -1, _redirected_path_w, sizeof _redirected_path_w);
-    *pszRedirected = _redirected_path_w;
+    if (pszRedirected) *pszRedirected = _redirected_path_w;
+
     return bRedirected;
+}
+
+void MiceFSDebugPrintLayers(void) {
+    MiceTakeLockShared(miceFsLockCount);
+
+    PMICE_FS_LAYER lpLayer = &miceFsRoot;
+    while (lpLayer = lpLayer->m_Next) {
+        printf("%s -> %s\n", lpLayer->m_lpMountPoint, lpLayer->m_lpTargetPath);
+    }
+
+    MiceReleaseLockShared(miceFsLockCount);
+}
+BOOL MiceFSDebugTraceRedirectPathA(LPCSTR lpFilename, LPCSTR* pszRedirected) {
+    printf("Tracing redirect of %s:\n", lpFilename);
+    CHAR szExpanded[MAX_PATH + 1];
+    if (!MiceFSGetFullPathNameA(lpFilename, sizeof szExpanded, szExpanded, NULL)) {
+        printf(":: Redirect ended early with no action taken.");
+        return FALSE;
+    }
+
+    MiceTakeLockShared(miceFsLockCount);
+
+    PMICE_FS_LAYER layer = miceFsRoot.m_Next;
+    CHAR szTail[MAX_PATH + 1];
+    wchar_t szwPath[MAX_PATH + 1];
+    BOOL bFound = FALSE;
+    while (layer) {
+        if (MiceFSMatchPathA(szExpanded, layer->m_lpMountPoint, szTail, sizeof szTail)) {
+            _redirected_path[0] = '\0';
+            PathCombineA(_redirected_path, layer->m_lpTargetPath, szTail);
+            if (pszRedirected) *pszRedirected = _redirected_path;
+
+            MultiByteToWideChar(0, 0, _redirected_path, -1, szwPath, _countof(szwPath));
+
+            printf("-> %s\n", _redirected_path);
+            if (FileExistsW(szwPath)) {
+                MiceReleaseLockShared(miceFsLockCount);
+                printf(":: Redirect ended with valid redirection found.");
+                return TRUE;
+            }
+            bFound = TRUE;
+        }
+
+        layer = layer->m_Next;
+    }
+
+    MiceReleaseLockShared(miceFsLockCount);
+    printf(":: Redirect ended with no redirection found.");
+    return FALSE;
 }

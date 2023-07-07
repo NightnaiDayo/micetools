@@ -1,1 +1,10 @@
-option('vsenv', type: 'boolean', value: false)
+option(
+    'win64',
+    type: 'boolean',
+    value: false,
+    description: 'Set this flag when targeting Win64 rather than Win32 (default)'
+)
+option(
+    'mice_version',
+    type: 'string',
+)

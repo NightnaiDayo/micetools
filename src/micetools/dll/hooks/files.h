@@ -47,8 +47,6 @@ _MICE_FILES BOOL(WINAPI* TrueReadFile)(HANDLE hFile, LPVOID lpBuffer, DWORD nNum
                                        LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped);
 _MICE_FILES BOOL(WINAPI* TrueGetFileSizeEx)(HANDLE hFile, PLARGE_INTEGER lpFileSize);
 _MICE_FILES BOOL(WINAPI* TrueCloseHandle)(HANDLE hObject);
-_MICE_FILES BOOL(WINAPI* TruePathFileExistsA)(LPCSTR pszPath);
-_MICE_FILES BOOL(WINAPI* TruePathFileExistsW)(LPCWSTR pszPath);
 _MICE_FILES BOOL(WINAPI* TrueDeleteFileA)(LPCSTR lpFileName);
 _MICE_FILES BOOL(WINAPI* TrueDeleteFileW)(LPCWSTR lpFileName);
 _MICE_FILES HANDLE(WINAPI* TrueFindFirstFileA)(LPCSTR lpFileName, LPWIN32_FIND_DATA lpFindFileData);
@@ -93,7 +91,8 @@ static int(WINAPIV* True_stat64i32)(const char* path, _stat64i32_t* buffer);
 #define _CreateFileA (TrueCreateFileA ? TrueCreateFileA : CreateFileA)
 #define _SetFilePointer (TrueSetFilePointer ? TrueSetFilePointer : SetFilePointer)
 #define _SetFilePointerEx (TrueSetFilePointerEx ? TrueSetFilePointerEx : SetFilePointerEx)
-#define _PathFileExistsA (TruePathFileExistsA ? TruePathFileExistsA : PathFileExistsA)
+#define _GetFileAttributesW (TrueGetFileAttributesW ? TrueGetFileAttributesW : GetFileAttributesW)
+// GetFileAttributesA internally calls (hooked)GetFileAttributesW
 #define _GetCurrentDirectoryA \
     (TrueGetCurrentDirectoryA ? TrueGetCurrentDirectoryA : GetCurrentDirectoryA)
 #define _GetCurrentDirectoryW \
@@ -137,3 +136,4 @@ file_hook_t* new_file_hook(LPCWSTR filename);
 void hook_file(file_hook_t* hook);
 void hook_io();
 void hook_file_with_buffer(LPCWSTR filename, LPBYTE buffer, DWORD nBytes, DWORD access);
+file_hook_t* unhook_file(LPCWSTR lpFilename);

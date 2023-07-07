@@ -8,6 +8,11 @@
 typedef struct com_device com_device_t;
 typedef DWORD(WINAPI FnComDeviceThread)(com_device_t* com);
 
+typedef struct VIRTUAL_SERIAL_DEVICE {
+    LPCSTR m_Name;
+    FnComDeviceThread* m_Entrypoint;
+} VIRTUAL_SERIAL_DEVICE, *PVIRTUAL_SERIAL_DEVICE;
+
 struct com_device {
     com_hook_t* com;
     file_hook_t* file;
@@ -18,7 +23,7 @@ struct com_device {
     HANDLE dataInReady;
     HANDLE dataOutReady;
     HANDLE thread;
-    FnComDeviceThread* thread_worker;
+    PVIRTUAL_SERIAL_DEVICE lpDevice;
 };
 com_device_t* com_devices[NUM_COM_PORTS];
 
@@ -60,7 +65,7 @@ unsigned char comio_next_req(com_device_t* com, comio_recv_head_t* head,  LPVOID
 void comio_reply(com_device_t* com, comio_recv_head_t* req, BYTE status, BYTE len, LPCVOID data);
 
 com_device_t* new_com_device(BYTE port);
-BOOL attach_com_device(BYTE port, FnComDeviceThread* thread);
+BOOL attach_com_device(BYTE port, PVIRTUAL_SERIAL_DEVICE thread);
 void detach_com_device(BYTE port);
 void detach_all_com_devices(void);
 void init_com_devices(void);

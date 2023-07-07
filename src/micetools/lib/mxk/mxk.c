@@ -152,7 +152,7 @@ BOOL mxkFlashRead(unsigned int address, unsigned int nbytes, unsigned char* buff
     mxkPacketReqFlashRead(packet, address, nbytes);
     if (!mxkSendPacket(packet)) return FALSE;
 
-    for (size_t i = 0; i < nbytes; i += 0x100) {
+    for (unsigned int i = 0; i < nbytes; i += 0x100) {
         unsigned int rest = (nbytes - i) > 0x100 ? 0x100 : (nbytes - i);
         if (!mxkTransportRecv(buffer + i, rest)) return FALSE;
     }

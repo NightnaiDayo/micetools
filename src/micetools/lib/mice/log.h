@@ -43,7 +43,7 @@ void log_stack(PLOG_FACILITY facility);
 void setup_logging();
 
 // Disable some logging entirely at build time for speed
-#define COMPILE_LOG_LEVEL 6
+#define COMPILE_LOG_LEVEL 5
 
 #if COMPILE_LOG_LEVEL >= 6
 #define log_trace _log_trace

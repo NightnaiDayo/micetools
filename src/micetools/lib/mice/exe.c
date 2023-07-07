@@ -4,10 +4,10 @@
 
 #include "log.h"
 
-bool inject_debug_wait(HANDLE process) {
+bool inject_debug_wait(HANDLE process, DWORD pid) {
     BOOL present;
 
-    log_info(plfBoot, "Waiting for debugger to attach.");
+    log_info(plfBoot, "Waiting for debugger to attach (pid=%d).", pid);
     do {
         Sleep(1000);
         if (FAILED(CheckRemoteDebuggerPresent(process, &present))) {
@@ -35,7 +35,7 @@ bool remote_call(HANDLE process, LPVOID function, LPCSTR argument, DWORD* result
 
     HANDLE remote_thread =
         CreateRemoteThread(process, NULL, 0, (LPTHREAD_START_ROUTINE)function, arg_addr, 0, NULL);
-    if (remote_thread == INVALID_HANDLE_VALUE) {
+    if (remote_thread == NULL) {
         log_error(plfProcesses, "CreateRemoteThread failed: %d", GetLastError());
         return false;
     }
@@ -106,15 +106,15 @@ BOOL start_and_inject(HANDLE hJob, LPCSTR path, LPSTR cmdline, LPCSTR inject, BO
     flags |= CREATE_SUSPENDED;
     if (!CreateProcessA(path, cmdline, NULL, NULL, FALSE, flags, NULL, NULL, &startupInfo,
                         &processInformation)) {
-        log_error(plfProcesses, "CreateProcessA(%s, %s) failed: %d", path, cmdline,
-                  GetLastError());
+        log_error(plfProcesses, "CreateProcessA(%s, %s) failed: %d", path, cmdline, GetLastError());
         goto abort;
     }
 
     if (hJob != INVALID_HANDLE_VALUE) AssignProcessToJobObject(hJob, processInformation.hProcess);
 
     if (debug_wait)
-        if (!inject_debug_wait(processInformation.hProcess)) goto abort;
+        if (!inject_debug_wait(processInformation.hProcess, processInformation.dwProcessId))
+            goto abort;
     if (inject != NULL)
         if (!inject_dll(processInformation.hProcess, inject)) goto abort;
 

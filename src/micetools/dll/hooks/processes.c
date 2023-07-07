@@ -1,5 +1,7 @@
 #include "processes.h"
 
+#include "../lib/mice/ipc.h"
+
 BOOL WINAPI FakeCreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine,
                                LPSECURITY_ATTRIBUTES lpProcessAttributes,
                                LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles,
@@ -14,6 +16,9 @@ BOOL WINAPI FakeCreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine,
                                   lpEnvironment, lpCurrentDirectory, lpStartupInfo,
                                   lpProcessInformation);
     }
+    // Bind everything to our one single console
+    dwCreationFlags &= ~CREATE_NEW_CONSOLE;
+    dwCreationFlags |= CREATE_NO_WINDOW;
 
     if (lpCommandLine &&
         (strcmp(lpCommandLine, "s:\\mxkeychip.exe") == 0 ||
@@ -41,8 +46,15 @@ BOOL WINAPI FakeCreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine,
     MiceFSRedirectPathA(lpApplicationName, &lpApplicationName);
     log_info(plfProcesses, "CreateProcessA %s %s", lpApplicationName, lpCommandLine);
 
-    return start_and_inject(INVALID_HANDLE_VALUE, lpApplicationName, lpCommandLine, MICELIB, FALSE,
-                            0, NULL, 0, lpProcessInformation);
+    if (!_miceIpcData->m_LauncherIsReady || _miceIpcData->m_MiceDll[0] == '\0') {
+        log_error(plfProcesses, "MiceLIB not provided via IPC!");
+        return FALSE;
+    }
+
+    log_info(plfProcesses, "Spawning \"%s\" %s", lpApplicationName, lpCommandLine);
+    return start_and_inject(INVALID_HANDLE_VALUE, lpApplicationName, lpCommandLine,
+                            _miceIpcData->m_MiceDll, FALSE, 0, NULL, dwCreationFlags,
+                            lpProcessInformation);
 }
 BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
                                LPSECURITY_ATTRIBUTES lpProcessAttributes,
@@ -50,23 +62,26 @@ BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
                                DWORD dwCreationFlags, LPVOID lpEnvironment,
                                LPCWSTR lpCurrentDirectory, LPSTARTUPINFOW lpStartupInfo,
                                LPPROCESS_INFORMATION lpProcessInformation) {
-    log_info(plfProcesses, "CreateProcessW %ls %ls", lpApplicationName, lpCommandLine);
-
     // if (lpCommandLine && (wcscmp(lpCommandLine, L"chkdsk.exe") == 0 ||
     //                       wcscmp(lpCommandLine, L"ALLNetProc_Win.exe") == 0 ||
     //                       wcscmp(lpCommandLine, L"ALLNetProc_Ring.exe") == 0 ||
     //                       wcscmp(lpCommandLine, L"ALLNetProc.exe") == 0)) {
-    if (lpCommandLine && (wcscmp(lpCommandLine, L"chkdsk.exe") == 0)) {
+    if (lpCommandLine && (_wcsnicmp(lpCommandLine, L"chkdsk.exe", 10) == 0)) {
         if (lpProcessInformation) {
             lpProcessInformation->hProcess = CreateEventA(NULL, FALSE, TRUE, NULL);
             lpProcessInformation->hThread = CreateEventA(NULL, FALSE, TRUE, NULL);
         }
         return TRUE;
     }
+    // Bind everything to our one single console
+    dwCreationFlags &= ~CREATE_NEW_CONSOLE;
+    dwCreationFlags |= CREATE_NO_WINDOW;
 
     int nMultiChars = WideCharToMultiByte(CP_ACP, 0, lpCommandLine, -1, NULL, 0, NULL, NULL);
-    LPSTR commandLine = malloc(nMultiChars);
+    LPSTR commandLine = malloc(nMultiChars + 1);
+    commandLine[0] = '\0';
     WideCharToMultiByte(CP_ACP, 0, lpCommandLine, -1, commandLine, nMultiChars, NULL, NULL);
+    commandLine[nMultiChars] = '\0';
 
     CHAR szApplicationName[MAX_PATH + 1];
     LPCSTR lpApplicationNameA;
@@ -88,8 +103,16 @@ BOOL WINAPI FakeCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
     }
 
     MiceFSRedirectPathA(lpApplicationNameA, &lpApplicationNameA);
-    return start_and_inject(INVALID_HANDLE_VALUE, lpApplicationNameA, commandLine, MICELIB, FALSE,
-                            0, NULL, 0, lpProcessInformation);
+
+    if (!_miceIpcData->m_LauncherIsReady || _miceIpcData->m_MiceDll[0] == '\0') {
+        log_error(plfProcesses, "MiceLIB not provided via IPC!");
+        return FALSE;
+    }
+
+    log_info(plfProcesses, "Spawning \"%s\" %s", lpApplicationNameA, commandLine);
+    return start_and_inject(INVALID_HANDLE_VALUE, lpApplicationNameA, commandLine,
+                            _miceIpcData->m_MiceDll, FALSE, 0, NULL, dwCreationFlags,
+                            lpProcessInformation);
 }
 
 BOOL WINAPI FakeGetExitCodeProcess(HANDLE hProcess, LPDWORD lpExitCode) {

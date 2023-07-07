@@ -9,12 +9,17 @@ disk_volume_t* incrementFindIndex(HANDLE hFindVolume) {
     if (find_index == NULL) return NULL;
 
     while (1) {
-        if (find_index->disk >= MAX_DISKS || PHYSICAL_DISKS[find_index->disk] == NULL) {
+        if (find_index->disk >= MAX_DISKS || AVAILABLE_DISKS[find_index->disk].m_Disk == NULL) {
             return NULL;
         }
 
+        if (!AVAILABLE_DISKS[find_index->disk].m_Installed) {
+            find_index->disk++;
+            find_index->partition = 0;
+            continue;
+        }
         if (find_index->partition > 3) {
-            if (PHYSICAL_DISKS[find_index->disk]
+            if (AVAILABLE_DISKS[find_index->disk].m_Disk
                     ->m_Extended[find_index->partition - 4]
                     .m_PartitionNumber == 0) {
                 find_index->disk++;
@@ -22,18 +27,18 @@ disk_volume_t* incrementFindIndex(HANDLE hFindVolume) {
                 continue;
             }
 
-            return &(PHYSICAL_DISKS[find_index->disk]
+            return &(AVAILABLE_DISKS[find_index->disk].m_Disk
                          ->m_Extended[(find_index->partition++) - 4]
                          .m_Volume);
         }
-        if (PHYSICAL_DISKS[find_index->disk]
+        if (AVAILABLE_DISKS[find_index->disk].m_Disk
                 ->m_Partitions[find_index->partition]
                 .m_PartitionNumber == 0) {
             find_index->partition = 4;
             continue;
         }
 
-        return &(PHYSICAL_DISKS[find_index->disk]->m_Partitions[find_index->partition++].m_Volume);
+        return &(AVAILABLE_DISKS[find_index->disk].m_Disk->m_Partitions[find_index->partition++].m_Volume);
     }
 }
 
@@ -333,7 +338,7 @@ BOOL WINAPI FakeGetDiskFreeSpaceExA(LPCSTR lpDirectoryName,
     //     return FALSE;
     // }
 
-    // We're going to be remapping the drive to ./dev/, so the free bytes are whatever the current
+    // We're going to be remapping the drive to ./mice/dev/, so the free bytes are whatever the current
     // real drive has free. No point claiming we have more than we do!
     return TrueGetDiskFreeSpaceExA(NULL, lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes,
                                    lpTotalNumberOfFreeBytes);

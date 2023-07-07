@@ -7,6 +7,8 @@ void install_led_bd();
 void install_touch_bd();
 void install_aime_bd();
 void install_servo_15069();
+void install_gacchu_guts_card();
+void install_gacchu_guts_screen();
 
 smbus_callback_t smbus_N2_write;
 smbus_callback_t smbus_N2_read;

@@ -9,6 +9,7 @@
 
 #include "../util/pid.h"
 #include "config.h"
+#include "ipc.h"
 
 #define _LF(category, name, display) \
     LOG_FACILITY lf##name = {        \
@@ -70,8 +71,6 @@ void __stdcall amLogCallback(DWORD level, char* format) {
 DWORD pLogcb;
 DWORD* ppLogcb;
 
-HANDLE hSlot;
-
 static char log_buf[1024];
 int _do_log(BYTE log_level, PLOG_FACILITY facility, const char* format, va_list args) {
     // Early-return if we have nothing to do
@@ -92,7 +91,7 @@ int _do_log(BYTE log_level, PLOG_FACILITY facility, const char* format, va_list 
 
     char prefix = LOG_PREFIXES[log_level];
 
-    int col_len = strlen(log_colours[log_level]);
+    size_t col_len = strlen(log_colours[log_level]);
 
     EnterCriticalSection(&logger_lock);
     int log_len = snprintf(log_buf, _countof(log_buf), "%s%s%c:%s:", log_colours[log_level],
@@ -101,11 +100,19 @@ int _do_log(BYTE log_level, PLOG_FACILITY facility, const char* format, va_list 
     log_len += snprintf(log_buf + log_len, _countof(log_buf) - log_len, "%s\n", COLOR_RESET);
     log_buf[_countof(log_buf) - 1] = '\0';
 
-    if (hSlot != INVALID_HANDLE_VALUE) {
-        WriteFile(hSlot, log_buf, log_len, NULL, NULL);
+    MICE_IPC_MESSAGE ipcMessage;
+    ipcMessage.m_Type = MICE_IPC_TYPE_LOG;
+    memcpy_s(ipcMessage.m_Message, sizeof ipcMessage.m_Message, log_buf, log_len);
+    if (log_len < sizeof ipcMessage.m_Message) {
+        ipcMessage.m_Message[log_len] = '\0';
+        ipcMessage.m_Size = log_len;
     } else {
-        // This should never happen, but there's no harm being prepared in case it does
-        WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), log_buf, log_len, NULL, NULL);
+        ipcMessage.m_Message[sizeof ipcMessage.m_Message - 1] = '\0';
+        ipcMessage.m_Size = sizeof ipcMessage.m_Message;
+    }
+
+    if (!MiceIpcPushMessage(&ipcMessage, TRUE)) {
+        fprintf(stderr, "Failed to log: %.*s", log_len, log_buf);
     }
 
     LeaveCriticalSection(&logger_lock);
@@ -172,19 +179,7 @@ int _log_game(PLOG_FACILITY facility, const char* format, ...) {
     return ret;
 }
 
-void setup_logging() {
-    char slotName[MAX_PATH + 1];
-    sprintf_s(slotName, MAX_PATH, "\\\\.\\mailslot\\micelog%d", GetOutermostMiceId());
-
-    hSlot = CreateFile(slotName, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-                       FILE_ATTRIBUTE_NORMAL, NULL);
-    if (hSlot == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Fatal: Failed to open mailslot %s", slotName);
-        ExitProcess(2);
-    }
-
-    InitializeCriticalSection(&logger_lock);
-}
+void setup_logging() { InitializeCriticalSection(&logger_lock); }
 
 void log_stack(PLOG_FACILITY facility) {
     char name[MAX_PATH * sizeof(TCHAR)];
@@ -195,12 +190,21 @@ void log_stack(PLOG_FACILITY facility) {
     RtlCaptureContext(&context);
 
     STACKFRAME64 stack = { 0 };
+#ifdef _WIN64
+    stack.AddrPC.Offset = context.Rip;
+    stack.AddrPC.Mode = AddrModeFlat;
+    stack.AddrStack.Offset = context.Rsp;
+    stack.AddrStack.Mode = AddrModeFlat;
+    stack.AddrFrame.Offset = context.Rbp;
+    stack.AddrFrame.Mode = AddrModeFlat;
+#else
     stack.AddrPC.Offset = context.Eip;
     stack.AddrPC.Mode = AddrModeFlat;
     stack.AddrStack.Offset = context.Esp;
     stack.AddrStack.Mode = AddrModeFlat;
     stack.AddrFrame.Offset = context.Ebp;
     stack.AddrFrame.Mode = AddrModeFlat;
+#endif
 
     HANDLE process = GetCurrentProcess();
     HANDLE thread = GetCurrentThread();

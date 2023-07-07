@@ -72,8 +72,11 @@ BOOL WINAPI pd_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOI
             log_error(plfDrive, "Unimeplemented ATA %02X command: %02x", command, data);
             return FALSE;
         case IOCTL_DISK_GET_LENGTH_INFO:
+            physical_disk_t* lpSsd = _GetDisk0();
+            if (lpSsd == NULL) return FALSE;
+
             PGET_LENGTH_INFORMATION pLi = (PGET_LENGTH_INFORMATION)lpOutBuffer;
-            pLi->Length.QuadPart = SSD.m_TotalSize * (long long)SSD.m_BlockSize;
+            pLi->Length.QuadPart = lpSsd->m_TotalSize * (long long)lpSsd->m_BlockSize;
             *lpBytesReturned = sizeof *pLi;
             return TRUE;
     }
@@ -81,6 +84,8 @@ BOOL WINAPI pd_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOI
     return FALSE;
 }
 
+// TODO: File-backed
+BYTE SEGABOOT_DATA_CACHE[512 * 60] = { 0xff };
 BOOL pd_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
                  LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped) {
     physical_disk_t* pd = (physical_disk_t*)ctx->m_HookData;
@@ -126,7 +131,7 @@ BOOL pd_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytesToRea
     }
     if (ptrLBA <= MBR_LBA_GAP) {
         // Read within the 63 extra tracks
-        log_error(plfDrive, "Read failed");
+        log_error(plfDrive, "Read failed (%08x)", ptrLBA);
         return FALSE;
     }
 
@@ -139,7 +144,8 @@ BOOL pd_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytesToRea
             DWORD readOffset = ptrLBA - pd->m_Partitions[i].m_PhysicalLBA;
 
             if (pd->m_Partitions[i].m_ReadFunc == NULL) {
-                log_error(plfDrive, "Attempted read in %d/%d at block offset %08x; No read function",
+                log_error(plfDrive,
+                          "Attempted read in %d/%d at block offset %08x; No read function",
                           pd->m_DriveNumber, pd->m_Partitions[i].m_PartitionNumber, readOffset);
                 return FALSE;
             }
@@ -230,12 +236,21 @@ BOOL pd_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytesToRea
                 *lpNumberOfBytesRead = sizeof SegaBootRecord1;
                 return TRUE;
             }
+
+            if (ptrLBA >= headerLBA && ptrLBA < headerLBA + EXT_HEADER_GAP) {
+                DWORD nDataOffset = (ptrLBA - headerLBA - 4) * pd->m_BlockSize;
+                if (nNumberOfBytesToRead > sizeof SEGABOOT_DATA_CACHE - nDataOffset) {
+                    nNumberOfBytesToRead = sizeof SEGABOOT_DATA_CACHE - nDataOffset;
+                }
+                memcpy(lpBuffer, SEGABOOT_DATA_CACHE, nNumberOfBytesToRead);
+                *lpNumberOfBytesRead = nNumberOfBytesToRead;
+                return TRUE;
+            }
         }
 
-        if (ptrLBA >= pd->m_Extended[i].m_PhysicalLBA - EXT_HEADER_GAP &&
-            ptrLBA < pd->m_Extended[i].m_PhysicalLBA) {
+        if (ptrLBA >= headerLBA && ptrLBA < headerLBA + EXT_HEADER_GAP) {
             // Read within the 63 extra tracks
-            log_error(plfDrive, "Read failed");
+            log_error(plfDrive, "Read failed (%08x)", ptrLBA);
             return FALSE;
         }
 
@@ -244,7 +259,8 @@ BOOL pd_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytesToRea
             DWORD readOffset = ptrLBA - pd->m_Extended[i].m_PhysicalLBA;
 
             if (pd->m_Extended[i].m_ReadFunc == NULL) {
-                log_error(plfDrive, "Attempted read in %d/%d at block offset %08x; No read function",
+                log_error(plfDrive,
+                          "Attempted read in %d/%d at block offset %08x; No read function",
                           pd->m_DriveNumber, pd->m_Extended[i].m_PartitionNumber, readOffset);
                 return FALSE;
             }
@@ -262,7 +278,7 @@ BOOL pd_ReadFile(file_context_t* ctx, LPVOID lpBuffer, DWORD nNumberOfBytesToRea
         }
     }
 
-    log_error(plfDrive, "Read failed");
+    log_error(plfDrive, "Read failed (%08x)", ptrLBA);
     return FALSE;
 }
 

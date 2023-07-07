@@ -1,5 +1,4 @@
 subdir('util')  # This is the only lib that should ever be link_with'd by another lib
-subdir('dmi')
 
 subdir('ami')
 subdir('libpcp')

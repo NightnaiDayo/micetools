@@ -3,13 +3,15 @@
 
 #include "../util/_util.h"
 
+static const bool ALLOW_FILE_PASSTHROUGH = true;
+
 // TODO: This should be part of MiceFS I think
 file_hook_t* MiceFSLocateHookW(_In_ LPCWSTR lpFileName);
 file_hook_t* MiceFSLocateHookW(LPCWSTR lpFileName) {
     file_hook_t* file_hook = file_hook_list;
     while (file_hook != NULL) {
-        if (wcscmp(lpFileName, file_hook->filename) == 0 ||
-            (file_hook->altFilename != NULL && wcscmp(lpFileName, file_hook->altFilename) == 0)) {
+        if (_wcsicmp(lpFileName, file_hook->filename) == 0 ||
+            (file_hook->altFilename != NULL && _wcsicmp(lpFileName, file_hook->altFilename) == 0)) {
             return file_hook;
         }
         file_hook = file_hook->next;
@@ -19,6 +21,7 @@ file_hook_t* MiceFSLocateHookW(LPCWSTR lpFileName) {
 
 HANDLE open_hook(file_hook_t* file_hook) {
     open_hook_t* opened = (open_hook_t*)malloc(sizeof(open_hook_t));
+    if (opened == NULL) return INVALID_HANDLE_VALUE;
     ZeroMemory(opened, sizeof *opened);
 
     opened->hook = file_hook;
@@ -51,7 +54,25 @@ void hook_file(file_hook_t* hook) {
     file_hook_t* hl = file_hook_list;
     while (hl->next != NULL) hl = hl->next;
     hl->next = hook;
-};
+}
+file_hook_t* unhook_file(LPCWSTR lpFilename) {
+    file_hook_t* hl = file_hook_list;
+    if (hl == NULL) return NULL;
+    file_hook_t* previous = NULL;
+    do {
+        if (_wcsicmp(hl->filename, lpFilename) == 0 || _wcsicmp(hl->altFilename, lpFilename) == 0) {
+            if (previous == NULL)
+                file_hook_list = hl->next;
+            else
+                previous->next = hl->next;
+            return hl;
+        }
+
+        previous = hl;
+        hl = hl->next;
+    } while (hl != NULL);
+    return NULL;
+}
 
 struct buffer_file {
     LPBYTE buffer;
@@ -116,11 +137,21 @@ HANDLE WINAPI FakeCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD d
                               LPSECURITY_ATTRIBUTES lpSecurityAttributes,
                               DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes,
                               HANDLE hTemplateFile) {
+    size_t len = wcslen(lpFileName);
+    if (wcscmp(&lpFileName[len - 4], L".dbg") == 0 || wcscmp(&lpFileName[len - 4], L".pdb") == 0) {
+        return TrueCreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+                               dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+    }
+
     file_hook_t* found_fh = MiceFSLocateHookW(lpFileName);
     if (found_fh != NULL) {
         HANDLE handle = open_hook(found_fh);
         log_info(plfHooks, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
         return handle;
+    }
+    if (!ALLOW_FILE_PASSTHROUGH) {
+        SetLastError(ERROR_FILE_NOT_FOUND);
+        return INVALID_HANDLE_VALUE;
     }
 
     HANDLE handle;
@@ -128,11 +159,13 @@ HANDLE WINAPI FakeCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD d
     MiceFSRedirectPathW(lpFileName, &lpFileName);
     handle = TrueCreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                              dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-    if (handle == INVALID_HANDLE_VALUE)
-        log_warning(plfHooks, "CreateFileW(%ls) failed", lpFileName);
-    else
-        log_misc(plfHooks, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
-
+    if (handle == INVALID_HANDLE_VALUE) {
+        if (!(_wcsicmp(lpFileName, L"C:\\windows\\system32\\atipblag.dat") == 0 ||
+              wcsncmp(lpFileName, L"\\\\?\\hid#", 8) == 0))
+            log_warning(plfHooks, "CreateFileW(%ls) failed", lpFileName);
+    } else {
+        log_info(plfHooks, "CreateFileW(%ls) -> 0x%p", lpFileName, handle);
+    }
     return handle;
 }
 HANDLE WINAPI FakeCreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
@@ -148,35 +181,31 @@ HANDLE WINAPI FakeCreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
         log_info(plfHooks, "CreateFileA(%s) -> 0x%p", lpFileName, handle);
         return handle;
     }
+    if (!ALLOW_FILE_PASSTHROUGH) {
+        SetLastError(ERROR_FILE_NOT_FOUND);
+        return INVALID_HANDLE_VALUE;
+    }
 
     MiceFSRedirectPathA(lpFileName, &lpFileName);
     HANDLE handle = TrueCreateFileA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                                     dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-    if (handle == INVALID_HANDLE_VALUE)
-        log_warning(plfHooks, "CreateFileA(%s) failed", lpFileName);
-    else
+    if (handle == INVALID_HANDLE_VALUE) {
+        if (_stricmp(lpFileName, "C:\\windows\\system32\\atipblag.dat") != 0)
+            log_warning(plfHooks, "CreateFileA(%s) failed", lpFileName);
+    } else
         log_misc(plfHooks, "CreateFileA(%s) -> 0x%p", lpFileName, handle);
     return handle;
 }
 
-BOOL WINAPI FakePathFileExistsA(LPCSTR pszPath) {
-    MiceFSRedirectPathA(pszPath, &pszPath);
-    BOOL ret = TruePathFileExistsA(pszPath);
-    log_misc(plfHooks, "PathFileExistsA(%s) = %d", pszPath, ret);
-    return ret;
-}
-BOOL WINAPI FakePathFileExistsW(LPCWSTR pszPath) {
-    MiceFSRedirectPathW(pszPath, &pszPath);
-    BOOL ret = TruePathFileExistsW(pszPath);
-    log_misc(plfHooks, "PathFileExistsW(%ls) = %d", pszPath, ret);
-    return ret;
-}
-
 BOOL WINAPI FakeDeleteFileA(LPCSTR pszPath) {
+    if (!ALLOW_FILE_PASSTHROUGH) return FALSE;
+
     MiceFSRedirectPathA(pszPath, &pszPath);
     return TrueDeleteFileA(pszPath);
 }
 BOOL WINAPI FakeDeleteFileW(LPCWSTR pszPath) {
+    if (!ALLOW_FILE_PASSTHROUGH) return FALSE;
+
     MiceFSRedirectPathW(pszPath, &pszPath);
     return TrueDeleteFileW(pszPath);
 }
@@ -186,9 +215,6 @@ BOOL WINAPI FakeDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lp
                                 LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     open_hook_t* pHData = GetDataForHandle(hDevice, HDATA_FILE);
     if (pHData == NULL) {
-        // log_trace(plfHooks, "DeviceIoControl(0x%p, 0x%08x, 0x%p, 0x%x, -, 0x%x, 0, 0)", hDevice,
-        //           dwIoControlCode, lpInBuffer, nInBufferSize, nOutBufferSize);
-
         return TrueDeviceIoControl(hDevice, dwIoControlCode, lpInBuffer, nInBufferSize, lpOutBuffer,
                                    nOutBufferSize, lpBytesReturned, lpOverlapped);
     }
@@ -326,7 +352,6 @@ BOOL WINAPI FakeCloseHandle(HANDLE hObject) {
     return TrueCloseHandle(hObject);
 }
 
-
 void FileTimeToTimet(__time64_t* t, LPFILETIME pft) {
     ULARGE_INTEGER time_value;
     time_value.HighPart = pft->dwHighDateTime;
@@ -405,8 +430,7 @@ void hook_io() {
     hook("Kernel32.dll", "ReadFile", FakeReadFile, (void**)&TrueReadFile);
     hook("Kernel32.dll", "GetFileSizeEx", FakeGetFileSizeEx, (void**)&TrueGetFileSizeEx);
 
-    hook("Shlwapi.dll", "PathFileExistsA", FakePathFileExistsA, (void**)&TruePathFileExistsA);
-    hook("Shlwapi.dll", "PathFileExistsW", FakePathFileExistsW, (void**)&TruePathFileExistsW);
+    // PathIsDirectory, PathFileExists, etc just call GetFileAttributes under the hood
     hook("Kernel32.dll", "DeleteFileA", FakeDeleteFileA, (void**)&TrueDeleteFileA);
     hook("Kernel32.dll", "DeleteFileW", FakeDeleteFileW, (void**)&TrueDeleteFileW);
     hook("Kernel32.dll", "GetCurrentDirectoryA", FakeGetCurrentDirectoryA,
@@ -420,10 +444,8 @@ void hook_io() {
          (void**)&TrueGetFileAttributesA);
     hook("Kernel32.dll", "GetFileAttributesW", FakeGetFileAttributesW,
          (void**)&TrueGetFileAttributesW);
-    hook("Kernel32.dll", "CreateDirectoryA", FakeCreateDirectoryA,
-         (void**)&TrueCreateDirectoryA);
-    hook("Kernel32.dll", "CreateDirectoryW", FakeCreateDirectoryW,
-         (void**)&TrueCreateDirectoryW);
+    hook("Kernel32.dll", "CreateDirectoryA", FakeCreateDirectoryA, (void**)&TrueCreateDirectoryA);
+    hook("Kernel32.dll", "CreateDirectoryW", FakeCreateDirectoryW, (void**)&TrueCreateDirectoryW);
 
     hook("MSVCR90.DLL", "_stat64i32", Fake_stat64i32, (void**)&True_stat64i32);
 }

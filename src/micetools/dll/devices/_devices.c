@@ -6,46 +6,52 @@
 #include "smb_pca9535.h"
 
 typedef struct _device_list {
-    const char* m_Name;
-    FnComDeviceThread* m_Thread;
+    VIRTUAL_SERIAL_DEVICE m_Device;
     struct _device_list* m_Next;
 } device_list_t;
 device_list_t device_list = { .m_Next = NULL };
 
-#define _start_device_n(n) \
-    if (strcmp(MiceConfig.devices.com##n, name) == 0) attach_com_device(n, thread)
-
-inline void start_device(const char* name, FnComDeviceThread* thread) {
-    _start_device_n(1);
-    _start_device_n(2);
-    _start_device_n(3);
-    _start_device_n(5);
-    _start_device_n(6);
-    _start_device_n(7);
-    _start_device_n(8);
+static DWORD WINAPI dummy_comdev_thread(com_device_t* dev) {
+    BYTE buffer[1];
+    while (1) {
+        comdev_read_blocking(dev, buffer, 1);
+        log_warning(plfComm, "Idle data on port %ls: %02x", dev->com->wName, buffer[0]);
+    }
 }
 
-#define _stop_if_unregistered(n) \
-    if (MiceConfig.devices.com##n[0] == '\0') detach_com_device(n)
+static VIRTUAL_SERIAL_DEVICE dummySerialDevice = {
+    .m_Name = "Port idler",
+    .m_Entrypoint = dummy_comdev_thread,
+};
 
-inline void stop_old_devices() {
-    _stop_if_unregistered(1);
-    _stop_if_unregistered(2);
-    _stop_if_unregistered(3);
-    _stop_if_unregistered(5);
-    _stop_if_unregistered(6);
-    _stop_if_unregistered(7);
-    _stop_if_unregistered(8);
+inline void start_virtual_device(BYTE bPort, LPCSTR szName) {
+    if (szName[0] != '\0') {
+        device_list_t* device = &device_list;
+        while (device->m_Next) {
+            device = device->m_Next;
+            if (strcmp(szName, device->m_Device.m_Name) == 0) {
+                attach_com_device(bPort, &device->m_Device);
+                return;
+            }
+        }
+
+        log_error(plfComm, "Device %s requested by unknown! (COM%hhu)", szName, bPort);
+    }
+
+    if (MiceConfig.devices.add_idlers)
+        attach_com_device(bPort, &dummySerialDevice);
+    else
+        detach_com_device(bPort);
 }
 
 void start_devices() {
-    stop_old_devices();
-
-    device_list_t* device = &device_list;
-    while (device->m_Next) {
-        device = device->m_Next;
-        start_device(device->m_Name, device->m_Thread);
-    }
+    // start_virtual_device(1, MiceConfig.devices.com1);
+    start_virtual_device(2, MiceConfig.devices.com2);
+    start_virtual_device(3, MiceConfig.devices.com3);
+    start_virtual_device(5, MiceConfig.devices.com5);
+    start_virtual_device(6, MiceConfig.devices.com6);
+    start_virtual_device(7, MiceConfig.devices.com7);
+    start_virtual_device(8, MiceConfig.devices.com8);
 }
 
 void register_device(const char* name, FnComDeviceThread* thread) {
@@ -54,8 +60,8 @@ void register_device(const char* name, FnComDeviceThread* thread) {
 
     device_list_t* us = tail->m_Next = malloc(sizeof(device_list_t));
 
-    us->m_Name = name;
-    us->m_Thread = thread;
+    us->m_Device.m_Name = name;
+    us->m_Device.m_Entrypoint = thread;
     us->m_Next = NULL;
 }
 
@@ -64,8 +70,8 @@ void install_devices() {
     install_touch_bd();
     install_aime_bd();
     install_servo_15069();
-
-    start_devices();
+    install_gacchu_guts_card();
+    install_gacchu_guts_screen();
 
     smbus_install(/* 0x20 */ PCA9535_ADDRESS, &smbus_PCA9535_write, &smbus_PCA9535_read);
 

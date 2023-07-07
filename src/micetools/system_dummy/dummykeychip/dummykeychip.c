@@ -2,6 +2,7 @@
 
 #include "../../lib/ami/amiLog.h"
 #include "../../lib/libpcp/libpcp.h"
+#include "../../lib/mice/ipc.h"
 #include "callbacks.h"
 
 typedef struct {
@@ -55,14 +56,14 @@ e_pcpa_t mdkPcpStreamInit(mdk_t* mdk, unsigned short textPort, unsigned short bi
     pcpaSetCallbackFunc(&mdk->m_pcp, BIL_PLAYCOUNT, mdkPcpPbPlayCount, NULL);
     pcpaSetCallbackFunc(&mdk->m_pcp, BIL_PLAYLIMIT, mdkPcpPbPlayLimit, NULL);
     pcpaSetCallbackFunc(&mdk->m_pcp, BIL_NEARFULL, mdkPcpPbNearfull, NULL);
-    // pcpaSetCallbackFunc(&mdk->m_pcp, BIL_SIGNATURE, mdkPcpPbSignaturePubKey, NULL);
-    // pcpaSetCallbackFunc(&mdk->m_pcp, BIL_CACERT, mdkPcpPbCaCertification, NULL);
+    pcpaSetCallbackFunc(&mdk->m_pcp, BIL_SIGNATURE, mdkPcpPbSignaturePubKey, NULL);
+    pcpaSetCallbackFunc(&mdk->m_pcp, BIL_CACERT, mdkPcpPbCaCertification, NULL);
     // Tracedata
-    // pcpaSetCallbackFunc(&mdk->m_pcp, TRA_RESTORE, mdkPcpTdRestore, NULL);
-    // pcpaSetCallbackFunc(&mdk->m_pcp, TRA_PUT, mdkPcpTdPut, NULL);
-    // pcpaSetCallbackFunc(&mdk->m_pcp, TRA_GET, mdkPcpTdGet, NULL);
-    // pcpaSetCallbackFunc(&mdk->m_pcp, TRA_LOGICALERASE, mdkPcpTdLogicalErase, NULL);
-    // pcpaSetCallbackFunc(&mdk->m_pcp, TRA_SECTOREERASE, mdkPcpTdSectorErase, NULL);
+    pcpaSetCallbackFunc(&mdk->m_pcp, TRA_RESTORE, mdkPcpTdRestore, NULL);
+    pcpaSetCallbackFunc(&mdk->m_pcp, TRA_PUT, mdkPcpTdPut, NULL);
+    pcpaSetCallbackFunc(&mdk->m_pcp, TRA_GET, mdkPcpTdGet, NULL);
+    pcpaSetCallbackFunc(&mdk->m_pcp, TRA_LOGICALERASE, mdkPcpTdLogicalErase, NULL);
+    pcpaSetCallbackFunc(&mdk->m_pcp, TRA_SECTOREERASE, mdkPcpTdSectorErase, NULL);
     // Storage
     // pcpaSetCallbackFunc(&mdk->m_pcp, KC_EEPROM, mdkPcpEeprom, NULL);
     // pcpaSetCallbackFunc(&mdk->m_pcp, KC_NVRAM0, mdkPcpNvram, NULL);
@@ -92,6 +93,8 @@ e_pcpa_t mdkPcpStreamInit(mdk_t* mdk, unsigned short textPort, unsigned short bi
 void miceDummyKeychip(unsigned short textPort, unsigned short binaryPort, bool global) {
     mdk_t* mdk = malloc(sizeof *mdk);
     e_pcpa_t err;
+
+    MiceIpcSetup(FALSE);
 
     WSADATA wsaData;
     if (WSAStartup(2, &wsaData)) {

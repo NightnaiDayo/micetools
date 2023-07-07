@@ -3,6 +3,8 @@
 #include <shlwapi.h>
 #include <tlhelp32.h>
 
+#include "../mice/exe.h"
+
 #pragma comment(lib, "psapi.lib")
 
 DWORD GetParentProcessIdFor(DWORD pid) {
@@ -30,12 +32,14 @@ DWORD GetOutermostMiceId(void) {
             CHAR baseName[MAX_PATH + 1];
             if (GetModuleFileNameEx(hProcess, NULL, baseName, sizeof baseName)) {
                 // TODO: Better
-                if (strcmp(PathFindFileNameA(baseName), "mice.exe") == 0) return pid;
+                if (stricmp(PathFindFileNameA(baseName), MICEEXE) == 0)
+                    return pid;
             }
             CloseHandle(hProcess);
         }
 
         pid = GetParentProcessIdFor(pid);
     } while (pid != (DWORD)-1);
+    fprintf(stderr, "Likely fatal: Failed to identify parent mouse!");
     return (DWORD)-1;
 }

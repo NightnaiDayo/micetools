@@ -3,7 +3,7 @@
 #include <Windows.h>
 
 #define RING_MOUNT_OS "C:"
-#define RING_MOUNT_EXTEND "Y:"
+#define RING_MOUNT_APPDATA "Y:"
 #define RING_MOUNT_RECOVERY "Z:"
 #define RING_MOUNT_SYSTEM "S:"
 #define RING_MOUNT_ORIGINAL "O:"
@@ -71,7 +71,7 @@ VOID MiceFSSetCwd(LPCSTR lpNewCwd);
 BOOL MiceFSAddLayer(_In_z_ LPCSTR lpMountPoint, _In_z_ LPCSTR lpTargetPath);
 
 /**
- * @brief Add layers for all drive letters backed by ".\dev\[letter]"
+ * @brief Add layers for all drive letters backed by ".\mice\dev\[letter]"
  * If used, this should be the first set of layers added, to act as a fallback
  *
  * @return BOOL Success. As this function adds 26 layers, and failiure could occur at any time,
@@ -148,8 +148,17 @@ BOOL MiceFSMatchPathA(_In_z_ LPCSTR lpPath, _In_z_ LPCSTR lpPrefix,
  * @param pszRedirected Redirected real filename
  * @return BOOL If redirection occured
  */
-BOOL MiceFSRedirectPathA(_In_z_ LPCSTR lpFileName, _Out_ LPCSTR* pszRedirected);
+BOOL MiceFSRedirectPathA(_In_z_ LPCSTR lpFileName, _Out_opt_ LPCSTR* pszRedirected);
 /**
  * @brief Wide variant of MiceFSRedirectPathA
  */
-BOOL MiceFSRedirectPathW(_In_z_ LPCWSTR lpFileName, _Out_ LPCWSTR* pszRedirected);
+BOOL MiceFSRedirectPathW(_In_z_ LPCWSTR lpFileName, _Out_opt_ LPCWSTR* pszRedirected);
+
+/**
+ * @brief Output a list of all filesystem layers to stdout
+ */
+void MiceFSDebugPrintLayers(void);
+/**
+ * @brief Perform MiceFSRedirectPathA, with trace logging to stdout
+ */
+BOOL MiceFSDebugTraceRedirectPathA(_In_z_ LPCSTR lpFileName, _Out_opt_ LPCSTR* pszRedirected);

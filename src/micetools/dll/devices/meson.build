@@ -8,6 +8,8 @@ devices_files = files(
     'ser_maitouch.c',
     'ser_tn32msec.c',
     'ser_servo_838-15069.c',
+    'ser_gacchu_guts_card.c',
+    'ser_gacchu_guts_screen.c',
     # SMBus devices
     'smb_pca9535.c',
     'smb_ds2460.c',

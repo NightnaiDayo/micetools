@@ -21,7 +21,7 @@ BOOL wipe_eeprom() {
         if (i == 0) continue;
         if (i == 32) continue;
         printf("Wiping EEPROM block %d\n", i);
-        amEepromWrite(i * 0x20, data, sizeof data);
+    amEepromWrite((i * 0x20) & 0xffff, data, sizeof data);
     }
 
     amEepromExit();

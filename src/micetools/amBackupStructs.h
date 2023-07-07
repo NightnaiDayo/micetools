@@ -20,8 +20,11 @@ typedef struct {
 } ERROR_LOG_BODY;
 
 typedef struct {
+    // 0 = Common, 1 = Individual
     uint8_t ChuteType;
+    // 0 = Common, 1 = Individual
     uint8_t ServiceType;
+    // 0 = Normal, 1 = Freeplay
     uint8_t Operation;
     uint8_t CoinRate[2];
     uint8_t BonusAdder;

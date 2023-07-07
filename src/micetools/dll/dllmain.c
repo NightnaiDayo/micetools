@@ -1,3 +1,4 @@
+#include <detours.h>
 #include <signal.h>
 
 #include "../lib/util/pid.h"
@@ -8,54 +9,12 @@
 
 WCHAR exeName[MAX_PATH + 1];
 char exeNameC[MAX_PATH + 1];
-DWORD imageOffset;
-
-#define WIN32_EXE_BASE 0x00400000
-
-DWORD GetImageBase(void) {
-    WCHAR sModulePath[MAX_PATH];
-    GetModuleFileNameW(NULL, sModulePath, MAX_PATH);
-
-    HANDLE hObject =
-        _CreateFileW(sModulePath, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-    if (hObject == INVALID_HANDLE_VALUE) {
-        log_error(plfBoot, "Failed to open %ls %03x", sModulePath, GetLastError());
-        return 0;
-    }
-
-    IMAGE_DOS_HEADER dosHeader = { 0 };
-    DWORD nRead;
-    _SetFilePointer(hObject, 0, NULL, FILE_BEGIN);
-    _ReadFile(hObject, &dosHeader, sizeof dosHeader, &nRead, NULL);
-    if (nRead != sizeof dosHeader) {
-        log_error(plfBoot, "Failed to read DOS header %03x", GetLastError());
-        return 0;
-    }
-    if (dosHeader.e_magic != IMAGE_DOS_SIGNATURE) {
-        log_error(plfBoot, "Invalid DOS magic number: %04x", dosHeader.e_magic);
-        return 0;
-    }
-
-    IMAGE_NT_HEADERS32 ntHeaders32 = { 0 };
-    _SetFilePointer(hObject, dosHeader.e_lfanew, NULL, FILE_BEGIN);
-    _ReadFile(hObject, &ntHeaders32, sizeof ntHeaders32, &nRead, NULL);
-    if (nRead != sizeof ntHeaders32) {
-        log_error(plfBoot, "Failed to read NT header %03x", GetLastError());
-        return 0;
-    }
-    if (ntHeaders32.Signature != IMAGE_NT_SIGNATURE) {
-        log_error(plfBoot, "Invalid NT signature: %08x", ntHeaders32.Signature);
-        return 0;
-    }
-
-    _CloseHandle(hObject);
-    return ntHeaders32.OptionalHeader.ImageBase;
-}
+size_t imageOffset;
 
 void apply_patches(HMODULE hModule) {
     void* baseAddress = (void*)hModule;
 
-    DWORD imageBase = GetImageBase();
+    DWORD imageBase = MiceGetImageBase();
     if (imageBase == 0) {
         log_error(plfBoot, "Failed to locate image base. Patches will not be applied.");
         return;
@@ -69,22 +28,22 @@ void apply_patches(HMODULE hModule) {
 
     patch_t* patch = patch_list->next;
     if (patch == NULL) {
-        log_warning(plfBoot, "No patches to apply. Did you forgot an amiDebug patch file?");
+        log_info(plfBoot, "No patches to apply. Skipping.");
+        return;
     }
     while (patch) {
         DWORD oldProt;
-        VirtualProtect((void*)((DWORD)patch->address + imageOffset), patch->count,
-                       PAGE_EXECUTE_READWRITE, &oldProt);
+        VirtualProtect((void*)(patch->address + imageOffset), patch->count, PAGE_EXECUTE_READWRITE,
+                       &oldProt);
 
-        if (memcmp(patch->match, (void*)((DWORD)patch->address + imageOffset), patch->count) != 0) {
+        if (memcmp(patch->match, (void*)(patch->address + imageOffset), patch->count) != 0) {
             log_error(plfBoot, "Patch %s failed! from-value missmatch", patch->name);
-            VirtualProtect((void*)((DWORD)patch->address + imageOffset), patch->count, oldProt,
-                           &oldProt);
+            VirtualProtect((void*)(patch->address + imageOffset), patch->count, oldProt, &oldProt);
             patch = patch->next;
             continue;
         }
 
-        memcpy((void*)((DWORD)patch->address + imageOffset), patch->replace, patch->count);
+        memcpy((void*)(patch->address + imageOffset), patch->replace, patch->count);
         log_misc(plfBoot, "Patched %d bytes at %08x (%s)", patch->count, patch->address,
                  patch->name);
 
@@ -111,39 +70,48 @@ void init_injection(HMODULE hModule) {
     log_info(plfBoot, "Handover complete. Now executing within %ls", exeName);
 
     // Start Mice FS
-    BOOL success = TRUE;
-    success &= MiceFSInit();
-    if (success) success &= MiceFSAddRingedgeLayers(FALSE);
-    if (!success) {
+    if (!MiceFSInit()) {
         log_error(plfFile, "Failed to initialise Mice FS stack: %d", GetLastError());
         exit(1);
     }
 
-    if (MiceConfig.mice.original && MiceConfig.mice.original[0] == '\0') {
-        CHAR szCurrentDir[MAX_PATH + 1];
-        GetCurrentDirectoryA(sizeof szCurrentDir, szCurrentDir);
-        MiceFSAddLayer(RING_MOUNT_ORIGINAL, szCurrentDir);
-        MiceFSAddLayer(RING_MOUNT_GAME, szCurrentDir);
+    BOOL success = TRUE;
+    success &= MiceFSAddDevLayers();
+
+    CHAR szWorkPath[MAX_PATH + 1];
+    if (!MiceConfig.mice.original || MiceConfig.mice.original[0] == '\0') {
+        _GetCurrentDirectoryA(sizeof szWorkPath, szWorkPath);
+        success &= MiceFSAddLayer(RING_MOUNT_ORIGINAL, szWorkPath);
+        success &= MiceFSAddLayer(RING_MOUNT_GAME, szWorkPath);
     } else {
-        MiceFSAddLayer(RING_MOUNT_ORIGINAL, MiceConfig.mice.original);
-        MiceFSAddLayer(RING_MOUNT_GAME, MiceConfig.mice.original);
+        success &= MiceFSAddLayer(RING_MOUNT_ORIGINAL, MiceConfig.mice.original);
+        success &= MiceFSAddLayer(RING_MOUNT_GAME, MiceConfig.mice.original);
     }
     if (MiceConfig.mice.patch && MiceConfig.mice.patch[0] != '\0') {
-        MiceFSAddLayer(RING_MOUNT_PATCH, MiceConfig.mice.patch);
-        MiceFSAddLayer(RING_MOUNT_GAME, MiceConfig.mice.patch);
+        success &= MiceFSAddLayer(RING_MOUNT_PATCH, MiceConfig.mice.patch);
+        success &= MiceFSAddLayer(RING_MOUNT_GAME, MiceConfig.mice.patch);
     }
     if (MiceConfig.mice.extend && MiceConfig.mice.extend[0] != '\0') {
-        MiceFSAddLayer(RING_MOUNT_EXTEND_VOL, MiceConfig.mice.extend);
-        MiceFSAddLayer(RING_MOUNT_GAME, MiceConfig.mice.extend);
+        success &= MiceFSAddLayer(RING_MOUNT_EXTEND_VOL, MiceConfig.mice.extend);
+        success &= MiceFSAddLayer(RING_MOUNT_GAME, MiceConfig.mice.extend);
     }
     if (MiceConfig.mice.extend2 && MiceConfig.mice.extend2[0] != '\0') {
         MiceFSAddLayer(RING_MOUNT_EXTEND2_VOL, MiceConfig.mice.extend2);
         MiceFSAddLayer(RING_MOUNT_GAME, MiceConfig.mice.extend2);
     }
 
-    if (success) success &= MiceFSAddDevLayers();
+    success &= MiceFSAddRingedgeLayers(FALSE);
 
-    MiceFSSetCwd(RING_MOUNT_GAME "\\");
+    if (!success) {
+        log_error(plfFile, "Failed to add Mice FS layers: %d", GetLastError());
+        exit(1);
+    }
+
+    szWorkPath[0] = '\0';
+    strcat_s(szWorkPath, sizeof szWorkPath, RING_MOUNT_GAME "\\");
+    if (_miceIpcData && _miceIpcData->m_LauncherIsReady)
+        strcat_s(szWorkPath, sizeof szWorkPath, _miceIpcData->m_PathPrefix);
+    MiceFSSetCwd(szWorkPath);
 
     // Setup default COM devices
     init_com_devices();
@@ -158,7 +126,10 @@ void init_injection(HMODULE hModule) {
     // MX SuperIO: Communicate with the HW monitor chip
     if (MiceConfig.drivers.mxsuperio) setup_mxsuperio();
     // MX JVS: Interacting with JVS-based devices
-    if (MiceConfig.drivers.mxjvs) setup_mxjvs();
+    if (MiceConfig.drivers.mxjvs) {
+        setup_mxjvs();
+        load_keybind_config();
+    }
     // MX HW Reset: Forcibly reboot the machine
     if (MiceConfig.drivers.mxhwreset) setup_mxhwreset();
     // MX SMBus: Communicate over the LPC bus. This contains the EEPROM, and PCA9535
@@ -177,23 +148,9 @@ void init_injection(HMODULE hModule) {
     // Must be the last thing called!
     prebind_hooks();
 
-    // TODO: Figure out why we're needing to call this manually (medium priority)
-    if (wcscmp(exeName, L"ALLNetProc.exe") == 0) {
-        log_warning(plfBoot, "Making explicit call to OPENSSL_add_all_algorithms_noconf");
-
-        DWORD imageBase = GetImageBase();
-        imageOffset = (DWORD)hModule - imageBase;
-
-        // OPENSSL_add_all_algorithms_noconf (old exe)
-        // ((void (*)(void))(0x00459770 + imageOffset))();
-
-        // OPENSSL_add_all_algorithms_noconf (pink exe)
-        // ((void (*)(void))(0x00463480 + imageOffset))();
-
-        // TODO: Find finale offset
-    }
-
     setup_hooks();
+
+    start_devices();
 }
 
 void tea_hook_test(char* fmt, ...) {
@@ -203,24 +160,63 @@ void tea_hook_test(char* fmt, ...) {
     va_end(argp);
 }
 
+BOOL g_bIsInDllMain = TRUE;
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
     if (ul_reason_for_call != DLL_PROCESS_ATTACH) return TRUE;
+    g_bIsInDllMain = TRUE;
 
     GetModuleFileNameW(NULL, exeName, MAX_PATH);
     wcscpy_s(exeName, MAX_PATH + 1, PathFindFileNameW(exeName));
 
+    if (!MiceIpcSetup(FALSE)) {
+        fprintf(stderr, "Failed to initialise IPC from within micelib. Bailing hard!");
+        TerminateProcess(GetCurrentProcess(), 0);
+        return FALSE;
+    }
+
     HMODULE exeModule = GetModuleHandleA(NULL);
     init_injection(exeModule);
 
-    if (wcscmp(exeName, L"InitialD8_GLW_RE_SBZZ_dumped_.exe") == 0) {
-        CreateHook32((void*)(0x00407850), &tea_hook_test);
-        // *((DWORD*)(0x00407850)) = (DWORD)(&logcb);
+    _MiceGotGameId(_miceIpcData->m_GameId);
+
+    // InitialD 8
+    if (false) {
+        DWORD dword = 0;
+        MiceHookPatchAtImage(exeModule, (PVOID)0x0126867c, &dword, 4);
+
+        BYTE movEax1[] = { 0xb8, 0x01, 0x00, 0x00, 0x00 };
+        // Bypass cgGcIsProfileSupported
+        MiceHookNopAtImage(exeModule, (PVOID)0xb4c9ac, 6);
+        MiceHookPatchAtImage(exeModule, (PVOID)0xb4c9ac, movEax1, sizeof movEax1);
+        MiceHookNopAtImage(exeModule, (PVOID)0xb4ca9f, 6);
+        MiceHookPatchAtImage(exeModule, (PVOID)0xb4ca9f, movEax1, sizeof movEax1);
+
+        // change glProgramEnvParameters4fvNV to EXT version that works with any GPUs
+        static const char* arb = "glProgramEnvParameters4fvEXT";
+        MiceHookPatchAtImage(exeModule, (PVOID)0xB70E26, &arb, 4);
+        // force volatile texture (driver bug(?) check) presence
+        MiceHookNopAtImage(exeModule, (PVOID)(0xB6BC20 + 0x5667), 2);
+
+        DWORD profile;
+        BOOL amd = TRUE;
+        if (amd)
+            profile = 6151;  // CG_PROFILE_FP40
+        else
+            profile = 7000;  // CG_PROFILE_ARBFP1
+
+        // Vertex shader is compiled with profile 6150
+        // Pixel shader is compiled with profile 7000
+
+        // Change shader profile for glareGenerator
+        MiceHookPatchAtImage(exeModule, (PVOID)0x7D06A8, &profile, 4);
+
+        DetourTransactionBegin();
+        DetourUpdateThread(GetCurrentThread());
+        void* original = (void*)0x00407850;
+        DetourAttach(&original, tea_hook_test);
+        DetourTransactionCommit();
     }
 
-    // if (wcscmp(exeName, L"RingGame.exe") == 0) {
-    //     log_warning(plfBoot, "Bodge hook goo!");
-    //     CreateHook32((void*)(0x005f2580), &tea_hook_test);
-    // }
-
+    g_bIsInDllMain = FALSE;
     return TRUE;
 }

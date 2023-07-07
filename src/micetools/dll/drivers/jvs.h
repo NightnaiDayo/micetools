@@ -4,35 +4,42 @@
 #define JVS_NODE_BROADCAST 0xff
 
 #define JVS_VERSION_CMD 0x13  // A real board reports 1.1, but we support 1.3
-#define JVS_VERSION_JVS 0x20
+#define JVS_VERSION_JVS 0x30  // My board is 0x20, but SBWU needs 0x30
 #define JVS_VERSION_COMM 0x10
 
-#define JVS_STATUS_OK 0x01
-#define JVS_STATUS_UKCOM 0x02
-#define JVS_STATUS_SUM 0x03
-#define JVS_STATUS_OVERFLOW 0x04
-#define JVS_STATUS_UNKNOWN 0xff  // Not a spec-compliant status, but there's none for this!
+typedef enum JVS_STATUS {
+    JVS_STATUS_OK = 0x01,
+    JVS_STATUS_UKCOM = 0x02,
+    JVS_STATUS_SUM = 0x03,
+    JVS_STATUS_OVERFLOW = 0x04,
+    JVS_STATUS_UNKNOWN = 0xfe,  // Not a spec-compliant status, but there's none for this!
+    JVS_STATUS_SILENCE = 0xff,  // Pseudo-status to indicate that the response is not to be sent
+} JVS_STATUS;
 
-#define JVS_REPORT_OK 0x01
-#define JVS_REPORT_PARAM_NODATA 0x02
-#define JVS_REPORT_PARAM_INVALID 0x03
-#define JVS_REPORT_BUSY 0x04
+typedef enum JVS_REPORT {
+    JVS_REPORT_OK = 0x01,
+    JVS_REPORT_PARAM_NODATA = 0x02,
+    JVS_REPORT_PARAM_INVALID = 0x03,
+    JVS_REPORT_BUSY = 0x04,
+} JVS_REPORT;
 
-#define JVS_FEATURE_PAD 0x00
-#define JVS_FEATURE_EOF 0x00
-#define JVS_FEATURE_PLAYERS 0x01
-#define JVS_FEATURE_COINS 0x02
-#define JVS_FEATURE_ANALOG 0x03
-#define JVS_FEATURE_ROTARY 0x04
-#define JVS_FEATURE_KEYCODE 0x05
-#define JVS_FEATURE_SCREEN_POS 0x06
-#define JVS_FEATURE_MISC_SWITCH 0x07
-#define JVS_FEATURE_CARDS 0x10
-#define JVS_FEATURE_MEDAL_HOPPER 0x11
-#define JVS_FEATURE_GPIO 0x12
-#define JVS_FEATURE_ANALOG_OUT 0x13
-#define JVS_FEATURE_CHAR_OUT 0x14
-#define JVS_FEATURE_BACKUP 0x15
+typedef enum JVS_FEATURE {
+    JVS_FEATURE_PAD = 0x00,
+    JVS_FEATURE_EOF = 0x00,
+    JVS_FEATURE_PLAYERS = 0x01,
+    JVS_FEATURE_COINS = 0x02,
+    JVS_FEATURE_ANALOG = 0x03,
+    JVS_FEATURE_ROTARY = 0x04,
+    JVS_FEATURE_KEYCODE = 0x05,
+    JVS_FEATURE_SCREEN_POS = 0x06,
+    JVS_FEATURE_MISC_SWITCH = 0x07,
+    JVS_FEATURE_CARDS = 0x10,
+    JVS_FEATURE_MEDAL_HOPPER = 0x11,
+    JVS_FEATURE_GPIO = 0x12,
+    JVS_FEATURE_ANALOG_OUT = 0x13,
+    JVS_FEATURE_CHAR_OUT = 0x14,
+    JVS_FEATURE_BACKUP = 0x15,
+} JVS_FEATURE;
 
 #define JVS_CHARTYPE_UNKNOWN 0x00
 #define JVS_CHARTYPE_NUMBER 0x01

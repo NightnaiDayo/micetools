@@ -1246,7 +1246,6 @@ e_pcpp_t pcppSendBinary(pcpp_t* stream, const unsigned char* send_binary_buffer,
 
 e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
     size_t* psVar1;
-    char** send_buf;
     undefined4 uVar2;
     int iVar3;
     e_pcpt_t eVar4;
@@ -1688,14 +1687,12 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 } while (stream->field_0x1fc <= stream->recv_binary_buf_len &&
                          stream->recv_binary_buf_len != stream->field_0x1fc);
             }
-            send_buf = (char**)&stream->send_buf;
-            psVar1 = &stream->send_buf_len;
             stream->state = pcpp_state_send_binary_ack;
-            *send_buf[0] = PCP_CHAR_BINACK;
-            *psVar1 = 1;
+            stream->send_buf[0] = PCP_CHAR_BINACK;
+            stream->send_buf_len = 1;
             local_20 = pcppGetBlockingTime(stream->field_0x20c, uVar11, stream, _amTimeMs(local_18),
                                            &timeout);
-            eVar4 = pcptSend(&stream->sock, (unsigned char*)*send_buf, psVar1, stream->field_0x204,
+            eVar4 = pcptSend(&stream->sock, (unsigned char*)stream->send_buf, &stream->send_buf_len, stream->field_0x204,
                              timeout);
             eVar7 = _errT2P(eVar4);
             stream->err = eVar7;
@@ -1713,9 +1710,9 @@ e_pcpp_t pcppIsBusy(pcpp_t* stream, timeout_t timeout) {
                 stream->state = pcpp_state_send_binary_ack_wait;
                 iVar3 = pcppGetBlockingTime(stream->field_0x208, uVar11, stream,
                                             _amTimeMs(local_18), &timeout);
-                *psVar1 = PCP_SEND_BUF_MAX;
+                stream->send_buf_len = PCP_SEND_BUF_MAX;
                 ZERO(stream->send_buf);
-                eVar4 = pcptRecv(&stream->data_sock, (unsigned char*)*send_buf, psVar1, timeout);
+                eVar4 = pcptRecv(&stream->data_sock, (unsigned char*)stream->send_buf, &stream->send_buf_len, timeout);
                 eVar7 = _errT2P(eVar4);
                 stream->err = eVar7;
                 if ((iVar3 != 0) && (eVar7 == e_pcpp_to)) {

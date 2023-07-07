@@ -3,35 +3,44 @@
 
 #include "../lib/mice/mice.h"
 
-spawn_t mxspawns[3] = {
-    // { "keychip", SPAWN_DUMMY, MdkThreadProc, MxkThreadProc },
-    // { "master", SPAWN_DUMMY, MdmThreadProc, NULL },
-    // { "installer", SPAWN_DUMMY, MdiThreadProc, NULL },
-    { "keychip", SPAWN_NONE, MdkThreadProc, MxkThreadProc },
-    { "master", SPAWN_NONE, MdmThreadProc, NULL },
-    { "installer", SPAWN_NONE, MdiThreadProc, NULL },
+spawn_t mxspawns[] = {
+    { "keychip", SPAWN_DUMMY, MdkThreadProc, MxkThreadProc },
+    { "master", SPAWN_DUMMY, MdmThreadProc, NULL },
+    { "installer", SPAWN_DUMMY, MdiThreadProc, NULL },
+    { "network", SPAWN_DUMMY, MdnThreadProc, NULL },
+    { "gdeliver", SPAWN_DUMMY, MdgdThreadProc, NULL },
 };
 
 int mxkMain();
 int miceDummyKeychip(unsigned short textPort, unsigned short binaryPort, bool global);
 int miceDummyMaster(unsigned short textPort, unsigned short binaryPort, bool global);
 int miceDummyInstaller(unsigned short textPort, unsigned short binaryPort, bool global);
+int miceDummyNetwork(unsigned short textPort, unsigned short binaryPort, bool global);
+int miceDummyGDeliver(unsigned short textPort, unsigned short binaryPort, bool global);
 DWORD WINAPI MdkThreadProc(LPVOID lpParameter) {
     miceDummyKeychip(40106, 40107, false);
     return 0;
-};
+}
 DWORD WINAPI MxkThreadProc(LPVOID lpParameter) {
     mxkMain();
     return 0;
-};
+}
 DWORD WINAPI MdmThreadProc(LPVOID lpParameter) {
     miceDummyMaster(40100, 40101, false);
     return 0;
-};
+}
 DWORD WINAPI MdiThreadProc(LPVOID lpParameter) {
     miceDummyInstaller(40102, 40103, false);
     return 0;
-};
+}
+DWORD WINAPI MdnThreadProc(LPVOID lpParameter) {
+    miceDummyNetwork(40104, 40105, false);
+    return 0;
+}
+DWORD WINAPI MdgdThreadProc(LPVOID lpParameter) {
+    miceDummyGDeliver(40108, 40112, false);
+    return 0;
+}
 
 static inline void spawn_one(spawn_t* spawn) {
     if (spawn->mode == SPAWN_NONE) {

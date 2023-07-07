@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../hooks/files.h"
+
 BOOL PathEqual(LPCSTR path1, LPCSTR path2) {
     char buffer1[MAX_PATH];
     char buffer2[MAX_PATH];
@@ -24,10 +26,10 @@ BOOL PathPrefix(LPCSTR path, LPCSTR prefix) {
 
 static char WORKING_DIR[MAX_PATH + 1] = { 0 };
 char GetGamedataDrive(void) {
-    if (WORKING_DIR[0] == 0x00) GetCurrentDirectoryA(sizeof WORKING_DIR, WORKING_DIR);
+    if (WORKING_DIR[0] == 0x00) _GetCurrentDirectoryA(sizeof WORKING_DIR, WORKING_DIR);
     return WORKING_DIR[0];
 }
 BOOL IsGamedataLocalPath(LPCSTR path) {
-    if (WORKING_DIR[0] == 0x00) GetCurrentDirectoryA(sizeof WORKING_DIR, WORKING_DIR);
+    if (WORKING_DIR[0] == 0x00) _GetCurrentDirectoryA(sizeof WORKING_DIR, WORKING_DIR);
     return PathPrefix(path, WORKING_DIR);
 }

@@ -7,6 +7,8 @@
 #include "../../util/_util.h"
 #include "../files.h"
 
+static DWORD _AttachedPhysicalDisks = 0;
+
 /*
     First 512 bytes of SPD_Original0:
         LOADER::LoadBootIDHeader
@@ -46,10 +48,17 @@ BYTE Original0BootIDHeader[512] = {
     0x2F, 0x99, 0xC8, 0x54, 0xD2, 0xDB, 0x52, 0x49, 0xD6, 0xB6, 0x07, 0x1A, 0xBA, 0x9A, 0x85, 0xBB,
 };
 
+physical_disk_t* _GetDisk0() {
+    for (int i = 0; i < MAX_DISKS; i++) {
+        if (AVAILABLE_DISKS[i].m_Installed) return AVAILABLE_DISKS[i].m_Disk;
+    }
+    return NULL;
+}
+
 BOOL ReadFunc_Original0(DWORD nOffset, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
                         LPDWORD lpNumberOfBytesRead) {
     *lpNumberOfBytesRead = 0;
-    if (!_PathFileExistsA(ORIGINAL0_PATH)) {
+    if (!FileExistsA(ORIGINAL0_PATH)) {
         log_error(plfDrive, "Failed to open %s (does not exist)", ORIGINAL0_PATH);
         return FALSE;
     }
@@ -60,8 +69,11 @@ BOOL ReadFunc_Original0(DWORD nOffset, LPVOID lpBuffer, DWORD nNumberOfBytesToRe
         log_error(plfDrive, "Failed to open %s", ORIGINAL0_PATH);
         return FALSE;
     }
+    physical_disk_t* lpSsd = _GetDisk0();
+    if (lpSsd == NULL) return FALSE;
+
     LARGE_INTEGER seekTo;
-    seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)SSD.m_BlockSize;
+    seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)lpSsd->m_BlockSize;
     _SetFilePointerEx(hFile, seekTo, NULL, FILE_BEGIN);
     BOOL ret = _ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, NULL);
     if (!ret) log_error(plfDrive, "Failed to read to %s: %03x", ORIGINAL0_PATH, GetLastError());
@@ -78,8 +90,11 @@ BOOL WriteFunc_Original0(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesTo
         log_error(plfDrive, "Failed to open %s", ORIGINAL0_PATH);
         return FALSE;
     }
+    physical_disk_t* lpSsd = _GetDisk0();
+    if (lpSsd == NULL) return FALSE;
+
     LARGE_INTEGER seekTo;
-    seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)SSD.m_BlockSize;
+    seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)lpSsd->m_BlockSize;
     _SetFilePointerEx(hFile, seekTo, NULL, FILE_BEGIN);
     BOOL ret = _WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, NULL);
     if (!ret) log_error(plfDrive, "Failed to write to %s: %03x", ORIGINAL0_PATH, GetLastError());
@@ -90,7 +105,7 @@ BOOL WriteFunc_Original0(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesTo
 BOOL ReadFunc_Patch0(DWORD nOffset, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
                      LPDWORD lpNumberOfBytesRead) {
     *lpNumberOfBytesRead = 0;
-    if (!_PathFileExistsA(PATCH0_PATH)) {
+    if (!FileExistsA(PATCH0_PATH)) {
         log_error(plfDrive, "Failed to open %s (does not exist)", PATCH0_PATH);
         return FALSE;
     }
@@ -101,8 +116,11 @@ BOOL ReadFunc_Patch0(DWORD nOffset, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
         log_error(plfDrive, "Failed to open %s", PATCH0_PATH);
         return FALSE;
     }
+    physical_disk_t* lpSsd = _GetDisk0();
+    if (lpSsd == NULL) return FALSE;
+
     LARGE_INTEGER seekTo;
-    seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)SSD.m_BlockSize;
+    seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)lpSsd->m_BlockSize;
     _SetFilePointerEx(hFile, seekTo, NULL, FILE_BEGIN);
     BOOL ret = _ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, NULL);
     if (!ret) log_error(plfDrive, "Failed to read to %s: %03x", PATCH0_PATH, GetLastError());
@@ -119,8 +137,11 @@ BOOL WriteFunc_Patch0(DWORD nOffset, LPCVOID lpBuffer, DWORD nNumberOfBytesToWri
         log_error(plfDrive, "Failed to open %s", PATCH0_PATH);
         return FALSE;
     }
+    physical_disk_t* lpSsd = _GetDisk0();
+    if (lpSsd == NULL) return FALSE;
+
     LARGE_INTEGER seekTo;
-    seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)SSD.m_BlockSize;
+    seekTo.QuadPart = (LONGLONG)nOffset * (LONGLONG)lpSsd->m_BlockSize;
     _SetFilePointerEx(hFile, seekTo, NULL, FILE_BEGIN);
     BOOL ret = _WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, NULL);
     if (!ret) log_error(plfDrive, "Failed to write to %s: %03x", PATCH0_PATH, GetLastError());
@@ -217,6 +238,7 @@ BOOL WINAPI x_drive_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, 
     }
 }
 
+extern physical_disk_t ALPHA_DVD;  // Bit hacky, but good enough for now
 BOOL WINAPI q_drive_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer,
                                     DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
                                     LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
@@ -379,14 +401,17 @@ disk_volume_t* getVolumeByPath(LPCSTR lpRootPathName, DWORD match) {
         return FALSE;
     }
 
-    for (size_t disk = 0; disk < MAX_DISKS && PHYSICAL_DISKS[disk] != NULL; disk++) {
+    for (size_t disk = 0; disk < MAX_DISKS && AVAILABLE_DISKS[disk].m_Disk != NULL; disk++) {
+        if (!AVAILABLE_DISKS[disk].m_Installed) continue;
+
         for (size_t part = 0; part < 4; part++) {
-            disk_volume_t* volume = &(PHYSICAL_DISKS[disk]->m_Partitions[part].m_Volume);
+            disk_volume_t* volume = &(AVAILABLE_DISKS[disk].m_Disk->m_Partitions[part].m_Volume);
             if (matchVolume(volume, lpRootPathName, match)) return volume;
         }
 
-        for (size_t part = 0; PHYSICAL_DISKS[disk]->m_Extended[part].m_PartitionNumber; part++) {
-            disk_volume_t* volume = &(PHYSICAL_DISKS[disk]->m_Extended[part].m_Volume);
+        for (size_t part = 0; AVAILABLE_DISKS[disk].m_Disk->m_Extended[part].m_PartitionNumber;
+             part++) {
+            disk_volume_t* volume = &(AVAILABLE_DISKS[disk].m_Disk->m_Extended[part].m_Volume);
             if (matchVolume(volume, lpRootPathName, match)) return volume;
         }
     }
@@ -646,10 +671,41 @@ void init_pd(physical_disk_t* pd) {
     hook_file(hook);
 }
 
+BOOL attach_disk(virtual_disk_t* lpDisk) {
+    if (lpDisk->m_Disk->m_DriveNumber != (DWORD)-1) return FALSE;
+    if (lpDisk->m_Attached) return TRUE;
+    lpDisk->m_Attached = TRUE;
+
+    lpDisk->m_Disk->m_DriveNumber = _AttachedPhysicalDisks++;
+    lpDisk->m_Disk->m_DeviceName[0] = '\0';
+    lpDisk->m_Disk->m_DosDeviceName[0] = '\0';
+    init_pd(lpDisk->m_Disk);
+    return TRUE;
+}
+BOOL detach_disk(virtual_disk_t* lpDisk) {
+    if (lpDisk->m_Disk->m_DriveNumber == (DWORD)-1) return FALSE;
+    if (!lpDisk->m_Attached) return TRUE;
+
+    wchar_t hookPath[21];
+    swprintf_s(hookPath, _countof(hookPath), L"\\\\.\\%ls", lpDisk->m_Disk->m_DosDeviceName);
+
+    file_hook_t* hook = unhook_file(hookPath);
+    if (hook == NULL) return FALSE;
+
+    lpDisk->m_Disk->m_DriveNumber = (DWORD)-1;
+    lpDisk->m_Attached = FALSE;
+    free((void*)hook->filename);
+    free(hook);
+    return TRUE;
+}
+
 void init_all_pd() {
-    for (int i = 0; i < MAX_DISKS && PHYSICAL_DISKS[i] != NULL; i++) {
-        PHYSICAL_DISKS[i]->m_DriveNumber = i;
-        init_pd(PHYSICAL_DISKS[i]);
+    for (int i = 0; i < MAX_DISKS && AVAILABLE_DISKS[i].m_Disk != NULL; i++) {
+        AVAILABLE_DISKS[i].m_Disk->m_DriveNumber = (DWORD)-1;
+        AVAILABLE_DISKS[i].m_Attached = FALSE;
+    }
+    for (int i = 0; i < MAX_DISKS && AVAILABLE_DISKS[i].m_Disk != NULL; i++) {
+        if (AVAILABLE_DISKS[i].m_Installed) attach_disk(&AVAILABLE_DISKS[i]);
     }
 }
 
@@ -704,11 +760,6 @@ void hook_drives() {
     q_drive->DeviceIoControl = &q_drive_DeviceIoControl;
     q_drive->ReadFile = &q_drive_ReadFile;
     hook_file(q_drive);
-    // TODO: ewwwwwwwwwwwwwwwwww
-    file_hook_t* q_drive_lower = new_file_hook(L"\\\\.\\q:");
-    q_drive_lower->DeviceIoControl = &q_drive_DeviceIoControl;
-    q_drive_lower->ReadFile = &q_drive_ReadFile;
-    hook_file(q_drive_lower);
 
     hook("Kernel32.dll", "FindFirstVolumeW", &FakeFindFirstVolumeW, NULL);
     hook("Kernel32.dll", "FindNextVolumeW", &FakeFindNextVolumeW, NULL);
@@ -734,14 +785,15 @@ void hook_drives() {
 
     hook("Winmm.dll", "mciSendStringA", &Fake_mciSendStringA, NULL);
 
-    make_dirs(DISK_PATH);
+    make_dirs(DISK_PATH));
 
     SegaBootRecordDefault.crc =
         amiCrc32RCalc(sizeof SegaBootRecordDefault - 4, &SegaBootRecordDefault.version, 0);
 
     HANDLE hFile;
     DWORD numberOfBytesRead;
-    if (_PathFileExistsA(SBR0_PATH)) {
+
+    if (FileExistsA(SBR0_PATH)) {
         hFile =
             _CreateFileA(SBR0_PATH, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
         if (hFile == INVALID_HANDLE_VALUE) {
@@ -755,7 +807,7 @@ void hook_drives() {
         // memcpy(&SegaBootRecord0, &SegaBootRecordDefault, sizeof SegaBootRecord0);
     }
 
-    if (_PathFileExistsA(SBR1_PATH)) {
+    if (FileExistsA(SBR1_PATH)) {
         hFile =
             _CreateFileA(SBR1_PATH, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
         if (hFile == INVALID_HANDLE_VALUE) {

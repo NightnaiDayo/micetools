@@ -35,8 +35,7 @@ void nxAuthStart(LPPROCESS_INFORMATION procInfo) {
     wchar_t commandLine[64] = { 0 };
     wchar_t path[64] = { 0 };
 
-    MultiByteToWideChar(0, 0, Config.binary.nxAuth, -1, commandLine,
-                        _countof(commandLine));
+    MultiByteToWideChar(0, 0, Config.binary.nxAuth, -1, commandLine, _countof(commandLine));
     wcscpy_s(path, _countof(path), commandLine);
     PathRemoveFileSpecW(path);
 
@@ -204,20 +203,20 @@ DWORD __stdcall appLauncherAppThread(appLauncherAppInfo_t *appInfo) {
             ZeroMemory(wCommandLine, sizeof wCommandLine);
             ZeroMemory(workingDirectory, sizeof workingDirectory);
 
-            MultiByteToWideChar(0, 0, commandLine, strlen(commandLine), wCommandLine,
-                                sizeof wCommandLine / sizeof wCommandLine[0]);
+            MultiByteToWideChar(0, 0, commandLine, -1, wCommandLine,
+                                (int)(sizeof wCommandLine / sizeof wCommandLine[0]));
             MultiByteToWideChar(0, 0, Config.dir.game, 4, workingDirectory,
-                                sizeof workingDirectory / sizeof workingDirectory[0]);
+                                (int)(sizeof workingDirectory / sizeof workingDirectory[0]));
 
             wchar_t *username = appInfo->m_appLauncher->m_username;
             wchar_t *password = appInfo->m_appLauncher->m_password;
 
             if (wcslen(username) == 0)
-                MultiByteToWideChar(0, 0, Config.env.username, strlen(Config.env.username),
-                                    username, sizeof username / sizeof username[0]);
+                MultiByteToWideChar(0, 0, Config.env.username, -1, username,
+                                    (int)(sizeof username / sizeof username[0]));
             if (wcslen(password) == 0)
-                MultiByteToWideChar(0, 0, Config.env.password, strlen(Config.env.password),
-                                    password, sizeof password / sizeof password[0]);
+                MultiByteToWideChar(0, 0, Config.env.password, -1, password,
+                                    (int)(sizeof password / sizeof password[0]));
 
             amiDebugLog("Creating process: %ls", wCommandLine);
             success = CreateProcessWithLogonW(username, NULL, password, 0, NULL, wCommandLine,

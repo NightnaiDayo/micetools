@@ -2,7 +2,7 @@
 #include "../../maiBackupStructs.h"
 #include "_devices.h"
 
-#define EEPROM_PATH L"dev/eeprom.bin"
+#define EEPROM_PATH MiceIpcRelativePath("eeprom.bin")
 
 #include "../../sysconf.h"
 
@@ -52,17 +52,21 @@ void set_eeprom_static_config() {
 }
 
 void build_eeprom() {  // return;
-    log_info(plfEeprom, "Building default EEPROM file");
+    log_misc(plfEeprom, "Building default EEPROM file");
 
     memset(EEPROM_DATA, 0xff, EEPROM_SIZE);
 
     set_eeprom_static_config();
 
+    BOOL freeplay = TRUE;
     AM_SYSDATAwH_CREDIT Credit = {
         .m_Config = {
+            .ChuteType = 0,
             .ServiceType = 1,
-            .CreditRate = 1,
+            .Operation = freeplay ? 1 : 0,
             .CoinRate = { 1, 1 },
+            .BonusAdder = 0,
+            .CreditRate = 1,
             .Cost = { 1, 1, 1, 1, 1, 1, 1, 1 },
         },
      };
@@ -86,29 +90,17 @@ void build_eeprom() {  // return;
     fix_crc(DevConfig);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_ALPB_DEV_CONFIG_REG], &DevConfig, sizeof DevConfig);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_ALPB_DEV_CONFIG_DUP], &DevConfig, sizeof DevConfig);
-
-    // eeprom_dump();
 }
 
-AM_SYSDATAwH_HISTORY AmHistory = {
-    // By making the game ID "____" we ensure games overwrite this, letting us see what they write.
-    // This is currently the best way I have found to retrieve the game ID
-    .m_GameId = { '_', '_', '_', '_' },
-};
-/** Clobber EEPROM with our user settings */
+/* Clobber EEPROM with our user settings */
 void eeprom_fixup() {
     set_eeprom_static_config();
     set_eeprom_network_config();
-
-    // AmHistory.m_Region = MiceConfig.sysconf.region & (1 | 2 | 4 | 8);
-    // fix_crc(AmHistory);
-    // memcpy(&EEPROM_DATA[AM_SYSDATAwH_HISTORY_REG], &AmHistory, sizeof AmHistory);
-    // memcpy(&EEPROM_DATA[AM_SYSDATAwH_HISTORY_DUP], &AmHistory, sizeof AmHistory);
 }
 
 void ensure_valid_eeprom() {
     if (!EEPROM_DATA) {
-        BOOL isNew = !FileExists(EEPROM_PATH);
+        BOOL isNew = !FileExistsA(EEPROM_PATH);
 
         EEPROM_DATA =
             open_mapped_file(EEPROM_PATH, EEPROM_SIZE, &EEPROM_FILE, &EEPROM_FILE_MAPPING);
@@ -140,14 +132,14 @@ void eeprom_write(WORD addr, BYTE* data, BYTE length) {
     if (addr == AM_SYSDATAwH_HISTORY_REG && length == sizeof(AM_SYSDATAwH_HISTORY)) {
         PAM_SYSDATAwH_HISTORY pHistory = (PAM_SYSDATAwH_HISTORY)data;
 
-        mice_got_game_id(pHistory->m_GameId);
+        _MiceGotGameId(pHistory->m_GameId);
     } else if (addr >= 0x1000 && length > 8) {
         char game_id[4];
         game_id[0] = data[7];
         game_id[1] = data[6];
         game_id[2] = data[5];
         game_id[3] = data[4];
-        mice_got_game_id(game_id);
+        _MiceGotGameId(game_id);
     }
 
     memcpy(EEPROM_DATA + addr, data, length);

@@ -87,6 +87,6 @@ void mxkPcpAbSeed(pcpa_t* stream, void* data) {
     pcpaAddSendPacket(stream, "port", "40107");
 
     char sSize[16];
-    sprintf_s(sSize, sizeof sSize, "%d", sizeof mxkKcfConfig.m_Seed);
+    sprintf_s(sSize, sizeof sSize, "%zd", sizeof mxkKcfConfig.m_Seed);
     pcpaAddSendPacket(stream, "size", sSize);
 }

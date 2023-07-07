@@ -10,11 +10,21 @@ typedef struct function_hook {
     struct function_hook* next;
 } function_hook_t;
 
-static BOOL Detour(PVOID src, PVOID dst, const intptr_t len);
+#define NOP 0x90
 
-void patch_at(PVOID addr, const char* patch, DWORD length);
-void clear_at(PVOID addr, BYTE clearVal, DWORD length);
-void* CreateHook32(PVOID src, PVOID dst);
+DWORD MiceGetImageBase(void);
+
+void MiceHookPatchAt(PVOID addr, const void* patch, DWORD length);
+#define MiceHookPatchAtImage(hModule, addr, patch, length)                                   \
+    MiceHookPatchAt((PVOID)((DWORD)(addr) + ((DWORD)(hModule)-MiceGetImageBase())), (patch), \
+                    (length))
+void MiceHookClearAt(PVOID addr, BYTE clearVal, DWORD length);
+#define MiceHookClearAtImage(hModule, addr, clearVal, length)                                   \
+    MiceHookClearAt((PVOID)((DWORD)(addr) + ((DWORD)(hModule)-MiceGetImageBase())), (clearVal), \
+                    (length))
+#define MiceHookNopAt(addr, length) MiceHookClearAt((addr), NOP, (length))
+#define MiceHookNopAtImage(hModule, addr, length) \
+    MiceHookClearAtImage((hModule), (addr), NOP, (length))
 
 static void append_hook(function_hook_t* hook);
 void hook(LPCSTR dll, LPCSTR name, void* patch, void** store);

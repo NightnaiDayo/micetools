@@ -4,6 +4,53 @@
 #define SERVO_OK 0
 #define SERVO_NG 8
 
+/*
+
+From AndyGeezer:
+
+SUD = Sega Universal Drive
+
+-- sample init code --
+
+
+ff00007f <-- reset sud
+81307f4e <-- set init values/reset sud
+fc00205c <-- init sud
+
+fd00007d
+fd00007d <-- poll until not returning 0x44
+fd00007d
+
+fa001f65 <-- change echo status to return
+83600467 <-- set global power
+86010205 <-- set friction
+
+move the wheel left/right to centre here..
+
+
+8800040c <-- set go to target point power
+f0000070 <-- set target point
+
+84010005 <-- direction off
+80000000 <-- motor off
+
+
+8b2000ff <-- centering power
+862f00ff <-- friction power
+800001FF <-- motor on
+fd00007d <-- poll
+
+
+
+80<param><param2><crc> = power
+
+examples:
+80 00 01 = Constantly on
+80 01 01 = Run once
+80 00 00 = Motor off
+
+*/
+
 static DWORD WINAPI ser_servo_15069_thread(com_device_t* dev) {
     log_game(plfServo15069, "%ls woke up", dev->com->wName);
 

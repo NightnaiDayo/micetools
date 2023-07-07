@@ -195,7 +195,7 @@ int mxkN2UtilHmacPacket(PSha1Sum_t packetSha, PHmacSum_t hmacSalt, PN2Nonce_t no
     unsigned char data_in[sizeof *packetSha + sizeof *hmacSalt + sizeof *nonce];
 
     size_t count = sizeof *packetSha + sizeof *hmacSalt + sizeof *nonce;
-    size_t nout = HMAC_SUM_SIZE;
+    unsigned int nout = HMAC_SUM_SIZE;
     mxkN2UtilCatenateData(data_in, &count, 3, packetSha, sizeof *packetSha, hmacSalt,
                           sizeof *hmacSalt, nonce, sizeof *nonce);
 

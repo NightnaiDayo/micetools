@@ -6,7 +6,8 @@
 #define HDATA_FIND_VOLUME 1
 #define HDATA_ANY 0xFFFFFFFF
 
-BOOL FileExists(wchar_t* szPath);
+BOOL FileExistsW(const wchar_t* szPath);
+BOOL FileExistsA(const char* szPath);
 PVOID GetDataForHandle(HANDLE hObject, DWORD type);
 void SetDataForHandle(HANDLE hObject, DWORD type, PVOID pData, BOOL isHeap);
 BOOL RemoveDataForHandle(HANDLE hObject, DWORD type);
@@ -24,7 +25,7 @@ char GetGamedataDrive(void);
 BOOL IsGamedataLocalPath(LPCSTR path);
 
 void make_dirs(const char* path);
-void* open_mapped_file(LPCWSTR path, DWORD size, HANDLE* file, HANDLE* file_mapping);
+void* open_mapped_file(LPCSTR path, DWORD size, HANDLE* file, HANDLE* file_mapping);
 
 #define char_lower(value) (('A' <= (value) && (value) <= 'Z') ? ((value) - 'A' + 'a') : (value))
 #define char_upper(value) (('a' <= (value) && (value) <= 'z') ? ((value) - 'a' + 'A') : (value))

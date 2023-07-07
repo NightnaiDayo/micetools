@@ -66,7 +66,9 @@ LONG WINAPI FakeRtlGetVersion(PRTL_OSVERSIONINFOW lpVersionInformation) {
 
 // TODO: We should probably handle libamv_amd.dll at some point too
 HMODULE WINAPI FakeLoadLibraryA(LPCSTR lpLibFileName) {
-    if (strcmp(lpLibFileName, "libamv_nvidia.dll") == 0) {
+    if (_stricmp(lpLibFileName, "libamv_nvidia.dll") == 0 ||
+        _stricmp(lpLibFileName, "libamv_amd.dll") == 0 ||
+        _stricmp(lpLibFileName, "atipdlxx.dll") == 0) {
         return TrueLoadLibraryA(MICELIB);
     }
     return TrueLoadLibraryA(lpLibFileName);
@@ -74,7 +76,9 @@ HMODULE WINAPI FakeLoadLibraryA(LPCSTR lpLibFileName) {
 #define WIDEN2(x) L##x
 #define WIDEN(x) WIDEN2(x)
 HMODULE WINAPI FakeLoadLibraryW(LPCWSTR lpLibFileName) {
-    if (wcscmp(lpLibFileName, L"libamv_nvidia.dll") == 0) {
+    if (_wcsicmp(lpLibFileName, L"libamv_nvidia.dll") == 0 ||
+        _wcsicmp(lpLibFileName, L"libamv_amd.dll") == 0 ||
+        _wcsicmp(lpLibFileName, L"atipdlxx.dll") == 0) {
         return TrueLoadLibraryW(WIDEN(MICELIB));
     }
     return TrueLoadLibraryW(lpLibFileName);

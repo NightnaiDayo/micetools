@@ -81,12 +81,8 @@ static DWORD WINAPI led_bd_thread(com_device_t* dev) {
 
     while (1) {
         rs232c_recv_head_t head;
-        if (comdev_available(dev) < sizeof head) {
-            // Sleep(100);
-            continue;
-        }
-        comdev_read(dev, (unsigned char*)&head, sizeof head);
-        comdev_read(dev, extra, head.length);
+        comdev_read_blocking(dev, (unsigned char*)&head, sizeof head);
+        comdev_read_blocking(dev, extra, head.length);
 
         // log_info(plfMaiLED, "Bound %02x->%02x", head.src, head.dst);
 

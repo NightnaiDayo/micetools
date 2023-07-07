@@ -1,5 +1,5 @@
 #include "../hooks/setupapi_.h"
-#include "../lib/dmi/dmi.h"
+#include "../../lib/mice/dmi.h"
 #include "mx.h"
 #include "smbus.h"
 

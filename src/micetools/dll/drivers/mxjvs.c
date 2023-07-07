@@ -2,290 +2,22 @@
 
 #include "../comdevice.h"
 #include "../common.h"
+#include "../input.h"
 #include "../key_config.h"
-#include "jvs.h"
+#include "jvs_boards/jvs.h"
 #include "mx.h"
 
-BOOL JVS_SENSE = false;
-BOOL coin_solenoid = false;
-BOOL test_btn = false;
+#define JVS_SENSE (MiceConfig.keys.board_count == 0 ? FALSE : _MiceJvsBoards[0].m_SenseOut)
 
-#define PLAYER_COUNT 2
-#define COIN_COUNTERS 2
-#define SWITCH_BYTES 2
-
-// const char JVS_837_14572_ID[] = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-14572 ;Ver1.00;98/10";
-const char JVS_837_14572_ID[] = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551 ;Ver1.00;98/10";
-
-typedef struct _jvs_board {
-    int num;
-    unsigned short coin_counts[COIN_COUNTERS];
-
-    unsigned char (*handler)(struct _jvs_board* board, unsigned char* inData, short inCount,
-                             unsigned char* outData, unsigned char* outCount);
-    const char* id;
-
-    unsigned char last_sysbuttons;
-    unsigned short last_buttons[PLAYER_COUNT];
-} jvs_board_t;
-#define JVS_FLAG_NONE 0
-#define JVS_FLAG_NC 1
-#define JVS_FLAG_INVERT 2
-
-jvs_board_t jvs_boards[JVS_IO_MAX] = { 0 };
-
-short jvs_unpad(unsigned char* paddedData, short length, unsigned char* unpaddedData) {
-    short index = 0;
-    bool escape = false;
-    for (short i = 0; i < length; i++) {
-        if (escape) {
-            unpaddedData[index++] = paddedData[i] + 1;
-            escape = false;
-        } else if (paddedData[i] == JVS_MARK)
-            escape = true;
-        else
-            unpaddedData[index++] = paddedData[i];
+JVS_STATUS MiceJvsWrapper(PMICE_JVS this, DWORD nMaxRead) {
+    JVS_STATUS status = JVS_STATUS_OK;
+    // -1, because we don't want to treat the checksum as a command!
+    while (this->m_nInIdx < nMaxRead - 1) {
+        JVS_STATUS subStatus = this->vftable->transact(this, MiceJvsRead(this));
+        if (subStatus > status) status = subStatus;
     }
-    return index;
-}
 
-short jvs_pad(unsigned char* unpaddedData, short length, unsigned char* paddedData,
-              short paddedMax) {
-    short index = 0;
-    for (short i = 0; i < length; i++) {
-        if (i > paddedMax) return -1;
-
-        if (i != 0 && (unpaddedData[i] == JVS_MARK || unpaddedData[i] == JVS_SYNC)) {
-            paddedData[index++] = JVS_MARK;
-            paddedData[index++] = unpaddedData[i] - 1;
-        } else {
-            paddedData[index++] = unpaddedData[i];
-        }
-    }
-    return index;
-}
-
-void update_jvs_buttons(jvs_board_t* board) {
-    unsigned char sysButtons = 0x00;
-    if (GetAsyncKeyState(jvsKeybindings[board->num].test) < 0) sysButtons |= 0x80;
-    board->last_sysbuttons = sysButtons;
-
-    for (int player = 0; player < PLAYER_COUNT; player++) {
-        unsigned short buttons = 0x0000;
-        for (int i = 0; i < SWITCH_BYTES * 8; i++) {
-            buttons <<= 1;
-            if (i < 14) {
-                int scancode = jvsKeybindings[board->num].buttons[(i + 1) * 2 + player];
-                bool invert = jvsKeybindings[board->num].invert[(i + 1) * 2 + player];
-
-                if (scancode == 0) continue;
-
-                if (invert)
-                    buttons |= (GetAsyncKeyState(scancode) >= 0);  // << i;
-                else
-                    buttons |= (GetAsyncKeyState(scancode) < 0);  // << i;
-            }
-
-            // 0x80 == push 3
-
-            // buttons |= 1;
-            // buttons |= 0x80;
-        }
-        board->last_buttons[player] = buttons;
-    }
-}
-
-unsigned char jvs_exchange(jvs_board_t* board, unsigned char* inData, short inCount,
-                           unsigned char* response, unsigned char* outCount) {
-    short jvsIndex = 0;
-    unsigned char respIndex = 0;
-
-#define jvs_read(x)                 \
-    if (jvsIndex >= inCount) {      \
-        return JVS_STATUS_OVERFLOW; \
-    } else {                        \
-        (x) = inData[jvsIndex++];   \
-    }
-#define jvs_write(x) response[respIndex++] = (x);
-
-    static bool flipflop = false;
-
-    while (jvsIndex < inCount) {
-        unsigned char cmd;
-        jvs_read(cmd);
-
-        // log_info(plfMxJvs, "CMD: %02x", cmd);
-
-        switch (cmd) {
-            case JVS_CMD_RESET:
-                unsigned char reset_assert;
-                jvs_read(reset_assert);
-                if (reset_assert != JVS_CMD_RESET_ASSERT) return JVS_STATUS_UKCOM;
-
-                JVS_SENSE = true;
-                // Special case
-                *outCount = 0;
-                return JVS_STATUS_OK;
-            case JVS_CMD_CHANGE_COMMS:
-                // Special case
-                *outCount = 0;
-                return JVS_STATUS_OK;
-
-            case JVS_CMD_ASSIGN_ADDR:
-                jvs_write(JVS_REPORT_OK);
-                JVS_SENSE = false;
-                // we don't bother remembering the address because at the moment we only simulate
-                // a single board in the JVS chain.
-                unsigned char _;
-                jvs_read(_);
-                break;
-
-            case JVS_CMD_READ_ID:
-                jvs_write(JVS_REPORT_OK);
-                for (size_t i = 0; i < strlen(board->id); i++) jvs_write(board->id[i]);
-                break;
-            case JVS_CMD_GET_CMD_VERSION:
-                jvs_write(JVS_REPORT_OK);
-                jvs_write(JVS_VERSION_CMD);
-                break;
-            case JVS_CMD_GET_JVS_VERSION:
-                jvs_write(JVS_REPORT_OK);
-                jvs_write(JVS_VERSION_JVS);
-                break;
-            case JVS_CMD_GET_COMM_VERSION:
-                jvs_write(JVS_REPORT_OK);
-                jvs_write(JVS_VERSION_COMM);
-                break;
-
-            case JVS_CMD_GET_FEATURES:
-                jvs_write(JVS_REPORT_OK);
-
-                jvs_write(JVS_FEATURE_PLAYERS);
-                jvs_write(PLAYER_COUNT);
-                jvs_write(13);  // bits per player
-                jvs_write(JVS_FEATURE_PAD);
-                jvs_write(JVS_FEATURE_COINS);
-                jvs_write(COIN_COUNTERS);
-                jvs_write(JVS_FEATURE_PAD);
-                jvs_write(JVS_FEATURE_PAD);
-                jvs_write(JVS_FEATURE_ANALOG);
-                jvs_write(8);                // 8 ADC channels
-                jvs_write(JVS_FEATURE_PAD);  // ?? (was "10" prior)
-                jvs_write(JVS_FEATURE_PAD);
-                jvs_write(JVS_FEATURE_GPIO);
-                jvs_write(6);  // 6 ports
-                jvs_write(JVS_FEATURE_PAD);
-                jvs_write(JVS_FEATURE_PAD);
-
-                jvs_write(JVS_FEATURE_EOF);
-
-                break;
-            case JVS_CMD_RECEIVE_MAIN_ID:
-                unsigned char tempRead = 0xff;
-                while (tempRead != 0) jvs_read(tempRead);
-                // TODO: Do we need to report here?
-                break;
-
-            case JVS_CMD_READ_SW:
-                unsigned char players;
-                unsigned char switch_bytes;
-                jvs_read(players);
-                jvs_read(switch_bytes);
-                if (players > PLAYER_COUNT || switch_bytes != 2) {
-                    jvs_write(JVS_REPORT_PARAM_INVALID);
-                    break;
-                }
-                update_jvs_buttons(board);
-
-                jvs_write(JVS_REPORT_OK);
-                jvs_write(board->last_sysbuttons);
-                for (int player = 0; player < players; player++) {
-                    for (int i = switch_bytes - 1; i >= 0; i--) {
-                        jvs_write((board->last_buttons[player] >> (i * 8)) & 0xff);
-                    }
-                }
-                break;
-
-            case JVS_CMD_READ_COIN:
-                jvs_write(JVS_REPORT_OK);
-                unsigned char coin_count;
-                jvs_read(coin_count);
-
-                int coin1 = jvsKeybindings[board->num].buttons[0];
-                int coin2 = jvsKeybindings[board->num].buttons[1];
-
-                if (coin1 && GetAsyncKeyState(coin1) & 1) board->coin_counts[0]++;
-                if (coin2 && GetAsyncKeyState(coin2) & 1) board->coin_counts[1]++;
-
-                for (unsigned char slot = 0; slot < coin_count; slot++) {
-                    jvs_write(board->coin_counts[slot] >> 8);
-                    jvs_write(board->coin_counts[slot] & 0xff);
-                }
-                break;
-
-            case JVS_CMD_READ_ANALOGS:
-                jvs_write(JVS_REPORT_OK);
-                // TODO: Actually emulate these (super low priority)
-                unsigned char analog_count;
-                jvs_read(analog_count);
-                for (int i = analog_count; i > 0; i--) {
-                    jvs_write(0xde);
-                    jvs_write(0xad);
-                }
-                break;
-
-            case JVS_CMD_WRITE_GPIO1:
-                jvs_write(JVS_REPORT_OK);
-                unsigned char gpio_bytes;
-                jvs_read(gpio_bytes);
-                for (int i = 0; i < gpio_bytes; i++) {
-                    unsigned char gpio_value;
-                    jvs_read(gpio_value);
-
-                    if (i == 0) {
-                        if (!!(gpio_value & 0x80) != coin_solenoid) {
-                            coin_solenoid = !!(gpio_value & 0x80);
-                            log_info(plfMxJvs, "Coin solenoid: %s",
-                                     coin_solenoid ? "Locked" : "Unlocked");
-                        }
-                    }
-
-                    // log_warning(plfMxJvs, "Unhandled GPIO write: *(%d) = %02x", i, gpio_value);
-                }
-                break;
-            case JVS_CMD_WRITE_GPIO2:
-            case JVS_CMD_WRITE_GPIO3:
-                jvs_write(JVS_REPORT_OK);
-                unsigned char gpioByteIndex;
-                unsigned char gpioByteData;
-                jvs_read(gpioByteIndex);
-                jvs_read(gpioByteData);
-                log_warning(plfMxJvs, "GPIO%d Unhandled: [%02x]=%02x",
-                            (cmd - JVS_CMD_WRITE_GPIO2) + 2, gpioByteIndex, gpioByteData);
-                break;
-
-            case JVS_CMD_COIN_DECREASE:
-                jvs_write(JVS_REPORT_OK);
-
-                unsigned char slot;
-                jvs_read(slot);
-                unsigned char cAmount[2];
-                jvs_read(cAmount[0]);
-                jvs_read(cAmount[1]);
-                unsigned short sAmount = cAmount[0] << 8 | cAmount[1];
-                board->coin_counts[slot] -= sAmount;
-                break;
-
-            default:
-                log_error(plfMxJvs, "Unknown command: 0x%02x", cmd);
-                return JVS_STATUS_UKCOM;
-        }
-    }
-#undef jvs_read
-#undef jvs_write
-
-    *outCount = respIndex;
-    return JVS_STATUS_OK;
+    return status;
 }
 
 void jvs_send_status(unsigned char status, unsigned char* outData, LPDWORD outCount) {
@@ -306,78 +38,116 @@ void jvs_send_status(unsigned char status, unsigned char* outData, LPDWORD outCo
     }
 }
 
-void mxjvs_handle(unsigned char* paddedIn, short inCount, unsigned char* outData, short maxOut,
-                  LPDWORD outCount) {
-    *outCount = 0;
-
-    unsigned char* inData = malloc(inCount);
-    inCount = jvs_unpad(paddedIn, inCount, inData);
+BYTE jvsInUnmasked[MICE_JVS_MAX];
+BYTE jvsOutUnmasked[MICE_JVS_MAX];
+BYTE jvsOutMasked[MICE_JVS_MASKED];
+void mxjvs_handle(unsigned char* lpMaskedIn, short nMaskedCount, unsigned char* outData,
+                  short maxOut, LPDWORD outCount) {
+    SHORT nIn = 0;
+    BOOL wasMark = FALSE;
+    for (int i = 0; i < nMaskedCount; i++) {
+        if (lpMaskedIn[i] == JVS_MARK) {
+            wasMark = TRUE;
+            continue;
+        }
+        if (wasMark)
+            jvsInUnmasked[nIn++] = lpMaskedIn[i] + 1;
+        else
+            jvsInUnmasked[nIn++] = lpMaskedIn[i];
+    }
+    PJVS_PACKET lpPacket = (PJVS_PACKET)jvsInUnmasked;
 
     // JVS frame is 4 bytes in total
-    if (inCount < 4) {
-        log_error(plfMxJvs, "inCount impossibly small: %d", inCount);
+    if (nIn < 4) {
+        log_error(plfMxJvs, "inCount impossibly small: %d", nIn);
         jvs_send_status(JVS_STATUS_UNKNOWN, outData, outCount);
-        free(inData);
         return;
     }
-    // This isn't a JVS packet
-    if (inData[0] != JVS_SYNC) {
-        log_error(plfMxJvs, "SYNC missing. Saw 0x%02x", inData[0]);
+    // This isn't a JVS packet. We should scan for SYNC, but I don't think we'll ever need to
+    if (lpPacket->m_Sync != JVS_SYNC) {
+        log_error(plfMxJvs, "SYNC missing. Saw 0x%02x", lpPacket->m_Sync);
         jvs_send_status(JVS_STATUS_UNKNOWN, outData, outCount);
-        free(inData);
         return;
     }
 
     // Validate the checksum before proceeding
     unsigned char sum = 0;
     bool escape = false;
-    for (int i = 1; i < inCount - 1; i++) sum += inData[i];
-    if (sum != inData[inCount - 1]) {
+    for (int i = 1; i < nIn - 1; i++) sum += jvsInUnmasked[i];
+    if (sum != jvsInUnmasked[nIn - 1]) {
         log_error(plfMxJvs, "Checksum failed. Computed 0x%02x, expected 0x%02x", sum,
-                  inData[inCount - 1]);
+                  jvsInUnmasked[nIn - 1]);
         jvs_send_status(JVS_STATUS_SUM, outData, outCount);
         return;
     }
 
-    unsigned char destination = inData[1];
-    // Not broadcast, not master-bound, and within bounds
-    if (destination != 0xff && (destination == 0 || destination > MiceConfig.keys.board_count))
-        return;
+    DWORD nBoardCount = MiceConfig.keys.board_count;
+    if (nBoardCount > _countof(_MiceJvsBoards)) nBoardCount = _countof(_MiceJvsBoards);
 
-    unsigned char* response = malloc(maxOut);
-    unsigned char packetSize = 0;
-    unsigned char status = JVS_STATUS_UNKNOWN;
-    if (destination == 0xff) {
-        for (int i = 0; i < MiceConfig.keys.board_count; i++) {
-            jvs_board_t* board = &jvs_boards[i];
-            status = board->handler(board, inData + 3, inData[2] - 1, response + 4, &packetSize);
-            if (packetSize != 0) break;
+    // Not broadcast, not master-bound, and within bounds
+    if (lpPacket->m_Dst != 0xff && (lpPacket->m_Dst == 0 || lpPacket->m_Dst > nBoardCount)) {
+        log_warning(plfMxJvs, "JVS bound for %02x ignored", lpPacket->m_Dst);
+        *outCount = 0;
+        return;
+    }
+
+    JVS_STATUS status = JVS_STATUS_UNKNOWN;
+    DWORD nBytesWrote = 0;
+    if (lpPacket->m_Dst == 0xff) {
+        for (DWORD i = 0; i < nBoardCount; i++) {
+            PMICE_JVS lpMiceJvs = &_MiceJvsBoards[i];
+
+            lpMiceJvs->m_lpInData = jvsInUnmasked;
+            lpMiceJvs->m_lpOutData = jvsOutUnmasked;
+            lpMiceJvs->m_nInIdx = 3;
+            lpMiceJvs->m_nOutIdx = 4;
+
+            status = MiceJvsWrapper(lpMiceJvs, nIn);
+            if (lpMiceJvs->m_nOutIdx > 4) {
+                nBytesWrote = lpMiceJvs->m_nOutIdx - 4;
+                break;
+            }
         }
     } else {
-        jvs_board_t* board = &jvs_boards[MiceConfig.keys.board_count - destination];
-        status = board->handler(board, inData + 3, inData[2] - 1, response + 4, &packetSize);
+        PMICE_JVS lpMiceJvs = &_MiceJvsBoards[nBoardCount - lpPacket->m_Dst];
+
+        lpMiceJvs->m_lpInData = jvsInUnmasked;
+        lpMiceJvs->m_lpOutData = jvsOutUnmasked;
+        lpMiceJvs->m_nInIdx = 3;
+        lpMiceJvs->m_nOutIdx = 4;
+
+        status = MiceJvsWrapper(lpMiceJvs, nIn);
+        nBytesWrote = lpMiceJvs->m_nOutIdx - 4;
     }
-    free(inData);
+
+    if (status == JVS_STATUS_SILENCE) {
+        *outCount = 0;
+        return;
+    }
 
     if (status == JVS_STATUS_OK) {
-        if (packetSize == 0) return;
-
-        response[0] = JVS_SYNC;
-        response[1] = JVS_NODE_MASTER;
-        response[2] = packetSize + 2;
-        response[3] = status;
+        ((PJVS_PACKET)&jvsOutUnmasked)->m_Dst = JVS_NODE_MASTER;
+        ((PJVS_PACKET)&jvsOutUnmasked)->m_nBytes = (nBytesWrote + 2) & 0xff;
+        jvsOutUnmasked[3] = status;
 
         sum = 0;
-        for (int i = 1; i < packetSize + 4; i++) sum += response[i];
-        response[packetSize + 4] = sum;
+        for (DWORD i = 1; i < nBytesWrote + 4; i++) sum += jvsOutUnmasked[i];
+        jvsOutUnmasked[nBytesWrote + 4] = sum;
 
-        short paddedLength = jvs_pad(response, packetSize + 5, outData, maxOut);
-        *outCount = (paddedLength == -1) ? 0 : paddedLength;
+        DWORD nPadded = 1;
+        jvsOutMasked[0] = JVS_SYNC;
+        for (DWORD i = 1; i <= nBytesWrote + 4; i++) {
+            if (i == JVS_MARK || i == JVS_SYNC) {
+                jvsOutMasked[nPadded++] = JVS_MARK;
+                jvsOutMasked[nPadded++] = jvsOutUnmasked[i] - 1;
+            } else
+                jvsOutMasked[nPadded++] = jvsOutUnmasked[i];
+        }
 
-        free(response);
+        *outCount = nPadded;
+        memcpy_s(outData, maxOut, jvsOutMasked, nPadded);
     } else {
-        log_error(plfMxJvs, "JVS board %d returned status %d", destination, status);
-        free(response);
+        log_error(plfMxJvs, "JVS board %d returned status %d", lpPacket->m_Dst, status);
         jvs_send_status(status, outData, outCount);
     }
 }
@@ -410,7 +180,7 @@ BOOL mxjvs_GetCommState(void* com, LPDCB lpDCB) { return TRUE; }
 BOOL mxjvs_SetCommTimeouts(void* com, LPCOMMTIMEOUTS lpDCB) { return TRUE; }
 
 BOOL mxjvs_GetCommModemStatus(void* com, LPDWORD lpModelStat) {
-    *lpModelStat = !JVS_SENSE ? MS_DSR_ON : 0;
+    *lpModelStat = JVS_SENSE ? 0 : MS_DSR_ON;
     return TRUE;
 }
 
@@ -423,10 +193,12 @@ BOOL mxjvs_SetCommState(void* com, LPDCB lpDCB) {
 }
 
 void init_jvs_boards() {
-    for (int i = 0; i < _countof(jvs_boards); i++) {
-        jvs_boards[i].num = i;
-        jvs_boards[i].id = JVS_837_14572_ID;
-        jvs_boards[i].handler = &jvs_exchange;
+    // new (MiceJvs837_14895, _MiceJvsBoards[0]);
+    new (MiceJvs837_14572, _MiceJvsBoards[0]);
+
+    // Init all the others
+    for (int i = 1; i < _countof(_MiceJvsBoards); i++) {
+        new (MiceJvs837_14572, _MiceJvsBoards[i]);
     }
 }
 
@@ -455,10 +227,15 @@ DWORD __stdcall mxjvs_comdev_thread(com_device_t* com) {
 
         short packetSize = (bufferPtr - inBuffer) & 0xFFFF;
         mxjvs_handle(inBuffer, packetSize, outBuffer, _countof(outBuffer), &bytesReturned);
-        com->modemStatus = !JVS_SENSE ? MS_DSR_ON : 0;
+        com->modemStatus = JVS_SENSE ? 0 : MS_DSR_ON;
         comdev_write(com, outBuffer, bytesReturned & 0xFFFF);
     }
 }
+
+VIRTUAL_SERIAL_DEVICE jvsSerialDevice = {
+    .m_Name = "JVS",
+    .m_Entrypoint = mxjvs_comdev_thread,
+};
 
 void setup_mxjvs() {
     init_jvs_boards();
@@ -479,6 +256,5 @@ void setup_mxjvs() {
 
     mxjvs->com_hook = jvscom;
 
-    // TODO: Looks like some things might use JVS on COM4. We should setup a comdevice for this!
-    attach_com_device(4, mxjvs_comdev_thread);
+    attach_com_device(4, &jvsSerialDevice);
 }

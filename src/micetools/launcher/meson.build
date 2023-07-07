@@ -1,6 +1,6 @@
 rc = import('windows').compile_resources('mice.rc', depend_files: mice_ico)
 executable(
-    'mice',
+    get_option('win64') ? 'mice64' : 'mice',
     win_subsystem: subsystem,
     sources: [
         'locate.c',
@@ -18,5 +18,9 @@ executable(
         dummykeychip,
         dummymaster,
         dummyinstaller,
+        dummygdeliver,
+        dummynetwork,
+
+        amSerialId,
     ],
 )

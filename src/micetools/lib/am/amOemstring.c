@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 
-#include "../dmi/dmi.h"
+#include "../mice/dmi.h"
 #include "../mice/mice.h"
 
 AM_LIB_C_HEADER(amOemstring, AM_OEMSTRING)

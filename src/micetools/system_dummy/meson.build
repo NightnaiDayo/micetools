@@ -1,3 +1,5 @@
 subdir('dummykeychip')
 subdir('dummymaster')
 subdir('dummyinstaller')
+subdir('dummygdeliver')
+subdir('dummynetwork')

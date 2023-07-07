@@ -7,9 +7,10 @@ typedef struct _physical_disk physical_disk_t;
 typedef struct _disk_partition disk_partition_t;
 typedef struct _disk_volume disk_volume_t;
 typedef struct _disk_raw disk_raw_t;
+typedef struct _virtual_disk virtual_disk_t;
 
 #define MAX_DISKS 32
-extern physical_disk_t* PHYSICAL_DISKS[MAX_DISKS];
+extern virtual_disk_t AVAILABLE_DISKS[MAX_DISKS];
 
 typedef BOOL(mice_partition_read_function_t)(DWORD nOffset, LPVOID lpBuffer,
                                              DWORD nNumberOfBytesToRead,
@@ -79,4 +80,11 @@ struct _physical_disk {
     BOOL m_IsFormatted;
     disk_partition_t m_Partitions[4];
     disk_partition_t m_Extended[];
+};
+
+struct _virtual_disk {
+    physical_disk_t* m_Disk;
+    LPCSTR m_Name;
+    BOOL m_Installed;
+    BOOL m_Attached;
 };

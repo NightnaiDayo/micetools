@@ -2,6 +2,31 @@
 
 DWORD NvidiaDebugLevel = 0;
 
+/* ============= AMD ============= */
+__declspec(dllexport) int amvGetAvailableDriverEx_Amd(LPVOID pGpuHandle, DWORD dwGpuHandleSize) {
+    return 0;
+}
+__declspec(dllexport) int amvGetAvailableDriver_Amd() {
+    return amvGetAvailableDriverEx_Amd(NULL, 4);
+}
+__declspec(dllexport) int amvSetCustomDisplaySettingEx_Amd(LPVOID pGpuHandle,
+                                                              DWORD dwGpuHandleSize,
+                                                              LPWORD NV_SetCustomDisplaySetting) {
+    return 0;
+}
+__declspec(dllexport) int amvSetCustomDisplaySetting_Amd(LPVOID pGpuHandle) {
+    return amvSetCustomDisplaySettingEx_Amd(NULL, 4, pGpuHandle);
+}
+
+__declspec(dllexport) int amvSetDisplayModeEx_Amd(LPVOID pGpuHandle, DWORD dwGpuHandleSize,
+                                                     BYTE displayMode) {
+    return 0;
+}
+__declspec(dllexport) int amvSetDisplayMode_Amd(BYTE displayMode) {
+    return amvSetDisplayModeEx_Amd(NULL, 4, displayMode);
+}
+
+/* ============= Nvidia ============= */
 __declspec(dllexport) int amvFinalize_Nvidia() { return 0; }
 __declspec(dllexport) int amvGetAvailableDriverEx_Nvidia(LPVOID pGpuHandle, DWORD dwGpuHandleSize) {
     return 0;

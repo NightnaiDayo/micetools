@@ -31,8 +31,14 @@ void PrintStack(void) {
     free(symbol);
 }
 
-BOOL FileExists(wchar_t* szPath) {
-    DWORD dwAttrib = GetFileAttributesW(szPath);
+BOOL FileExistsW(const wchar_t* szPath) {
+    DWORD dwAttrib = _GetFileAttributesW(szPath);
+    return (dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+}
+BOOL FileExistsA(const char* szPath) {
+    wchar_t szPathW[MAX_PATH + 1];
+    MultiByteToWideChar(0, 0, szPath, -1, szPathW, _countof(szPathW));
+    DWORD dwAttrib = _GetFileAttributesW(szPathW);
     return (dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
@@ -156,17 +162,17 @@ void make_dirs(const char* path) {
     free(temp);
 }
 
-void* open_mapped_file(LPCWSTR lpFilename, DWORD size, HANDLE* file, HANDLE* file_mapping) {
-    char szFileName[MAX_PATH] = { 0 };
-    WideCharToMultiByte(CP_ACP, 0, lpFilename, wcslen(lpFilename), szFileName, sizeof szFileName,
-                        NULL, NULL);
-    make_dirs(szFileName);
+void* open_mapped_file(LPCSTR lpFilename, DWORD size, HANDLE* file, HANDLE* file_mapping) {
+    // char szFileName[MAX_PATH] = { 0 };
+    // WideCharToMultiByte(CP_ACP, 0, lpFilename, wcslen(lpFilename), szFileName,
+    //                     size2int(sizeof szFileName), NULL, NULL);
+    make_dirs(lpFilename);
 
-    *file = _CreateFileW(lpFilename, GENERIC_READ | GENERIC_WRITE,
+    *file = _CreateFileA(lpFilename, GENERIC_READ | GENERIC_WRITE,
                          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_ALWAYS,
                          FILE_ATTRIBUTE_NORMAL, NULL);
     if (*file == INVALID_HANDLE_VALUE) {
-        log_error(plfMisc, "Failed to CreateFileW(%ls): %d", lpFilename, GetLastError());
+        log_error(plfMisc, "Failed to CreateFileW(%s): %d", lpFilename, GetLastError());
         return NULL;
     }
 

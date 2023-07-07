@@ -21,7 +21,7 @@ void mxkSwapKeys();
 
 MXK_STATUS mxkCryptInit(void);
 
-int mxkCryptCalcHashWithHmacSha1(PHmacKey_t key, PHmacSum_t md, size_t* nbuffer,
+int mxkCryptCalcHashWithHmacSha1(PHmacKey_t key, PHmacSum_t md, unsigned int* nbuffer,
                                  unsigned char* buffer, size_t nin);
 void mxkCryptCalcHashWithSha1(unsigned char* data, size_t nbytes, PSha1Sum_t sum);
 

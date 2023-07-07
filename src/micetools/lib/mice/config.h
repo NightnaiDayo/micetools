@@ -3,7 +3,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define CONFIG_PATH "mice.ini"
+#define CONFIG_PATH MiceIpcRelativePath("config.ini")
+#define KEYBINDS_PATH MiceIpcRelativePath("keybinds.bin")
+
+#define MICE_PLATFORM_RINGWIDE 0
+#define MICE_PLATFORM_RINGEDGE1 1  // Explictly RingEdge1, to avoid confusion
+#define MICE_PLATFORM_RINGEDGE2 2
 
 typedef struct config {
 #define SECTION(s, comment) struct {
@@ -19,6 +24,6 @@ typedef struct config {
 
 extern config_t MiceConfig;
 
-void make_default_config();
-void save_current_config();
+void save_current_config(bool writeDefault);
 void load_mice_config();
+void load_keybind_config();

@@ -1,11 +1,73 @@
 #include "network.h"
+#pragma comment(lib, "ws2_32.lib")
+#pragma comment(lib, "Dnsapi.lib")
+
+#define IP(a, b, c, d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
+#define NAOMINET IP(14, 128, 27, 15)
+#define IB_NAOMINET IP(14, 128, 27, 9)
+#define AIME_NAOMINET IP(112, 137, 187, 91)
 
 int WINAPI Fake_connect(SOCKET s, const SOCKADDR* name, int namelen) {
     ULONG addr = _byteswap_ulong(((SOCKADDR_IN*)name)->sin_addr.S_un.S_addr);
     USHORT port = _byteswap_ushort(((SOCKADDR_IN*)name)->sin_port);
     // Poorly exclude nxauth and mxgcatcher.
-    // TODO: better
-    if (port != 40190 && port != 40110 && port != 40102 && port != 40103) {
+
+    if (addr == NAOMINET || addr == IB_NAOMINET || addr == AIME_NAOMINET) {
+        log_error(
+            plfNetwork,
+            "DANGER!! Game is attempting to connect to SEGA services! Check your configuration!");
+        return -1;
+    }
+
+    if (addr == IP(127, 0, 0, 1)) {
+        switch (port) {
+            case 40100:
+            case 40101:
+                log_info(plfNetwork, "connect(master)");
+                break;
+            case 40102:
+            case 40103:
+                log_info(plfNetwork, "connect(installer)");
+                break;
+            case 40104:
+            case 40105:
+                log_info(plfNetwork, "connect(network)");
+                break;
+            case 40106:
+            case 40107:
+                log_info(plfNetwork, "connect(keychip)");
+                break;
+            case 40108:
+            case 40112:
+                log_info(plfNetwork, "connect(gdeliver)");
+                break;
+            case 40110:
+            case 40113:
+                log_info(plfNetwork, "connect(gcatcher)");
+                break;
+            case 40114:
+            case 40115:
+                log_info(plfNetwork, "connect(storage)");
+                break;
+            case 40190:
+            case 40191:
+            case 40192:
+            case 40193:
+                // nxAuth
+                break;
+            case 40194:
+            case 40195:
+                log_info(plfNetwork, "connect(nxmount)");
+                break;
+            case 40196:
+            case 40197:
+                log_info(plfNetwork, "connect(nxrelay)");
+                break;
+            default:
+                log_info(plfNetwork, "connect(localhost:%hu)", port);
+                break;
+        }
+    } else {
         log_info(plfNetwork, "connect(%hhu.%hhu.%hhu.%hhu:%hu)", (addr >> 24) & 0xff,
                  (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff, port);
     }
@@ -94,11 +156,40 @@ dns INTERCEPT_DNS[] = {
 
 DNS_RECORDA dummy_record;
 
+static BOOL _DoDnsLookup(PCSTR pszName, DWORD* lpResolved) {
+    DNS_STATUS status;
+    PDNS_RECORDA pDnsRecord = NULL;
+
+    if (MiceConfig.network.upstream_dns_server) {
+        IP4_ARRAY upstreamDns;
+        upstreamDns.AddrCount = 1;
+        upstreamDns.AddrArray[0] = _byteswap_ulong(MiceConfig.network.upstream_dns_server);
+        status = TrueDnsQuery_A(pszName, DNS_TYPE_A, DNS_QUERY_BYPASS_CACHE, &upstreamDns,
+                                &pDnsRecord, NULL);
+    } else {
+        status = TrueDnsQuery_A(pszName, DNS_TYPE_A, DNS_QUERY_STANDARD, NULL, &pDnsRecord, NULL);
+    }
+
+    if (status != 0) {
+        log_error(plfNetwork, "DNS(%s):FAILED", pszName);
+        return FALSE;
+    }
+
+    if (pDnsRecord == NULL || pDnsRecord->wType != DNS_TYPE_A) {
+        log_error(plfNetwork, "DNS(%s):NXRECORD", pszName);
+        return FALSE;
+    }
+    if (lpResolved) *lpResolved = _byteswap_ulong(pDnsRecord->Data.A.IpAddress);
+    DnsRecordListFree(pDnsRecord, DnsFreeRecordListDeep);
+    return TRUE;
+}
+
 DNS_STATUS WINAPI FakeDnsQuery_A(PCSTR pszName, WORD wType, DWORD Options, PVOID pExtra,
                                  PDNS_RECORDA* ppQueryResults, PVOID* pReserved) {
     if (ppQueryResults) {
         for (size_t i = 0; i < sizeof INTERCEPT_DNS / sizeof INTERCEPT_DNS[0]; i++) {
-            if (strcmp(pszName, INTERCEPT_DNS[i].name) == 0) {
+            if (INTERCEPT_DNS[i].address && *INTERCEPT_DNS[i].address &&
+                strcmp(pszName, INTERCEPT_DNS[i].name) == 0) {
                 printf("%08x\n", MiceConfig.network.naominet_jp);
 
                 log_info(plfNetwork, "DNS Replacing %s with %08x", pszName,
@@ -115,21 +206,42 @@ DNS_STATUS WINAPI FakeDnsQuery_A(PCSTR pszName, WORD wType, DWORD Options, PVOID
         }
     }
     log_info(plfNetwork, "DNS passthrough for %s", pszName);
+
+    if (MiceConfig.network.upstream_dns_server) {
+        IP4_ARRAY upstreamDns;
+        upstreamDns.AddrCount = 1;
+        upstreamDns.AddrArray[0] = _byteswap_ulong(MiceConfig.network.upstream_dns_server);
+        return TrueDnsQuery_A(pszName, wType, DNS_QUERY_BYPASS_CACHE, &upstreamDns, ppQueryResults,
+                              pReserved);
+    }
     return TrueDnsQuery_A(pszName, wType, Options, pExtra, ppQueryResults, pReserved);
-};
+}
 
 INT WSAAPI FakeWSAStringToAddressA(LPSTR AddressString, INT AddressFamily,
                                    LPWSAPROTOCOL_INFOA lpProtocolInfo, LPSOCKADDR lpAddress,
                                    LPINT lpAddressLength) {
     log_misc(plfNetwork, "WSA DNS lookup for %s", AddressString);
-    for (size_t i = 0; i < sizeof INTERCEPT_DNS / sizeof INTERCEPT_DNS[0]; i++) {
-        if (strcmp(AddressString, INTERCEPT_DNS[i].name) == 0) {
-            log_info(plfNetwork, "WSA DNS Replacing %s with %08x", AddressString,
-                     *INTERCEPT_DNS[i].address);
+    if (AddressFamily == AF_INET) {
+        for (size_t i = 0; i < sizeof INTERCEPT_DNS / sizeof INTERCEPT_DNS[0]; i++) {
+            if (INTERCEPT_DNS[i].address && *INTERCEPT_DNS[i].address &&
+                strcmp(AddressString, INTERCEPT_DNS[i].name) == 0) {
+                log_info(plfNetwork, "WSA DNS Replacing %s with %08x", AddressString,
+                         *INTERCEPT_DNS[i].address);
+
+                lpAddress->sa_family = AF_INET;
+                PULONG addr = &(((SOCKADDR_IN*)lpAddress)->sin_addr.S_un.S_addr);
+                *addr = _byteswap_ulong(*INTERCEPT_DNS[i].address);
+                return ERROR_SUCCESS;
+            }
+        }
+
+        DWORD nResolved;
+        if (_DoDnsLookup(AddressString, &nResolved)) {
+            log_info(plfNetwork, "WSA DNS Replacing %s with %08x", AddressString, nResolved);
 
             lpAddress->sa_family = AF_INET;
             PULONG addr = &(((SOCKADDR_IN*)lpAddress)->sin_addr.S_un.S_addr);
-            *addr = _byteswap_ulong(*INTERCEPT_DNS[i].address);
+            *addr = _byteswap_ulong(nResolved);
             return ERROR_SUCCESS;
         }
     }
@@ -140,11 +252,13 @@ INT WSAAPI FakeWSAStringToAddressA(LPSTR AddressString, INT AddressFamily,
 
 INT WINAPI Fake_getaddrinfo(PCSTR pNodeName, PCSTR pServiceName, const ADDRINFOA* pHints,
                             PADDRINFOA* ppResult) {
+    char szNewAddress[16];
+
     if (!pNodeName) return True_getaddrinfo(pNodeName, pServiceName, pHints, ppResult);
 
     for (size_t i = 0; i < sizeof INTERCEPT_DNS / sizeof INTERCEPT_DNS[0]; i++) {
-        if (strcmp(pNodeName, INTERCEPT_DNS[i].name) == 0) {
-            char szNewAddress[16];
+        if (INTERCEPT_DNS[i].address && *INTERCEPT_DNS[i].address &&
+            strcmp(pNodeName, INTERCEPT_DNS[i].name) == 0) {
             sprintf_s(szNewAddress, sizeof szNewAddress, "%d.%d.%d.%d",
                       (*INTERCEPT_DNS[i].address >> 24) & 0xff,
                       (*INTERCEPT_DNS[i].address >> 16) & 0xff,
@@ -159,8 +273,19 @@ INT WINAPI Fake_getaddrinfo(PCSTR pNodeName, PCSTR pServiceName, const ADDRINFOA
 
     // Exclude a few known services
     if (strcmp(pNodeName, "0.0.0.0") != 0 && strcmp(pNodeName, "127.0.0.0") != 0 &&
-        strcmp(pNodeName, "240.0.0.0") != 0)
+        strcmp(pNodeName, "240.0.0.0") != 0) {
+        // Try doing a lookup using our upstream DNS service
+        DWORD nResolved;
+        if (_DoDnsLookup(pNodeName, &nResolved)) {
+            sprintf_s(szNewAddress, sizeof szNewAddress, "%d.%d.%d.%d", (nResolved >> 24) & 0xff,
+                      (nResolved >> 16) & 0xff, (nResolved >> 8) & 0xff, nResolved & 0xff);
+            szNewAddress[sizeof szNewAddress - 1] = '\0';
+
+            return True_getaddrinfo(szNewAddress, pServiceName, pHints, ppResult);
+        }
+
         log_info(plfNetwork, "GAI DNS passthrough for %s:%s", pNodeName, pServiceName);
+    }
     return True_getaddrinfo(pNodeName, pServiceName, pHints, ppResult);
 }
 
@@ -235,7 +360,7 @@ void hook_network() {
     hook("Ws2_32.dll", "socket", Fake_socket, (void**)&True_socket);
     hook("Ws2_32.dll", "bind", Fake_bind, (void**)&True_bind);
     hook("Ws2_32.dll", "getaddrinfo", Fake_getaddrinfo, (void**)&True_getaddrinfo);
-    // hook("Ws2_32.dll", "sendto", Fake_sendto, (void**)&True_sendto);
+    hook("Ws2_32.dll", "sendto", Fake_sendto, (void**)&True_sendto);
     hook("Ws2_32.dll", "WSAStringToAddressA", FakeWSAStringToAddressA,
          (void**)&TrueWSAStringToAddressA);
     hook("Iphlpapi.dll", "GetIfTable", FakeGetIfTable, (void**)&TrueGetIfTable);

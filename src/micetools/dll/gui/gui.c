@@ -3,6 +3,7 @@
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #endif
 #include "../devices/smb_at24c64an.h"
+#include "../drivers/jvs_boards/jvs.h"
 #include "../key_config.h"
 #include "cimgui.h"
 #include "imgui/backends/GL/freeglut.h"
@@ -15,14 +16,19 @@ const ImVec4 DISABLED_COL = { .7f, .7f, .7f, 1.0f };
 const ImVec4 WARN_COL = { 1.0f, 1.0f, .1f, 1.0f };
 const ImVec4 DANGER_COL = { 1.0f, .1f, .1f, 1.0f };
 
-struct {
+typedef struct JVS_BUTTON_NAME {
     const char* name;
     int index;
     int pinNum;
-} JVS_BUTTON_NAMES[JVS_BUTTON_PAIR_COUNT] = {
+} JVS_BUTTON_NAME, *PJVS_BUTTON_NAME;
+JVS_BUTTON_NAME JVS_BUTTON_NAMES[JVS_BUTTON_PAIR_COUNT] = {
     { "Coin", 45 },   { "Start", 17 },  { "Service", 41 }, { "UP", 23 },     { "DOWN", 25 },
     { "LEFT", 21 },   { "RIGHT", 19 },  { "Push 1", 27 },  { "Push 2", 29 }, { "Push 3", 31 },
     { "Push 4", 33 }, { "Push 5", 35 }, { "Push 6", 37 },  { "Push 7", 39 }, { "Push 8", 47 },
+};
+JVS_BUTTON_NAME JVS_BUTTON_NAMES_MAIMAI[14] = {
+    { "Coin" },     { "Button 1" }, { "Button 2" }, { "Button 3" }, { "Button 4" },
+    { "Button 5" }, { "Button 6" }, { "Button 7" }, { "Button 8" },
 };
 
 const char* RESOLUTION_NAMES[] = {
@@ -176,11 +182,10 @@ void hud_eeprom(ImGuiKey open_key) {
     if (igIsKeyPressed_Bool(open_key, false)) showEeprom = !showEeprom;
 
     // TODO: Less hacky :)
-    extern BYTE EEPROM_DATA[0x2000];
+    extern LPBYTE EEPROM_DATA;
 
     editor.Open = showEeprom;
-    if (showEeprom)
-        MemoryEditor_DrawWindow(&editor, "EEPROM Editor", EEPROM_DATA, sizeof EEPROM_DATA, 0x000);
+    if (showEeprom) MemoryEditor_DrawWindow(&editor, "EEPROM Editor", EEPROM_DATA, 0x2000, 0x000);
 }
 void hud_sram(ImGuiKey open_key) {
     static MemoryEditor editor;
@@ -239,7 +244,7 @@ bool AddSettingBool(const char* name, const char* help, bool* value) {
     igNextColumn();
     igPopID();
 
-    if (changed) save_current_config();
+    if (changed) save_current_config(false);
     return changed;
 }
 
@@ -257,7 +262,7 @@ bool AddSettingString(const char* name, const char* help, char** value) {
         int newLen = strlen(buffer) + 1;
         *value = realloc(*value, newLen);
         memcpy(*value, buffer, newLen);
-        save_current_config();
+        save_current_config(false);
     }
 
     igNextColumn();
@@ -283,7 +288,7 @@ bool AddSettingIPv4(const char* name, const char* help, unsigned int* value) {
         if (sscanf(buffer, "%hhu.%hhu.%hhu.%hhu%n", &a, &b, &c, &d, &n) == 4 &&
             n == strlen(buffer)) {
             *value = (a << 24) | (b << 16) | (c << 8) | d;
-            save_current_config();
+            save_current_config(false);
         } else {
             changed = false;
         }
@@ -349,6 +354,8 @@ bool igDipsw(const char* label, bool* value) {
     return pressed;
 }
 
+#define SERIAL_HELP \
+    "This value was automatically generated for you and uniquely identifies your computer"
 void tab_settings_system() {
     igColumns(2, "SettingsSystem", true);
     igTextUnformatted("Name", NULL);
@@ -374,7 +381,7 @@ void tab_settings_system() {
         if (igRadioButton_Bool("##JPN", MiceConfig.sysconf.region == 1)) {
             MiceConfig.sysconf.region = 1;
             staticChanged = true;
-            save_current_config();
+            save_current_config(false);
         }
         igSameLine(0.0, -1.0);
         igSeparatorEx(ImGuiSeparatorFlags_Vertical);
@@ -384,7 +391,7 @@ void tab_settings_system() {
         if (igRadioButton_Bool("##USA", MiceConfig.sysconf.region == 2)) {
             MiceConfig.sysconf.region = 2;
             staticChanged = true;
-            save_current_config();
+            save_current_config(false);
         }
         igSameLine(0.0, -1.0);
         igSeparatorEx(ImGuiSeparatorFlags_Vertical);
@@ -394,7 +401,7 @@ void tab_settings_system() {
         if (igRadioButton_Bool("##EXP", MiceConfig.sysconf.region == 4)) {
             MiceConfig.sysconf.region = 4;
             staticChanged = true;
-            save_current_config();
+            save_current_config(false);
         }
         igSameLine(0.0, -1.0);
         igSeparatorEx(ImGuiSeparatorFlags_Vertical);
@@ -404,16 +411,29 @@ void tab_settings_system() {
         if (igRadioButton_Bool("##", MiceConfig.sysconf.region == 8)) {
             MiceConfig.sysconf.region = 8;
             staticChanged = true;
-            save_current_config();
+            save_current_config(false);
         }
 
         igNextColumn();
         igPopID();
     }
     staticChanged |= AddSettingBool("Rental", NULL, &MiceConfig.sysconf.rental);
-    staticChanged |=
-        AddSettingString("Serial", "Main board serial number", &MiceConfig.sysconf.serial);
-    if (staticChanged) build_eeprom();
+
+    // The 'M' prefix isn't technically foolproof, but it's good enough for a simple help message
+    staticChanged |= AddSettingString(
+        "PCB serial number",
+        (MiceConfig.sysconf.serial && MiceConfig.sysconf.serial[0] == 'M' ? SERIAL_HELP : NULL),
+        &MiceConfig.sysconf.serial);
+    if (staticChanged) {
+        build_eeprom();
+        save_current_config(false);
+    }
+    if (AddSettingString(
+            "Keychip serial number",
+            (MiceConfig.sysconf.keyid && MiceConfig.sysconf.keyid[0] == 'M' ? SERIAL_HELP : NULL),
+            &MiceConfig.sysconf.keyid)) {
+        save_current_config(false);
+    }
 
     igSeparator();
 
@@ -428,7 +448,7 @@ void tab_settings_system() {
                                   vec0)) {
                 MiceConfig.sysconf.dipsw =
                     ((MiceConfig.sysconf.dipsw & 0b1'000'1111) | (i << 4)) & 0xff;
-                save_current_config();
+                save_current_config(false);
             }
             if (is_selected) igSetItemDefaultFocus();
         }
@@ -445,7 +465,7 @@ void tab_settings_system() {
                                   vec0)) {
                 MiceConfig.sysconf.dipsw =
                     ((MiceConfig.sysconf.dipsw & 0b1111'0'111) | (i << 3)) & 0xff;
-                save_current_config();
+                save_current_config(false);
             }
             if (is_selected) igSetItemDefaultFocus();
         }
@@ -461,7 +481,7 @@ void tab_settings_system() {
         if (i != 0) igSameLine(0.0, 2);
         if (igDipsw("", &val)) {
             MiceConfig.sysconf.dipsw = (MiceConfig.sysconf.dipsw & ~(1 << i)) | (val << i);
-            save_current_config();
+            save_current_config(false);
         }
         igPopID();
     }
@@ -503,7 +523,7 @@ void tab_settings_window() {
     igEndDisabled();
     igEndDisabled();
 
-    if (changed) save_current_config();
+    if (changed) save_current_config(false);
 
     igEndColumns();
 }
@@ -518,6 +538,11 @@ void tab_settings_network() {
     igSeparator();
 
     bool networkChanged = false;
+    networkChanged |=
+        AddSettingIPv4("Real Upstream DNS",
+                       "When not set to 0.0.0.0, used in place of any system configured servers.",
+                       &MiceConfig.network.upstream_dns_server);
+    igSeparator();
     networkChanged |= AddSettingIPv4("IP Address", NULL, &MiceConfig.network.ip_address);
     networkChanged |= AddSettingIPv4("Subnet Mask", NULL, &MiceConfig.network.subnet_mask);
     networkChanged |= AddSettingIPv4("Gateway", NULL, &MiceConfig.network.gateway);
@@ -538,7 +563,7 @@ void tab_settings_network() {
     changed |= AddSettingIPv4("bbrouter.loc", NULL, &MiceConfig.network.bbrouter_loc);
     changed |= AddSettingIPv4("mobirouter.loc", NULL, &MiceConfig.network.mobirouter_loc);
     changed |= AddSettingIPv4("dslrouter.loc", NULL, &MiceConfig.network.dslrouter_loc);
-    if (changed) save_current_config();
+    if (changed) save_current_config(false);
     igSeparator();
 
     {
@@ -557,7 +582,7 @@ void tab_settings_network() {
                         NULL, NULL)) {
             _snscanf_s(buffer, _countof(buffer), "%02x", &scan);
             MiceConfig.network.mac = (MiceConfig.network.mac & 0x00FFFF) | ((scan & 0xff) << 16);
-            save_current_config();
+            save_current_config(false);
         }
         igSameLine(0.0, 0);
         igTextUnformatted(":", NULL);
@@ -568,7 +593,7 @@ void tab_settings_network() {
                         NULL, NULL)) {
             _snscanf_s(buffer, _countof(buffer), "%02x", &scan);
             MiceConfig.network.mac = (MiceConfig.network.mac & 0xFF00FF) | ((scan & 0xff) << 8);
-            save_current_config();
+            save_current_config(false);
         }
         igSameLine(0.0, 0);
         igTextUnformatted(":", NULL);
@@ -579,7 +604,7 @@ void tab_settings_network() {
                         NULL, NULL)) {
             _snscanf_s(buffer, _countof(buffer), "%02x", &scan);
             MiceConfig.network.mac = (MiceConfig.network.mac & 0xFFFF00) | (scan & 0xff);
-            save_current_config();
+            save_current_config(false);
         }
 
         igPopStyleVar(1);
@@ -641,7 +666,7 @@ void tab_settings_adavanced() {
 
     igEndColumns();
 
-    if (changed) save_current_config();
+    if (changed) save_current_config(false);
 }
 
 void tab_main_settings() {
@@ -691,89 +716,101 @@ bool igKeyBindPopup(const char* name, int* boundKey) {
     }
     return false;
 }
+bool igKeyBindPopup_New(const char* name, PMICE_BUTTON_BINDING binding) {
+    if (igBeginPopupModal(name, NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        igText("Press any button");
+        if (igButton("Cancel", vec0)) {
+            igCloseCurrentPopup();
+            igEndPopup();
+            return true;
+        }
 
-void AddSettingButton(int board, int id) {
+        if (MiceInputGetNewBinding(binding)) {
+            igCloseCurrentPopup();
+            igEndPopup();
+            return true;
+        }
+
+        igEndPopup();
+    }
+    return false;
+}
+
+void AddSettingButton(PMICE_JVS board, int player, int button) {
     char keyName[32];
     static int currentlyBinding;
 
-    char pinInfo[32];
-    snprintf(pinInfo, _countof(pinInfo), "CN3, Pins %d/%d", JVS_BUTTON_NAMES[id].pinNum,
-             JVS_BUTTON_NAMES[id].pinNum + 1);
-    AddSetting(JVS_BUTTON_NAMES[id].name, pinInfo);
-    if (jvsKeybindings[board].buttons[id * 2] == 0) {
-        igTextColored(DISABLED_COL, "None");
-    } else {
-        GetKeyNameTextA(MapVirtualKey(jvsKeybindings[board].buttons[id * 2], MAPVK_VK_TO_VSC) << 16,
-                        keyName, _countof(keyName));
-        igTextUnformatted(keyName, NULL);
+    int index = player * board->m_ButtonsPerPlayer + button + board->m_Coins + 1;
+
+    PMICE_BUTTON_BINDING bind = &(board->m_Bindings[index]);
+
+    switch (bind->m_Type) {
+        case MICE_BB_TYPE_UNBOUND:
+            igTextColored(DISABLED_COL, "None");
+            break;
+        case MICE_BB_TYPE_DI_JOY:
+            switch (bind->m_DIJoy.m_ButtonMajor) {
+                case MICE_BUTTON_MAJOR_AXIS:
+                    igTextColored(DISABLED_COL, "Axis");
+                    break;
+                case MICE_BUTTON_MAJOR_DPAD:
+                    igText("D-Pad %s", bind->m_DIJoy.m_ButtonMinor == MICE_DPAD_UP      ? "Up"
+                                       : bind->m_DIJoy.m_ButtonMinor == MICE_DPAD_DOWN  ? "Down"
+                                       : bind->m_DIJoy.m_ButtonMinor == MICE_DPAD_LEFT  ? "Left"
+                                       : bind->m_DIJoy.m_ButtonMinor == MICE_DPAD_RIGHT ? "Right"
+                                                                                        : "??");
+                    break;
+                case MICE_BUTTON_MAJOR_BUTTON:
+                    igText("Button %d", bind->m_DIJoy.m_ButtonMinor + 1);
+                    break;
+            }
+            break;
+        case MICE_BB_TYPE_GET_ASYNC_KEY:
+            GetKeyNameTextA(MapVirtualKey(bind->m_AsyncKey.m_Key, MAPVK_VK_TO_VSC) << 16, keyName,
+                            _countof(keyName));
+            igTextUnformatted(keyName, NULL);
+            break;
     }
     igNextColumn();
+
     char name[16];
-    char name2[16];
     char clear[16];
-    char clear2[16];
     char invertName[16];
-    char invertName2[16];
-    snprintf(name, _countof(name), "Bind##Bind%d", id);
-    snprintf(name2, _countof(name2), "Bind##Bind2p%d", id);
-    snprintf(clear, _countof(clear), "Clear##Bind%d", id);
-    snprintf(clear2, _countof(clear2), "Clear##Bind2p%d", id);
-    snprintf(invertName, _countof(invertName), "##Invert%d", id);
-    snprintf(invertName2, _countof(invertName2), "##Invert2p%d", id);
+    snprintf(name, _countof(name), "Bind##Bind%d", index);
+    snprintf(clear, _countof(clear), "Clear##Bind%d", index);
+    snprintf(invertName, _countof(invertName), "##Invert%d", index);
 
     if (igButton(name, vec0)) {
-        currentlyBinding = 1;
+        MiceInputGetNewBinding(NULL);
         igOpenPopup_Str(name, ImGuiPopupFlags_None);
     }
-    if (jvsKeybindings[board].buttons[id * 2]) {
+
+    if (bind->m_Type != MICE_BB_TYPE_UNBOUND) {
         igSameLine(0, -1);
         if (igButton(clear, vec0)) {
-            jvsKeybindings[board].buttons[id * 2] = 0;
-            save_current_config();
+            bind->m_Type = MICE_BB_TYPE_UNBOUND;
+            save_current_config(false);
         }
     }
     igNextColumn();
-    igBeginDisabled(!jvsKeybindings[board].buttons[id * 2]);
-    if (igCheckbox(invertName, &jvsKeybindings[board].invert[id * 2])) save_current_config();
+    igBeginDisabled(bind->m_Type == MICE_BB_TYPE_UNBOUND);
+    if (igCheckbox(invertName, (bool*)&bind->m_Invert)) save_current_config(false);
     igEndDisabled();
     igNextColumn();
 
-    if (jvsKeybindings[board].buttons[id * 2 + 1] == 0) {
-        igTextColored(DISABLED_COL, "None");
-    } else {
-        GetKeyNameTextA(MapVirtualKey(jvsKeybindings[board].buttons[id * 2 + 1], MAPVK_VK_TO_VSC)
-                            << 16,
-                        keyName, _countof(keyName));
-        igTextUnformatted(keyName, NULL);
-    }
+    if (igKeyBindPopup_New(name, bind)) save_current_config(false);
+}
 
-    igNextColumn();
-    if (igButton(name2, vec0)) {
-        currentlyBinding = 2;
-        igOpenPopup_Str(name, ImGuiPopupFlags_None);
-    }
-    if (jvsKeybindings[board].buttons[id * 2 + 1]) {
-        igSameLine(0, -1);
-        if (igButton(clear2, vec0)) {
-            jvsKeybindings[board].buttons[id * 2 + 1] = 0;
-            save_current_config();
+void AddButtonsForBoard(PMICE_JVS board) {
+    for (DWORD button = 0; button < board->m_ButtonsPerPlayer; button++) {
+        char pinInfo[32];
+        snprintf(pinInfo, _countof(pinInfo), "CN3, Pins %d/%d", JVS_BUTTON_NAMES[button].pinNum,
+                 JVS_BUTTON_NAMES[button].pinNum + 1);
+        AddSetting(JVS_BUTTON_NAMES[button].name, pinInfo);
+
+        for (DWORD player = 0; player < board->m_Players; player++) {
+            AddSettingButton(board, player, button);
         }
-    }
-    igNextColumn();
-    igBeginDisabled(!jvsKeybindings[board].buttons[id * 2 + 1]);
-    if (igCheckbox(invertName2, &jvsKeybindings[board].invert[id * 2 + 1])) save_current_config();
-    igEndDisabled();
-
-    igNextColumn();
-
-    int boundKey;
-    if (igKeyBindPopup(name, &boundKey)) {
-        if (boundKey != -1) {
-            jvsKeybindings[board].buttons[id * 2 + (currentlyBinding - 1)] = boundKey;
-            jvsKeybindings[board].notdefault = 1;
-            save_current_config();
-        }
-        currentlyBinding = 0;
     }
 }
 
@@ -804,7 +841,7 @@ void tab_jvs_board(int num) {
 
     igSeparator();
 
-    for (int i = 0; i < _countof(JVS_BUTTON_NAMES); i++) AddSettingButton(num, i);
+    AddButtonsForBoard(&_MiceJvsBoards[0]);
 
     igSeparator();
     AddSetting("Test", NULL);
@@ -822,14 +859,14 @@ void tab_jvs_board(int num) {
         igSameLine(0, -1);
         if (igButton("Clear##ClearJvsTest", vec0)) {
             jvsKeybindings[num].test = 0;
-            save_current_config();
+            save_current_config(false);
         }
     }
     int boundKey;
     if (igKeyBindPopup("BindJvsTest", &boundKey))
         if (boundKey != -1) {
             jvsKeybindings[num].test = boundKey;
-            save_current_config();
+            save_current_config(false);
         }
 
     igEndColumns();
@@ -865,14 +902,14 @@ void tab_system_buttons() {
         igSameLine(0, -1);
         if (igButton("Clear##ClearTest", vec0)) {
             MiceConfig.keys.test = 0;
-            save_current_config();
+            save_current_config(false);
         }
     }
     igNextColumn();
     if (igKeyBindPopup("BindSysTest", &boundKey))
         if (boundKey != -1) {
             MiceConfig.keys.test = boundKey;
-            save_current_config();
+            save_current_config(false);
         }
 
     igTextUnformatted("System Service", NULL);
@@ -891,14 +928,14 @@ void tab_system_buttons() {
         igSameLine(0, -1);
         if (igButton("Clear##ClearService", vec0)) {
             MiceConfig.keys.service = 0;
-            save_current_config();
+            save_current_config(false);
         }
     }
     igNextColumn();
     if (igKeyBindPopup("BindSysService", &boundKey))
         if (boundKey != -1) {
             MiceConfig.keys.service = boundKey;
-            save_current_config();
+            save_current_config(false);
         }
 }
 
@@ -907,7 +944,7 @@ void tab_main_keybinds() {
                    ImGuiInputTextFlags_None)) {
         if (MiceConfig.keys.board_count < 0) MiceConfig.keys.board_count = 0;
         if (MiceConfig.keys.board_count > JVS_IO_MAX) MiceConfig.keys.board_count = JVS_IO_MAX;
-        save_current_config();
+        save_current_config(false);
     }
 
     if (igBeginTabBar("JVSBoards", 0)) {
@@ -929,7 +966,8 @@ void tab_main_keybinds() {
 
 void tab_main_aime_cards() {
     igText(
-        "Specify the cards to be inserted when using the TN32MSEC AiMe reader module.\nCards can be "
+        "Specify the cards to be inserted when using the TN32MSEC AiMe reader module.\nCards can "
+        "be "
         "specified as either an NFC ID or an access code.\nIf a card file is present, it will be "
         "used preferentially.");
 
@@ -944,7 +982,7 @@ void tab_main_aime_cards() {
 
     igEndColumns();
 
-    if (changed) save_current_config();
+    if (changed) save_current_config(false);
 }
 
 void hud_control(ImGuiKey open_key) {

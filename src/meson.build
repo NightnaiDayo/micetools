@@ -1,4 +1,5 @@
 inih = subproject('inih_dep')
+detours = subproject('detours')
 cimgui = subproject('cimgui_dep', default_options: [
     'win32=enabled',
     'dx9=enabled',

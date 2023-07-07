@@ -8,9 +8,12 @@
 #include "config.h"
 #include "exe.h"
 #include "ioctl.h"
+#include "ipc.h"
 #include "kcf.h"
 #include "log.h"
-#include "micefs.h"
 #include "patch.h"
 #include "ringbuf.h"
-#include "version_fallback.h"
+
+#define SRAM_PATH MiceIpcRelativePath("sram.bin")
+
+BOOL GetSerialNumbers(LPSTR szMainId, LPSTR szKeyId);

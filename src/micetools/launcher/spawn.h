@@ -12,11 +12,13 @@ typedef struct {
 #define SPAWN_REAL 2
 #define SPAWN_BOTH (SPAWN_DUMMY | SPAWN_REAL)
 
-extern spawn_t mxspawns[3];
+extern spawn_t mxspawns[5];
 
 DWORD WINAPI MxkThreadProc(LPVOID lpParameter);
 DWORD WINAPI MdkThreadProc(LPVOID lpParameter);
 DWORD WINAPI MdmThreadProc(LPVOID lpParameter);
 DWORD WINAPI MdiThreadProc(LPVOID lpParameter);
+DWORD WINAPI MdnThreadProc(LPVOID lpParameter);
+DWORD WINAPI MdgdThreadProc(LPVOID lpParameter);
 
 void spawn_pcp_processes(void);

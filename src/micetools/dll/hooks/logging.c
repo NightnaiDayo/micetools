@@ -89,7 +89,7 @@ BOOL WINAPI FakeReportEventA(HANDLE hEventLog, WORD wType, WORD wCategory, DWORD
         case EVENTLOG_INFORMATION_TYPE:
         default:
             for (int i = 0; i < wNumStrings; i++)
-                log_info(plfEvtlog, trim_string((char*)lpStrings[i]));
+                log_game(plfEvtlog, trim_string((char*)lpStrings[i]));
             break;
     }
     return TRUE;
@@ -97,16 +97,17 @@ BOOL WINAPI FakeReportEventA(HANDLE hEventLog, WORD wType, WORD wCategory, DWORD
 
 BOOL WINAPI FakeDeregisterEventSource(HANDLE hEventLog) { return TRUE; }
 
-// static VOID(WINAPI* TrueOutputDebugStringA)(LPCSTR lpOutputString);
-// VOID WINAPI FakeOutputDebugStringA(LPCSTR lpOutputString) { log_info("debug", "%s",
-// lpOutputString); }
+VOID WINAPI FakeOutputDebugStringA(LPCSTR lpOutputString) {
+    log_game(plfDebugLog, "%s", lpOutputString);
+}
 
 void hook_logging() {
     // hook("MSVCR90.DLL", "printf", Fakeprintf, (void**)&Trueprintf);
-    // hook("MSVCR90.DLL", "fprintf", Fakefprintf, (void**)&Truefprintf);
-    // hook("MSVCR90.DLL", "fprintf_s", Fakefprintf_s, (void**)&Truefprintf_s);
+    hook("MSVCR90.DLL", "fprintf", Fakefprintf, (void**)&Truefprintf);
+    // hook("MSVCR90.DLL", "fprintf_s"\z, Fakefprintf_s, (void**)&Truefprintf_s);
     // hook("MSVCR90.DLL", "vfprintf_s", Fakevfprintf_s, (void**)&Truevfprintf_s);
 
+    hook("Kernel32.dll", "OutputDebugStringA", FakeOutputDebugStringA, NULL);
     hook("Advapi32.dll", "RegisterEventSourceA", FakeRegisterEventSourceA,
          (void**)&TrueRegisterEventSourceA);
     hook("Advapi32.dll", "ReportEventA", FakeReportEventA, (void**)&TrueReportEventA);

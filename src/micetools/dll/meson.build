@@ -4,11 +4,12 @@ subdir('hooks')
 subdir('gui')
 
 shared_library(
-    'mice',
+    get_option('win64') ? 'mice64' : 'mice',
     name_prefix: '',
-    vs_module_defs: 'mice.def',
+    vs_module_defs: get_option('win64') ? 'mice64.def' : 'mice.def',
     sources: [
-        'amvStub/amv.c',
+        'dllStub/amv.c',
+        'dllStub/ati.c',
 
         'util/misc.c',
         'util/hook.c',
@@ -21,11 +22,12 @@ shared_library(
 
         'comdevice.c',
         'games.c',
+        'input.c',
+        'micefs.c',
 
         'dllmain.c',
     ],
     link_with: [
-        dmi_lib,
         mice_lib,
         amiTimer,
         amiMd5,
@@ -37,6 +39,7 @@ shared_library(
     ],
     dependencies: [
         cimgui.get_variable('cimgui_dep'),
+        detours.get_variable('detours_dep'),
         # freeglut_lib,  # forces the use of freeglut.dll!
     ]
 )
