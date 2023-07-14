@@ -6,11 +6,7 @@
 static inline void _MiceDAGrow(PMICE_DA lpDa) {
     DWORD_PTR newSize = lpDa->m_Capacity * 2 + 1;
     if (lpDa->m_Array) {
-        LPVOID newArray = realloc(lpDa->m_Array, lpDa->m_Size * newSize);
-        if (newArray != lpDa->m_Array) {
-            memcpy(newArray, lpDa->m_Array, lpDa->m_Size * lpDa->m_Capacity);
-        }
-        lpDa->m_Array = newArray;
+        lpDa->m_Array = realloc(lpDa->m_Array, lpDa->m_Size * newSize);
     } else {
         lpDa->m_Array = malloc(lpDa->m_Size * newSize);
     }
@@ -59,6 +55,9 @@ BOOL MiceDAGrowAndSet(PMICE_DA lpDa, DWORD_PTR dwIndex, LPVOID lpValue) {
     if (!lpDa || !lpValue) return FALSE;
     if (dwIndex >= lpDa->m_Length) {
         while (dwIndex >= lpDa->m_Capacity) _MiceDAGrow(lpDa);
+        if (lpDa->m_Length != dwIndex)
+            ZeroMemory(_MICE_DA_INDEX_P(lpDa, lpDa->m_Length),
+                       lpDa->m_Size * (lpDa->m_Length - dwIndex));
         lpDa->m_Length = dwIndex + 1;
     }
     _MICE_DA_COPY_INTO_DA(lpDa, dwIndex, lpValue);

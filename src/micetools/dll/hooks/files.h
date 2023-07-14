@@ -46,6 +46,7 @@ BOOL(WINAPI* TrueWriteFile)
 _MICE_FILES BOOL(WINAPI* TrueReadFile)(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
                                        LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped);
 _MICE_FILES BOOL(WINAPI* TrueGetFileSizeEx)(HANDLE hFile, PLARGE_INTEGER lpFileSize);
+_MICE_FILES DWORD(WINAPI* TrueGetFileType)(HANDLE hFile);
 _MICE_FILES BOOL(WINAPI* TrueCloseHandle)(HANDLE hObject);
 _MICE_FILES BOOL(WINAPI* TrueDeleteFileA)(LPCSTR lpFileName);
 _MICE_FILES BOOL(WINAPI* TrueDeleteFileW)(LPCWSTR lpFileName);

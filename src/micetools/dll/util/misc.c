@@ -7,9 +7,6 @@
 
 #include "../hooks/files.h"
 
-// Use the second tag bit to indicate a mice handle
-#define MICE_HANDLE_MASK 0x00000002
-
 void PrintStack(void) {
     unsigned int i;
     void* stack[100];
@@ -59,6 +56,7 @@ PVOID GetDataForHandle(HANDLE hObject) {
     DWORD_PTR dwIndex = (DWORD_PTR)hObject >> 2;
     PHANDLE_DATA found = MiceDAGet(g_handleData, dwIndex);
     if (found == NULL) return NULL;
+
     return found->m_pData;
 }
 void SetDataForHandle(HANDLE hObject, PVOID pData, BOOL isHeap) {
@@ -95,6 +93,7 @@ BOOL RemoveDataForHandle(HANDLE hObject) {
         found->m_pData = NULL;
         found->m_bOccupied = FALSE;
     }
+    return TRUE;
 }
 
 HANDLE GetDummyHandle() {

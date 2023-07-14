@@ -108,6 +108,57 @@ void hook_system() {
     const char* SystemVersion = "00691001\r\n";
     const char* UpdateVersion = "0000\r\n";
 
+    HANDLE hGM = CreateFileA("GrooveMaster.ini", GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    BOOL bGmIs1P = FALSE;
+    if (hGM != INVALID_HANDLE_VALUE) {
+        CHAR line[256];
+        DWORD_PTR lidx = 0;
+        DWORD nRead = 0;
+        while (1) {
+            // Literally not worth recovering; we're working with something stupid.
+            // Play stupid games, win stupid prizes.
+            if (lidx == _countof(line)) break;
+
+            ReadFile(hGM, &(line[lidx]), 1, &nRead, NULL);
+            if (nRead != 1) break;
+            if (line[lidx] == '\n') {
+                if (strncmp(line, "1P_ONLY 1\r\n", lidx) == 0) {
+                    bGmIs1P = TRUE;
+                    break;
+                }
+                lidx = 0;
+            } else
+                lidx++;
+        }
+        CloseHandle(hGM);
+    }
+
+    // You can have any configuration you want as long as it's black
+    if (bGmIs1P) {
+        const char* GrooveMaster1P =
+            ("# TODO: Get maimai_deliver not rebooting the cab\r\n"
+             "NO_DELIVER 1\r\n"
+             "# TODO: figure out how to do this without also needing a USB\r\n"
+             "USB_DL_DISABLE 1\r\n"
+             "# These are just easier to do via GM than a patch\r\n"
+             "1P_ONLY 1\r\n"
+             "NO_REBOOT 1\r\n"
+             "ROTATE 1\r\n");
+        hook_file_with_buffer(L"GrooveMaster.ini", (LPBYTE)GrooveMaster1P,
+                              strlen(GrooveMaster1P) + 1, GENERIC_READ);
+    } else {
+        const char* GrooveMaster =
+            ("# TODO: Get maimai_deliver not rebooting the cab\r\n"
+             "NO_DELIVER 1\r\n"
+             "# TODO: figure out how to do this without also needing a USB\r\n"
+             "USB_DL_DISABLE 1\r\n"
+             "# These are just easier to do via GM than a patch\r\n"
+             "NO_REBOOT 1\r\n"
+             "ROTATE 1\r\n");
+        hook_file_with_buffer(L"GrooveMaster.ini", (LPBYTE)GrooveMaster,
+                              strlen(GrooveMaster) + 1, GENERIC_READ);
+    }
+
     const char* RingmasterPub =
         ("-----BEGIN PUBLIC KEY-----\r\n"
          "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDH/y0LFuiVonnU+7fKLEOhfQoi\r\n"

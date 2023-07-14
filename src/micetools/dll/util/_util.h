@@ -25,3 +25,6 @@ void* open_mapped_file(LPCSTR path, DWORD size, HANDLE* file, HANDLE* file_mappi
 
 #define char_lower(value) (('A' <= (value) && (value) <= 'Z') ? ((value) - 'A' + 'a') : (value))
 #define char_upper(value) (('a' <= (value) && (value) <= 'z') ? ((value) - 'a' + 'A') : (value))
+
+// Use the second tag bit to indicate a mice handle
+#define MICE_HANDLE_MASK 0x00000002

@@ -348,7 +348,10 @@ BOOL WINAPI FakeReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRe
 }
 
 BOOL WINAPI FakeCloseHandle(HANDLE hObject) {
-    RemoveDataForHandle(hObject);
+    if ((DWORD_PTR)hObject & MICE_HANDLE_MASK) {
+        RemoveDataForHandle(hObject);
+        return TRUE;
+    }
     return TrueCloseHandle(hObject);
 }
 
@@ -417,6 +420,14 @@ DWORD WINAPI FakeGetCurrentDirectoryW(DWORD nBufferLength, LPWSTR lpBuffer) {
     return length;
 }
 
+DWORD WINAPI FakeGetFileType(HANDLE hFile) {
+    if ((DWORD_PTR)hFile & MICE_HANDLE_MASK) {
+        // TODO: This is a lie
+        return FILE_TYPE_CHAR;
+    }
+    return TrueGetFileType(hFile);
+}
+
 void hook_io() {
     hook("Kernel32.dll", "DeviceIoControl", FakeDeviceIoControl, (void**)&TrueDeviceIoControl);
 
@@ -429,6 +440,7 @@ void hook_io() {
     hook("Kernel32.dll", "WriteFile", FakeWriteFile, (void**)&TrueWriteFile);
     hook("Kernel32.dll", "ReadFile", FakeReadFile, (void**)&TrueReadFile);
     hook("Kernel32.dll", "GetFileSizeEx", FakeGetFileSizeEx, (void**)&TrueGetFileSizeEx);
+    hook("Kernel32.dll", "GetFileType", FakeGetFileType, (void**)&TrueGetFileType);
 
     // PathIsDirectory, PathFileExists, etc just call GetFileAttributes under the hood
     hook("Kernel32.dll", "DeleteFileA", FakeDeleteFileA, (void**)&TrueDeleteFileA);
