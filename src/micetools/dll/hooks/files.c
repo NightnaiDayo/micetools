@@ -30,7 +30,7 @@ HANDLE open_hook(file_hook_t* file_hook) {
     opened->ctx.m_Handle = handle;
     opened->ctx.m_HookData = file_hook->hook_data;
 
-    SetDataForHandle(handle, HDATA_FILE, opened, TRUE);
+    SetDataForHandle(handle, opened, TRUE);
 
     return handle;
 }
@@ -213,7 +213,7 @@ BOOL WINAPI FakeDeleteFileW(LPCWSTR pszPath) {
 BOOL WINAPI FakeDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuffer,
                                 DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
                                 LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
-    open_hook_t* pHData = GetDataForHandle(hDevice, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hDevice);
     if (pHData == NULL) {
         return TrueDeviceIoControl(hDevice, dwIoControlCode, lpInBuffer, nInBufferSize, lpOutBuffer,
                                    nOutBufferSize, lpBytesReturned, lpOverlapped);
@@ -239,7 +239,7 @@ BOOL WINAPI FakeDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lp
 
 DWORD WINAPI FakeSetFilePointer(HANDLE hFile, LONG lDistanceToMove, PLONG lpDistanceToMoveHigh,
                                 DWORD dwMoveMethod) {
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL)
         return TrueSetFilePointer(hFile, lDistanceToMove, lpDistanceToMoveHigh, dwMoveMethod);
 
@@ -262,7 +262,7 @@ DWORD WINAPI FakeSetFilePointer(HANDLE hFile, LONG lDistanceToMove, PLONG lpDist
 
 BOOL WINAPI FakeSetFilePointerEx(HANDLE hFile, LARGE_INTEGER liDistanceToMove,
                                  PLARGE_INTEGER lpNewFilePointer, DWORD dwMoveMethod) {
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData != NULL) {
         if (dwMoveMethod == FILE_BEGIN) {
             pHData->ctx.m_Pointer = liDistanceToMove;
@@ -281,7 +281,7 @@ BOOL WINAPI FakeSetFilePointerEx(HANDLE hFile, LARGE_INTEGER liDistanceToMove,
 }
 
 DWORD WINAPI FakeGetFileSizeEx(HANDLE hFile, PLARGE_INTEGER lpFileSize) {
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL) {
         return TrueGetFileSizeEx(hFile, lpFileSize);
     }
@@ -300,7 +300,7 @@ DWORD WINAPI FakeWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesT
                              lpOverlapped);
     }
 
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL) {
         return TrueWriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten,
                              lpOverlapped);
@@ -327,7 +327,7 @@ BOOL WINAPI FakeReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRe
     }
     // log_misc(plfHooks, "ReadFile(%d) %d", hFile, nNumberOfBytesToRead);
 
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL) {
         return TrueReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead,
                             lpOverlapped);
@@ -348,7 +348,7 @@ BOOL WINAPI FakeReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRe
 }
 
 BOOL WINAPI FakeCloseHandle(HANDLE hObject) {
-    RemoveDataForHandle(hObject, HDATA_ANY);
+    RemoveDataForHandle(hObject);
     return TrueCloseHandle(hObject);
 }
 

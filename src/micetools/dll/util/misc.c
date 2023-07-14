@@ -7,6 +7,9 @@
 
 #include "../hooks/files.h"
 
+// Use the second tag bit to indicate a mice handle
+#define MICE_HANDLE_MASK 0x00000002
+
 void PrintStack(void) {
     unsigned int i;
     void* stack[100];
@@ -43,70 +46,73 @@ BOOL FileExistsA(const char* szPath) {
 }
 
 typedef struct HANDLE_DATA {
-    HANDLE m_Handle;
+    BOOL m_bOccupied;
     PVOID m_pData;
-    DWORD m_Type;
     BOOL m_IsOnHeap;
-} HANDLE_DATA;
+} HANDLE_DATA, *PHANDLE_DATA;
 MICE_DA_NEW(g_handleData, HANDLE_DATA)
 
-PVOID GetDataForHandle(HANDLE hObject, DWORD type) {
+PVOID GetDataForHandle(HANDLE hObject) {
     if (hObject == INVALID_HANDLE_VALUE) return NULL;
+    if (!hObject & MICE_HANDLE_MASK) return NULL;
 
-    MICE_DA_ITER(g_handleData, HANDLE_DATA, i) {
-        if (i->m_Handle == hObject && (type == HDATA_ANY || i->m_Type == type)) {
-            return i->m_pData;
+    DWORD_PTR dwIndex = (DWORD_PTR)hObject >> 2;
+    PHANDLE_DATA found = MiceDAGet(g_handleData, dwIndex);
+    if (found == NULL) return NULL;
+    return found->m_pData;
+}
+void SetDataForHandle(HANDLE hObject, PVOID pData, BOOL isHeap) {
+    if (hObject == INVALID_HANDLE_VALUE) return;
+    if (!hObject & MICE_HANDLE_MASK) return;
+
+    DWORD_PTR dwIndex = (DWORD_PTR)hObject >> 2;
+    if (dwIndex < g_handleData->m_Length) {
+        PHANDLE_DATA found = MiceDAGet(g_handleData, dwIndex);
+        if (found) {
+            found->m_bOccupied = TRUE;
+            if (found->m_IsOnHeap && found->m_pData) free(found->m_pData);
+            found->m_pData = pData;
+            found->m_IsOnHeap = isHeap;
+            return;
         }
     }
-    MICE_DA_ITER_END
-    return NULL;
-}
-void SetDataForHandle(HANDLE hObject, DWORD type, PVOID pData, BOOL isHeap) {
-    if (hObject == INVALID_HANDLE_VALUE) return;
 
+    HANDLE_DATA newHandleData = {
+        .m_bOccupied = TRUE,
+        .m_pData = pData,
+        .m_IsOnHeap = isHeap,
+    };
+    MiceDAGrowAndSet(g_handleData, dwIndex, &newHandleData);
+}
+BOOL RemoveDataForHandle(HANDLE hObject, DWORD type) {
+    if (hObject == INVALID_HANDLE_VALUE) return FALSE;
+    if (!hObject & MICE_HANDLE_MASK) return FALSE;
+    DWORD_PTR dwIndex = (DWORD_PTR)hObject >> 2;
+
+    PHANDLE_DATA found = MiceDAGet(g_handleData, dwIndex);
+    if (found) {
+        if (found->m_IsOnHeap && found->m_pData) free(found->m_pData);
+        found->m_pData = NULL;
+        found->m_bOccupied = FALSE;
+    }
+}
+
+HANDLE GetDummyHandle() {
     MICE_DA_ITER(g_handleData, HANDLE_DATA, i) {
-        if (i->m_Handle == hObject && (type == HDATA_ANY || i->m_Type == type)) {
-            if (i->m_IsOnHeap) free(i->m_pData);
-            i->m_pData = pData;
-            i->m_IsOnHeap = isHeap;
-            return;
+        if (!i->m_bOccupied) {
+            i->m_bOccupied = TRUE;
+            return (HANDLE)((MICE_DA_INDEX(g_handleData) << 2) | MICE_HANDLE_MASK);
         }
     }
     MICE_DA_ITER_END
 
     HANDLE_DATA newHandleData = {
-        .m_Handle = hObject,
-        .m_pData = pData,
-        .m_IsOnHeap = isHeap,
-        .m_Type = type,
+        .m_bOccupied = TRUE,
+        .m_pData = NULL,
+        .m_IsOnHeap = FALSE,
     };
     MiceDAPush(g_handleData, &newHandleData);
-}
-BOOL RemoveDataForHandle(HANDLE hObject, DWORD type) {
-    if (hObject == INVALID_HANDLE_VALUE) return FALSE;
-
-    MICE_DA_ITER(g_handleData, HANDLE_DATA, i) {
-        if (i->m_Handle == hObject && (type == HDATA_ANY || i->m_Type == type)) {
-            if (i->m_IsOnHeap) free(i->m_pData);
-            MICE_DA_REMOVE_CURRENT(g_handleData);
-            return TRUE;
-        }
-    }
-    MICE_DA_ITER_END
-    return FALSE;
-}
-
-HANDLE GetDummyHandle() {
-    CHAR path[MAX_PATH];
-    GetModuleFileNameA(NULL, path, MAX_PATH);
-    HANDLE hObject =
-        _CreateFileA(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
-
-    if (hObject == INVALID_HANDLE_VALUE) {
-        log_error(plfMisc, "Failed to create dummy handle: %03x", GetLastError());
-    }
-
-    return hObject;
+    return (HANDLE)(((g_handleData->m_Length - 1) << 2) | MICE_HANDLE_MASK);
 }
 
 void BytesToHex(char* hex_buffer, BYTE* bytes, DWORD nbytes) {

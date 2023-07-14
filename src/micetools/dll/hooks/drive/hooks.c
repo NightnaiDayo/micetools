@@ -5,7 +5,7 @@ typedef struct {
     size_t partition;
 } find_index_t;
 disk_volume_t* incrementFindIndex(HANDLE hFindVolume) {
-    find_index_t* find_index = GetDataForHandle(hFindVolume, HDATA_FIND_VOLUME);
+    find_index_t* find_index = GetDataForHandle(hFindVolume);
     if (find_index == NULL) return NULL;
 
     while (1) {
@@ -69,7 +69,7 @@ HANDLE WINAPI FakeFindFirstVolumeW(LPWSTR lpszVolumeName, DWORD cchBufferLength)
     find_index->disk = 0;
     find_index->partition = 0;
     HANDLE handle = GetDummyHandle();
-    SetDataForHandle(handle, HDATA_FIND_VOLUME, find_index, TRUE);
+    SetDataForHandle(handle, find_index, TRUE);
 
     FakeFindNextVolumeW(handle, lpszVolumeName, cchBufferLength);
     return handle;
@@ -79,13 +79,13 @@ HANDLE WINAPI FakeFindFirstVolumeA(LPSTR lpszVolumeName, DWORD cchBufferLength) 
     find_index->disk = 0;
     find_index->partition = 0;
     HANDLE handle = GetDummyHandle();
-    SetDataForHandle(handle, HDATA_FIND_VOLUME, find_index, TRUE);
+    SetDataForHandle(handle, find_index, TRUE);
 
     FakeFindNextVolumeA(handle, lpszVolumeName, cchBufferLength);
     return handle;
 }
 BOOL WINAPI FakeFindVolumeClose(HANDLE hFindVolume) {
-    if (RemoveDataForHandle(hFindVolume, HDATA_FIND_VOLUME)) return _CloseHandle(hFindVolume);
+    if (RemoveDataForHandle(hFindVolume)) return _CloseHandle(hFindVolume);
     return FALSE;
 }
 

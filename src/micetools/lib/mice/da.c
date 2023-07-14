@@ -55,6 +55,15 @@ BOOL MiceDAUnshift(PMICE_DA lpDa, LPVOID lpDst) {
     }
     return TRUE;
 }
+BOOL MiceDAGrowAndSet(PMICE_DA lpDa, DWORD_PTR dwIndex, LPVOID lpValue) {
+    if (!lpDa || !lpValue) return FALSE;
+    if (dwIndex >= lpDa->m_Length) {
+        while (dwIndex >= lpDa->m_Capacity) _MiceDAGrow(lpDa);
+        lpDa->m_Length = dwIndex + 1;
+    }
+    _MICE_DA_COPY_INTO_DA(lpDa, dwIndex, lpValue);
+    return TRUE;
+}
 BOOL MiceDASet(PMICE_DA lpDa, DWORD_PTR dwIndex, LPVOID lpValue) {
     if (!lpDa || !lpValue) return FALSE;
     if (dwIndex >= lpDa->m_Length) return FALSE;

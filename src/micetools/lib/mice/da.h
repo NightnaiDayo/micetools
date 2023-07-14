@@ -23,6 +23,7 @@ typedef struct MICE_DA {
     for (DWORD_PTR __mdaI##lpDa = 0; __mdaI##lpDa < (lpDa)->m_Length; __mdaI##lpDa++) { \
         type* name = (type*)_MICE_DA_INDEX_P((lpDa), __mdaI##lpDa);
 #define MICE_DA_ITER_END }
+#define MICE_DA_INDEX(lpDa) (__mdaI##lpDa)
 #define MICE_DA_REMOVE_CURRENT(lpDa) MiceDARemove((lpDa), __mdaI##lpDa)
 
 BOOL MiceDAPush(PMICE_DA lpDa, LPVOID lpSrc);
@@ -30,6 +31,7 @@ BOOL MiceDAPop(PMICE_DA lpDa, LPVOID lpDst);
 BOOL MiceDAShift(PMICE_DA lpDa, LPVOID lpSrc);
 BOOL MiceDAUnshift(PMICE_DA lpDa, LPVOID lpDst);
 BOOL MiceDASet(PMICE_DA lpDa, DWORD_PTR dwIndex, LPVOID lpValue);
+BOOL MiceDAGrowAndSet(PMICE_DA lpDa, DWORD_PTR dwIndex, LPVOID lpValue);
 LPVOID MiceDAGet(PMICE_DA lpDa, DWORD_PTR dwIndex);
 BOOL MiceDARemove(PMICE_DA lpDa, DWORD_PTR dwIndex);
 DWORD_PTR MiceDALength(PMICE_DA lpDa);

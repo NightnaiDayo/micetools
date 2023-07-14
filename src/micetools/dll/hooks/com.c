@@ -27,7 +27,7 @@ com_hook_t* new_com_hook(BYTE port) {
 }
 
 BOOL WINAPI FakeGetCommState(HANDLE hFile, LPDCB lpDCB) {
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     log_misc(plfComm, "GetCommState(0x%p, 0x%p) (%08x)", hFile, lpDCB, hook);
 
     if (pHData == NULL || pHData->hook->com_hook == NULL) return TrueGetCommState(hFile, lpDCB);
@@ -43,7 +43,7 @@ BOOL WINAPI FakeGetCommState(HANDLE hFile, LPDCB lpDCB) {
 BOOL WINAPI FakeSetCommState(HANDLE hFile, LPDCB lpDCB) {
     log_misc(plfComm, "SetCommState(0x%p, 0x%p)", hFile, lpDCB);
 
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL || pHData->hook->com_hook == NULL) return TrueSetCommState(hFile, lpDCB);
 
     com_hook_t* com_hook = pHData->hook->com_hook;
@@ -57,7 +57,7 @@ BOOL WINAPI FakeSetCommState(HANDLE hFile, LPDCB lpDCB) {
 BOOL WINAPI FakeGetCommTimeouts(HANDLE hFile, LPCOMMTIMEOUTS lpCommTimeouts) {
     log_misc(plfComm, "GetCommTimeouts(0x%p, 0x%p)", hFile, lpCommTimeouts);
 
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL || pHData->hook->com_hook == NULL)
         return TrueGetCommTimeouts(hFile, lpCommTimeouts);
 
@@ -72,7 +72,7 @@ BOOL WINAPI FakeGetCommTimeouts(HANDLE hFile, LPCOMMTIMEOUTS lpCommTimeouts) {
 BOOL WINAPI FakeSetCommTimeouts(HANDLE hFile, LPCOMMTIMEOUTS lpCommTimeouts) {
     log_misc(plfComm, "SetCommTimeouts(0x%p, 0x%p)", hFile, lpCommTimeouts);
 
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL || pHData->hook->com_hook == NULL)
         return TrueSetCommTimeouts(hFile, lpCommTimeouts);
 
@@ -87,7 +87,7 @@ BOOL WINAPI FakeSetCommTimeouts(HANDLE hFile, LPCOMMTIMEOUTS lpCommTimeouts) {
 BOOL WINAPI FakeSetupComm(HANDLE hFile, DWORD dwInQueue, DWORD dwOutQueue) {
     log_misc(plfComm, "SetupCom(0x%p, 0x%08x, 0x%08x)", hFile, dwInQueue, dwOutQueue);
 
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL || pHData->hook->com_hook == NULL)
         return TrueSetupComm(hFile, dwInQueue, dwOutQueue);
 
@@ -102,7 +102,7 @@ BOOL WINAPI FakeSetupComm(HANDLE hFile, DWORD dwInQueue, DWORD dwOutQueue) {
 BOOL WINAPI FakePurgeComm(HANDLE hFile, DWORD dwFlags) {
     log_misc(plfComm, "PurgeComm(0x%p, 0x%08x)", hFile, dwFlags);
 
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL || pHData->hook->com_hook == NULL) return TruePurgeComm(hFile, dwFlags);
 
     com_hook_t* com_hook = pHData->hook->com_hook;
@@ -116,7 +116,7 @@ BOOL WINAPI FakePurgeComm(HANDLE hFile, DWORD dwFlags) {
 BOOL WINAPI FakeGetCommModemStatus(HANDLE hFile, LPDWORD lpModelStat) {
     log_misc(plfComm, "GetCommModemStatus(0x%p, 0x%p)", hFile, lpModelStat);
 
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL || pHData->hook->com_hook == NULL)
         return TrueGetCommModemStatus(hFile, lpModelStat);
 
@@ -131,7 +131,7 @@ BOOL WINAPI FakeGetCommModemStatus(HANDLE hFile, LPDWORD lpModelStat) {
 BOOL WINAPI FakeWaitCommEvent(HANDLE hFile, LPDWORD lpEvtMask, LPOVERLAPPED lpOverlapped) {
     log_misc(plfComm, "WaitCommEvent(0x%p)", hFile);
 
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL || pHData->hook->com_hook == NULL)
         return TrueWaitCommEvent(hFile, lpEvtMask, lpOverlapped);
 
@@ -146,7 +146,7 @@ BOOL WINAPI FakeWaitCommEvent(HANDLE hFile, LPDWORD lpEvtMask, LPOVERLAPPED lpOv
 BOOL WINAPI FakeClearCommError(HANDLE hFile, LPDWORD lpErrors, LPCOMSTAT lpStat) {
     log_trace(plfComm, "ClearCommError(0x%p)", hFile);
 
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL || pHData->hook->com_hook == NULL)
         return TrueClearCommError(hFile, lpErrors, lpStat);
 

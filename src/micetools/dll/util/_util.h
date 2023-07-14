@@ -2,15 +2,11 @@
 
 #include "hook.h"
 
-#define HDATA_FILE 0
-#define HDATA_FIND_VOLUME 1
-#define HDATA_ANY 0xFFFFFFFF
-
 BOOL FileExistsW(const wchar_t* szPath);
 BOOL FileExistsA(const char* szPath);
-PVOID GetDataForHandle(HANDLE hObject, DWORD type);
-void SetDataForHandle(HANDLE hObject, DWORD type, PVOID pData, BOOL isHeap);
-BOOL RemoveDataForHandle(HANDLE hObject, DWORD type);
+PVOID GetDataForHandle(HANDLE hObject);
+void SetDataForHandle(HANDLE hObject, PVOID pData, BOOL isHeap);
+BOOL RemoveDataForHandle(HANDLE hObject);
 HANDLE GetDummyHandle();
 void BytesToHex(char* hex_buffer, BYTE* bytes, DWORD nbytes);
 

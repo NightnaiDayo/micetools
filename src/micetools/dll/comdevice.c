@@ -3,7 +3,7 @@
 #define RESERVED_JVS_COM_PORT 4
 
 com_device_t* GetComDevice(HANDLE hFile) {
-    open_hook_t* pHData = GetDataForHandle(hFile, HDATA_FILE);
+    open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL || pHData->hook == NULL || pHData->hook->com_hook == NULL) return NULL;
     return pHData->hook->com_hook->com_device;
 }
