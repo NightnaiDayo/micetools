@@ -84,7 +84,7 @@ void SetDataForHandle(HANDLE hObject, PVOID pData, BOOL isHeap) {
     };
     MiceDAGrowAndSet(g_handleData, dwIndex, &newHandleData);
 }
-BOOL RemoveDataForHandle(HANDLE hObject, DWORD type) {
+BOOL RemoveDataForHandle(HANDLE hObject) {
     if (hObject == INVALID_HANDLE_VALUE) return FALSE;
     if (!hObject & MICE_HANDLE_MASK) return FALSE;
     DWORD_PTR dwIndex = (DWORD_PTR)hObject >> 2;

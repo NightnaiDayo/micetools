@@ -893,56 +893,113 @@ void tab_system_buttons() {
     igNextColumn();
     igSeparator();
 
-    igTextUnformatted("System Test", NULL);
-    igNextColumn();
-    if (MiceConfig.keys.test == 0) {
-        igTextColored(DISABLED_COL, "None");
-    } else {
-        GetKeyNameTextA(MapVirtualKey(MiceConfig.keys.test, MAPVK_VK_TO_VSC) << 16, keyName,
-                        _countof(keyName));
-        igTextUnformatted(keyName, NULL);
-    }
-    igNextColumn();
-    if (igButton("Bind##BindTest", vec0)) igOpenPopup_Str("BindSysTest", ImGuiPopupFlags_None);
-    if (MiceConfig.keys.test) {
-        igSameLine(0, -1);
-        if (igButton("Clear##ClearTest", vec0)) {
-            MiceConfig.keys.test = 0;
-            save_current_config(false);
+    {
+        igTextUnformatted("System Test", NULL);
+        igNextColumn();
+        if (MiceConfig.keys.test == 0) {
+            igTextColored(DISABLED_COL, "None");
+        } else {
+            GetKeyNameTextA(MapVirtualKey(MiceConfig.keys.test, MAPVK_VK_TO_VSC) << 16, keyName,
+                            _countof(keyName));
+            igTextUnformatted(keyName, NULL);
         }
-    }
-    igNextColumn();
-    if (igKeyBindPopup("BindSysTest", &boundKey))
-        if (boundKey != -1) {
-            MiceConfig.keys.test = boundKey;
-            save_current_config(false);
+        igNextColumn();
+        if (igButton("Bind##BindTest", vec0)) igOpenPopup_Str("BindSysTest", ImGuiPopupFlags_None);
+        if (MiceConfig.keys.test) {
+            igSameLine(0, -1);
+            if (igButton("Clear##ClearTest", vec0)) {
+                MiceConfig.keys.test = 0;
+                save_current_config(false);
+            }
         }
-
-    igTextUnformatted("System Service", NULL);
-    igNextColumn();
-    if (MiceConfig.keys.service == 0) {
-        igTextColored(DISABLED_COL, "None");
-    } else {
-        GetKeyNameTextA(MapVirtualKey(MiceConfig.keys.service, MAPVK_VK_TO_VSC) << 16, keyName,
-                        _countof(keyName));
-        igTextUnformatted(keyName, NULL);
+        igNextColumn();
+        if (igKeyBindPopup("BindSysTest", &boundKey))
+            if (boundKey != -1) {
+                MiceConfig.keys.test = boundKey;
+                save_current_config(false);
+            }
     }
-    igNextColumn();
-    if (igButton("Bind##BindService", vec0))
-        igOpenPopup_Str("BindSysService", ImGuiPopupFlags_None);
-    if (MiceConfig.keys.service) {
-        igSameLine(0, -1);
-        if (igButton("Clear##ClearService", vec0)) {
-            MiceConfig.keys.service = 0;
-            save_current_config(false);
+    {
+        igTextUnformatted("System Service", NULL);
+        igNextColumn();
+        if (MiceConfig.keys.service == 0) {
+            igTextColored(DISABLED_COL, "None");
+        } else {
+            GetKeyNameTextA(MapVirtualKey(MiceConfig.keys.service, MAPVK_VK_TO_VSC) << 16, keyName,
+                            _countof(keyName));
+            igTextUnformatted(keyName, NULL);
         }
+        igNextColumn();
+        if (igButton("Bind##BindService", vec0))
+            igOpenPopup_Str("BindSysService", ImGuiPopupFlags_None);
+        if (MiceConfig.keys.service) {
+            igSameLine(0, -1);
+            if (igButton("Clear##ClearService", vec0)) {
+                MiceConfig.keys.service = 0;
+                save_current_config(false);
+            }
+        }
+        igNextColumn();
+        if (igKeyBindPopup("BindSysService", &boundKey))
+            if (boundKey != -1) {
+                MiceConfig.keys.service = boundKey;
+                save_current_config(false);
+            }
     }
-    igNextColumn();
-    if (igKeyBindPopup("BindSysService", &boundKey))
-        if (boundKey != -1) {
-            MiceConfig.keys.service = boundKey;
-            save_current_config(false);
+    {
+        igTextUnformatted("Insert card 1P", NULL);
+        igNextColumn();
+        if (MiceConfig.keys.card_p1 == 0) {
+            igTextColored(DISABLED_COL, "None");
+        } else {
+            GetKeyNameTextA(MapVirtualKey(MiceConfig.keys.card_p1, MAPVK_VK_TO_VSC) << 16, keyName,
+                            _countof(keyName));
+            igTextUnformatted(keyName, NULL);
         }
+        igNextColumn();
+        if (igButton("Bind##Bind1P", vec0))
+            igOpenPopup_Str("BindSys1P", ImGuiPopupFlags_None);
+        if (MiceConfig.keys.card_p1) {
+            igSameLine(0, -1);
+            if (igButton("Clear##Clear1P", vec0)) {
+                MiceConfig.keys.card_p1 = 0;
+                save_current_config(false);
+            }
+        }
+        igNextColumn();
+        if (igKeyBindPopup("BindSys1P", &boundKey))
+            if (boundKey != -1) {
+                MiceConfig.keys.card_p1 = boundKey;
+                save_current_config(false);
+            }
+    }
+    {
+        igTextUnformatted("Insert card 2P", NULL);
+        igNextColumn();
+        if (MiceConfig.keys.card_p2 == 0) {
+            igTextColored(DISABLED_COL, "None");
+        } else {
+            GetKeyNameTextA(MapVirtualKey(MiceConfig.keys.card_p2, MAPVK_VK_TO_VSC) << 16, keyName,
+                            _countof(keyName));
+            igTextUnformatted(keyName, NULL);
+        }
+        igNextColumn();
+        if (igButton("Bind##Bind2P", vec0))
+            igOpenPopup_Str("BindSys2P", ImGuiPopupFlags_None);
+        if (MiceConfig.keys.card_p2) {
+            igSameLine(0, -1);
+            if (igButton("Clear##Clear2P", vec0)) {
+                MiceConfig.keys.card_p2 = 0;
+                save_current_config(false);
+            }
+        }
+        igNextColumn();
+        if (igKeyBindPopup("BindSys2P", &boundKey))
+            if (boundKey != -1) {
+                MiceConfig.keys.card_p2 = boundKey;
+                save_current_config(false);
+            }
+    }
 }
 
 void tab_main_keybinds() {

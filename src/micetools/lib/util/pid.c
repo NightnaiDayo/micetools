@@ -32,7 +32,7 @@ DWORD GetOutermostMiceId(void) {
             CHAR baseName[MAX_PATH + 1];
             if (GetModuleFileNameEx(hProcess, NULL, baseName, sizeof baseName)) {
                 // TODO: Better
-                if (stricmp(PathFindFileNameA(baseName), MICEEXE) == 0)
+                if (_stricmp(PathFindFileNameA(baseName), MICEEXE) == 0)
                     return pid;
             }
             CloseHandle(hProcess);

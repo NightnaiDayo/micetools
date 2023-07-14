@@ -246,7 +246,7 @@ static void nfc_poll(com_device_t* dev, comio_recv_head_t* req) {
 
     PNFC_CARD lpCard = p1 ? &nfcCardReaderP1 : &nfcCardReaderP2;
 
-    SHORT key = GetAsyncKeyState(p1 ? 'P' : 'L');
+    SHORT key = GetAsyncKeyState(p1 ? MiceConfig.keys.card_p1 : MiceConfig.keys.card_p2);
     if (key < 0) {
         LPCSTR cardId = GetCardIdentifier(p1 ? 0 : 1);
         BYTE nCardBytes = TN32PopulateCard(lpCard, cardId);

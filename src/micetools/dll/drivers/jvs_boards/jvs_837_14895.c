@@ -91,7 +91,7 @@ static JVS_STATUS Transact(PMICE_JVS this, BYTE command) {
             if (MiceInputGetButtonState(&(this->m_Bindings[1]))) this->m_CoinCounts[1]++;
 
             for (unsigned char slot = 0; slot < coin_count; slot++) {
-                MiceJvsWrite(this, this->m_CoinCounts[slot] >> 8);
+                MiceJvsWrite(this, (this->m_CoinCounts[slot] >> 8) & 0xff);
                 MiceJvsWrite(this, this->m_CoinCounts[slot] & 0xff);
             }
             return JVS_STATUS_OK;
