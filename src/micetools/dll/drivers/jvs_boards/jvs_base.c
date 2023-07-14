@@ -1,7 +1,6 @@
 #include <Windows.h>
 
 #include "../../common.h"
-#include "jvs.h"
 
 static void Ctor(PMICE_JVS this) {
     this->vftable = &_MiceJvsBase_vftable;

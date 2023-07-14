@@ -6,11 +6,8 @@
 
 #include "../../../../subprojects/inih_dep/ini.h"
 #include "../../dll/devices/smb_pca9535.h"
-#include "../../dll/drivers/jvs_boards/jvs.h"
 #include "../../dll/hooks/files.h"
 #include "../../dll/key_config.h"
-
-MICE_JVS _MiceJvsBoards[JVS_IO_MAX];
 
 config_t MiceConfig = {
 #define SECTION(s, comment) .s = {
@@ -42,134 +39,9 @@ static void fprintf_prefix(FILE *file, const char *prefix, const char *text) {
     free(copy);
 }
 
-void save_keybinds() {
-    HANDLE hFile = CreateFileA(KEYBINDS_PATH, GENERIC_WRITE | GENERIC_READ, FILE_SHARE_WRITE, NULL,
-                               CREATE_ALWAYS, 0, NULL);
-    if (hFile == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Failed to open keybinds file: %d", GetLastError());
-        return;
-    }
-
-    SetFilePointer(hFile, 8, NULL, 0);
-
-    DWORD nWrote;
-    DWORD totalSize = 0;
-    WriteFile(hFile, &MiceConfig.keys.board_count, sizeof MiceConfig.keys.board_count, &nWrote,
-              NULL);
-    totalSize += nWrote;
-
-    for (int board = 0; board < MiceConfig.keys.board_count; board++) {
-        WriteFile(hFile, &_MiceJvsBoards->m_Players, sizeof _MiceJvsBoards->m_Players, &nWrote,
-                  NULL);
-        totalSize += nWrote;
-        WriteFile(hFile, &_MiceJvsBoards->m_ButtonsPerPlayer,
-                  sizeof _MiceJvsBoards->m_ButtonsPerPlayer, &nWrote, NULL);
-        totalSize += nWrote;
-        WriteFile(hFile, &_MiceJvsBoards->m_Coins, sizeof _MiceJvsBoards->m_Coins, &nWrote, NULL);
-        totalSize += nWrote;
-        WriteFile(hFile, &_MiceJvsBoards->m_NumButtons, sizeof _MiceJvsBoards->m_NumButtons,
-                  &nWrote, NULL);
-        totalSize += nWrote;
-
-        WriteFile(hFile, _MiceJvsBoards[board].m_Bindings,
-                  sizeof *_MiceJvsBoards[board].m_Bindings * _MiceJvsBoards->m_NumButtons, &nWrote,
-                  NULL);
-        totalSize += nWrote;
-    }
-
-    SetFilePointer(hFile, 0, NULL, 0);
-    WriteFile(hFile, &totalSize, sizeof totalSize, &nWrote, NULL);
-
-    amiCrc32RInit();
-    DWORD readLeft = totalSize;
-    DWORD crc32 = 0;
-    SetFilePointer(hFile, 8, NULL, 0);
-    while (readLeft) {
-        BYTE readBuf[0x1000];
-        DWORD toRead = sizeof readBuf;
-        if (readLeft < toRead) toRead = readLeft;
-        DWORD nRead;
-        ReadFile(hFile, readBuf, toRead, &nRead, NULL);
-
-        if (nRead == 0) {
-            fprintf(stderr, "Binding saving failed %d\n", GetLastError());
-            CloseHandle(hFile);
-            return;
-        }
-        crc32 = amiCrc32RCalc(nRead, readBuf, crc32);
-        readLeft -= nRead;
-    }
-    SetFilePointer(hFile, 4, NULL, 0);
-    WriteFile(hFile, &crc32, sizeof crc32, &nWrote, NULL);
-
-    CloseHandle(hFile);
-}
-void load_keybind_config() {
-    HANDLE hFile =
-        CreateFileA(KEYBINDS_PATH, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-    if (hFile == INVALID_HANDLE_VALUE) return;
-
-    DWORD nRead;
-    DWORD nSize = 0;
-    ReadFile(hFile, &nSize, sizeof nSize, &nRead, NULL);
-
-    SetFilePointer(hFile, 8, NULL, 0);
-    amiCrc32RInit();
-    DWORD crc32 = 0;
-    while (nSize) {
-        BYTE readBuf[0x1000];
-        DWORD toRead = sizeof readBuf;
-        if (nSize < toRead) toRead = nSize;
-        ReadFile(hFile, readBuf, toRead, &nRead, NULL);
-
-        if (nRead == 0) {
-            fprintf(stderr, "Binding reading failed\n");
-            CloseHandle(hFile);
-            return;
-        }
-        crc32 = amiCrc32RCalc(nRead, readBuf, crc32);
-        nSize -= nRead;
-    }
-
-    DWORD savedCrc;
-    SetFilePointer(hFile, 4, NULL, 0);
-    ReadFile(hFile, &savedCrc, sizeof savedCrc, &nRead, NULL);
-    if (savedCrc != crc32) {
-        fprintf(stderr, "Binding file CRC failed (%08x!=%08x)\n", savedCrc, crc32);
-        CloseHandle(hFile);
-        return;
-    }
-
-    ReadFile(hFile, &MiceConfig.keys.board_count, sizeof MiceConfig.keys.board_count, &nRead, NULL);
-
-    for (int board = 0; board < MiceConfig.keys.board_count; board++) {
-        ReadFile(hFile, &_MiceJvsBoards->m_Players, sizeof _MiceJvsBoards->m_Players, &nRead, NULL);
-        ReadFile(hFile, &_MiceJvsBoards->m_ButtonsPerPlayer,
-                 sizeof _MiceJvsBoards->m_ButtonsPerPlayer, &nRead, NULL);
-        ReadFile(hFile, &_MiceJvsBoards->m_Coins, sizeof _MiceJvsBoards->m_Coins, &nRead, NULL);
-        ReadFile(hFile, &_MiceJvsBoards->m_NumButtons, sizeof _MiceJvsBoards->m_NumButtons, &nRead,
-                 NULL);
-
-        free(_MiceJvsBoards[board].m_Bindings);
-        _MiceJvsBoards[board].m_Bindings =
-            malloc(sizeof *_MiceJvsBoards[board].m_Bindings * _MiceJvsBoards->m_NumButtons);
-        ReadFile(hFile, _MiceJvsBoards[board].m_Bindings,
-                 sizeof *_MiceJvsBoards[board].m_Bindings * _MiceJvsBoards->m_NumButtons, &nRead,
-                 NULL);
-
-        free(_MiceJvsBoards[board].m_ButtonStates);
-        _MiceJvsBoards[board].m_ButtonStates =
-            malloc(sizeof *_MiceJvsBoards[board].m_ButtonStates * _MiceJvsBoards->m_NumButtons);
-    }
-
-    CloseHandle(hFile);
-}
-
 char keybindBuffer[2 * JVS_IO_MAX * (sizeof _MiceJvsBoards[0].m_Bindings[0]) * 32];
 void save_current_config(bool writeDefault) {
     CreateDirectoryA("mice", NULL);  // TODO: A touch nicer?
-
-    save_keybinds();
 
     FILE *config_file;
     fopen_s(&config_file, CONFIG_PATH, "w");
@@ -270,24 +142,30 @@ void load_mice_config() {
     if (ini_parse(CONFIG_PATH, handler, &MiceConfig) < 0) {
         printf("Loading config defaults\n");
 
-        if (MiceConfig.sysconf.serial) free(MiceConfig.sysconf.serial);
-        MiceConfig.sysconf.serial = malloc(17);
-        if (MiceConfig.sysconf.keyid) free(MiceConfig.sysconf.keyid);
-        MiceConfig.sysconf.keyid = malloc(17);
-        GetSerialNumbers(MiceConfig.sysconf.serial, MiceConfig.sysconf.keyid);
+        if (MiceConfig.sysconf.pcb_serial) free(MiceConfig.sysconf.pcb_serial);
+        MiceConfig.sysconf.pcb_serial = malloc(17);
+        memset(MiceConfig.sysconf.pcb_serial, 0, 17);
+        if (MiceConfig.sysconf.keychip_serial) free(MiceConfig.sysconf.keychip_serial);
+        MiceConfig.sysconf.keychip_serial = malloc(17);
+        memset(MiceConfig.sysconf.keychip_serial, 0, 17);
+        GetSerialNumbers(MiceConfig.sysconf.pcb_serial, MiceConfig.sysconf.keychip_serial);
 
         save_current_config(true);
     }
 
-    if (!MiceConfig.sysconf.serial || strlen(MiceConfig.sysconf.serial) == 0) {
-        if (MiceConfig.sysconf.serial) free(MiceConfig.sysconf.serial);
-        MiceConfig.sysconf.serial = malloc(17);
-        GetSerialNumbers(MiceConfig.sysconf.serial, NULL);
+    if (!MiceConfig.sysconf.pcb_serial || strlen(MiceConfig.sysconf.pcb_serial) == 0) {
+        if (MiceConfig.sysconf.pcb_serial) free(MiceConfig.sysconf.pcb_serial);
+        MiceConfig.sysconf.pcb_serial = malloc(17);
+        memset(MiceConfig.sysconf.pcb_serial, 0, 17);
+        GetSerialNumbers(MiceConfig.sysconf.pcb_serial, NULL);
+        save_current_config(false);
     }
-    if (!MiceConfig.sysconf.keyid || strlen(MiceConfig.sysconf.keyid) == 0) {
-        if (MiceConfig.sysconf.keyid) free(MiceConfig.sysconf.keyid);
-        MiceConfig.sysconf.keyid = malloc(17);
-        GetSerialNumbers(NULL, MiceConfig.sysconf.keyid);
+    if (!MiceConfig.sysconf.keychip_serial || strlen(MiceConfig.sysconf.keychip_serial) == 0) {
+        if (MiceConfig.sysconf.keychip_serial) free(MiceConfig.sysconf.keychip_serial);
+        MiceConfig.sysconf.keychip_serial = malloc(17);
+        memset(MiceConfig.sysconf.keychip_serial, 0, 17);
+        GetSerialNumbers(NULL, MiceConfig.sysconf.keychip_serial);
+        save_current_config(false);
     }
 
     if (MiceConfig.window.dipsw) {

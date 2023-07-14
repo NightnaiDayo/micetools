@@ -24,6 +24,7 @@ shared_library(
         'games.c',
         'input.c',
         'micefs.c',
+        'input_config.c',
 
         'dllmain.c',
     ],

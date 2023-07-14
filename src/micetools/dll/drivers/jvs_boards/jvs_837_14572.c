@@ -1,7 +1,6 @@
 #include <Windows.h>
 
 #include "../../common.h"
-#include "jvs.h"
 
 #define PLAYER_COUNT 2
 #define COIN_COUNTERS 2
@@ -24,15 +23,20 @@ static void Ctor(PMICE_JVS this) {
     this->m_VersionComm = 0x10;
 
     // Coin + Test + 13 switches per player
-    this->m_ButtonsPerPlayer = PLAYER_SWITCH_COUNT;
-    this->m_Coins = COIN_COUNTERS;
-    this->m_Players = PLAYER_COUNT;
+    if (this->m_ButtonsPerPlayer == 0) this->m_ButtonsPerPlayer = PLAYER_SWITCH_COUNT;
+    if (this->m_Coins == 0) this->m_Coins = COIN_COUNTERS;
+    if (this->m_Players == 0) this->m_Players = PLAYER_COUNT;
 
-    this->m_NumButtons = this->m_Coins + 1 + (this->m_ButtonsPerPlayer * this->m_Players);
-    this->m_ButtonStates = malloc(this->m_NumButtons * sizeof *this->m_ButtonStates);
-    ZeroMemory(this->m_ButtonStates, this->m_NumButtons * sizeof *this->m_ButtonStates);
-    this->m_Bindings = malloc(this->m_NumButtons * sizeof *this->m_Bindings);
-    ZeroMemory(this->m_Bindings, this->m_NumButtons * sizeof *this->m_Bindings);
+    if (this->m_NumButtons == 0)
+        this->m_NumButtons = this->m_Coins + 1 + (this->m_ButtonsPerPlayer * this->m_Players);
+    if (this->m_ButtonStates == NULL) {
+        this->m_ButtonStates = malloc(this->m_NumButtons * sizeof *this->m_ButtonStates);
+        ZeroMemory(this->m_ButtonStates, this->m_NumButtons * sizeof *this->m_ButtonStates);
+    }
+    if (this->m_Bindings == NULL) {
+        this->m_Bindings = malloc(this->m_NumButtons * sizeof *this->m_Bindings);
+        ZeroMemory(this->m_Bindings, this->m_NumButtons * sizeof *this->m_Bindings);
+    }
 
     ZeroMemory(this->m_CoinCounts, sizeof this->m_CoinCounts);
 }

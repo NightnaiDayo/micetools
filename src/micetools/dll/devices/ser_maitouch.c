@@ -62,6 +62,24 @@ WORD getSensorInRegion(float mX, float mY, float rX, float rY, float rW, float r
 }
 
 static BYTE g_ActiveResponse[14];
+static inline void handleOneButton(int iW, int iH, int iX, int iY) {
+    float x = (float)iX / (float)(iW);
+    float y = (float)iY / (float)(iH);
+
+    // If the window is square, assume `1P_ONLY` is set
+    WORD button;
+    if (iW == iH) {
+        button = getSensorInRegion(x, y, 0.0f, 0.0f, 1.0f, 1.0f);
+        if (button) g_ActiveResponse[button >> 8] |= button & 0xff;
+    } else {
+        // 1P
+        button = getSensorInRegion(x, y, 0.0f, 0.4375f, 0.5f, 0.5625f);
+        if (button) g_ActiveResponse[button >> 8] |= button & 0xff;
+        // 2P
+        button = getSensorInRegion(x, y, 0.5f, 0.4375f, 0.5f, 0.5625f);
+        if (button) g_ActiveResponse[(button >> 8) + 6] |= button & 0xff;
+    }
+}
 static void populateActiveResponse() {
     // Placeholders
     g_ActiveResponse[1] = '@';
@@ -74,41 +92,29 @@ static void populateActiveResponse() {
     g_ActiveResponse[9] = '@';
     g_ActiveResponse[10] = '@';
 
-    if (!GetAsyncKeyState(VK_LBUTTON)) return;
-
-    POINT pCursor;
-    GetCursorPos(&pCursor);
     if (!mainWindow) return;
-    if (!ScreenToClient(mainWindow, &pCursor)) return;
-
     RECT winRect;
     if (!GetWindowRect(mainWindow, &winRect)) return;
     DWORD dwStyle = GetWindowLongW(mainWindow, GWL_STYLE);
     UnadjustWindowRect(&winRect, dwStyle, FALSE);
-
     int w = winRect.right - winRect.left;
     int h = winRect.bottom - winRect.top;
 
-    float x = (float)pCursor.x / (float)(w);
-    float y = (float)pCursor.y / (float)(h);
+    if (GetAsyncKeyState(VK_LBUTTON)) {
+        POINT pCursor;
+        GetCursorPos(&pCursor);
+        if (ScreenToClient(mainWindow, &pCursor)) {
+            handleOneButton(w, h, pCursor.x, pCursor.y);
+        }
+    }
 
-    // If the window is square, assume `1P_ONLY` is set
-    WORD button;
-    if (w == h) {
-        button = getSensorInRegion(x, y, 0.0f, 0.0f, 1.0f, 1.0f);
-        if (button) g_ActiveResponse[button >> 8] |= button & 0xff;
-    } else {
-        // 1P
-        button = getSensorInRegion(x, y, 0.0f, 0.4375f, 0.5f, 0.5625f);
-        if (button) g_ActiveResponse[button >> 8] |= button & 0xff;
-        // 2P
-        button = getSensorInRegion(x, y, 0.5f, 0.4375f, 0.5f, 0.5625f);
-        if (button) g_ActiveResponse[(button >> 8) + 6] |= button & 0xff;
+    for (DWORD i = 0; i < nActiveTouches; i++) {
+        handleOneButton(w, h, activeTouches[i].m_X, activeTouches[i].m_Y);
     }
 }
 
 BOOL touch_is_enabled = TRUE;  // Default on is important!
-BYTE thresh = 0x00;  // Lazy caching of single value
+BYTE thresh = 0x00;            // Lazy caching of single value
 DWORD WINAPI touch_bd_thread(com_device_t* dev) {
     log_info(plfMaiTouch, "%ls woke up", dev->com->wName);
 
@@ -124,7 +130,7 @@ DWORD WINAPI touch_bd_thread(com_device_t* dev) {
         if (touch_is_enabled && !comdev_available(dev)) {
             populateActiveResponse();
             comdev_write(dev, g_ActiveResponse, 14);
-            Sleep(5);  // 200Hz should be plenty
+            Sleep(2);
             continue;
         }
 

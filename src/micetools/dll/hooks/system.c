@@ -36,16 +36,20 @@ DWORD WINAPI FakeGetTempPathW(DWORD nBufferLength, LPWSTR lpBuffer) {
 }
 
 HCURSOR WINAPI FakeLoadCursorFromFileA(LPCSTR lpFileName) { return (HANDLE)1; }
-BOOL FakeSetSystemCursor(HCURSOR hcur, DWORD id) { return TRUE; }
-BOOL FakeDeleteObject(HGDIOBJ ho) { return TRUE; }
+BOOL WINAPI FakeSetSystemCursor(HCURSOR hcur, DWORD id) { return TRUE; }
+BOOL WINAPI FakeDeleteObject(HGDIOBJ ho) { return TRUE; }
 
-FARPROC FakeGetProcAddress(HMODULE hModule, LPCSTR lpProcName) {
-    log_trace(plfSystem, "GetProcAddress(%s)", lpProcName);
+FARPROC WINAPI FakeGetProcAddress(HMODULE hModule, LPCSTR lpProcName) {
+    // log_error(plfSystem, "GetProcAddress(%s)", lpProcName);
     return TrueGetProcAddress(hModule, lpProcName);
 }
-HMODULE FakeGetModuleHandleA(LPCSTR lpModuleName) {
-    log_trace(plfSystem, "GetModuleHandleA(%s)", lpModuleName);
+HMODULE WINAPI FakeGetModuleHandleA(LPCSTR lpModuleName) {
+    // log_game(plfSystem, "GetModuleHandleA(%s)", lpModuleName);
     return TrueGetModuleHandleA(lpModuleName);
+}
+HMODULE WINAPI FakeGetModuleHandleW(LPCWSTR lpModuleName) {
+    // log_game(plfSystem, "GetModuleHandleW(%ls)", lpModuleName);
+    return TrueGetModuleHandleW(lpModuleName);
 }
 
 LONG WINAPI FakeRtlGetVersion(PRTL_OSVERSIONINFOW lpVersionInformation) {
@@ -89,8 +93,9 @@ void hook_system() {
     hook("Kernel32.dll", "GetVolumeInformationW", FakeGetVolumeInformationW, NULL);
     hook("Kernel32.dll", "GetTempPathW", FakeGetTempPathW, NULL);
     // hook("Kernel32.dll", "GetVersionExA", FakeGetVersionExA, NULL);
-    // hook("Kernel32.dll", "GetProcAddress", FakeGetProcAddress, (void*)&TrueGetProcAddress);
-    // hook("Kernel32.dll", "GetModuleHandleA", FakeGetModuleHandleA, (void*)&TrueGetModuleHandleA);
+    hook("Kernel32.dll", "GetProcAddress", FakeGetProcAddress, (void*)&TrueGetProcAddress);
+    hook("Kernel32.dll", "GetModuleHandleA", FakeGetModuleHandleA, (void*)&TrueGetModuleHandleA);
+    hook("Kernel32.dll", "GetModuleHandleW", FakeGetModuleHandleW, (void*)&TrueGetModuleHandleW);
     hook("Kernel32.dll", "LoadLibraryA", FakeLoadLibraryA, (void*)&TrueLoadLibraryA);
     hook("Kernel32.dll", "LoadLibraryW", FakeLoadLibraryW, (void*)&TrueLoadLibraryW);
 

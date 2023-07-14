@@ -40,10 +40,10 @@ void mdkPcpAbNetworkAddress(pcpa_t* stream, void* data) {
 void mdkPcpAbDvd(pcpa_t* stream, void* data) { pcpaSetSendPacket(stream, AB_DVD, "01"); }
 
 void mdkPcpPbKeyId(pcpa_t* stream, void* data) {
-    pcpaSetSendPacket(stream, BIL_KEYID, MiceConfig.sysconf.keyid);
+    pcpaSetSendPacket(stream, BIL_KEYID, MiceConfig.sysconf.keychip_serial);
 }
 void mdkPcpPbMainId(pcpa_t* stream, void* data) {
-    pcpaSetSendPacket(stream, BIL_MAINID, MiceConfig.sysconf.serial);
+    pcpaSetSendPacket(stream, BIL_MAINID, MiceConfig.sysconf.pcb_serial);
 }
 void mdkPcpPbPlayCount(pcpa_t* stream, void* data) {
     pcpaSetSendPacket(stream, BIL_PLAYCOUNT, "00000000");

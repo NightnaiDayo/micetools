@@ -59,13 +59,14 @@ void prebind_hooks() {
 void init_injection(HMODULE hModule) {
     WideCharToMultiByte(CP_ACP, 0, exeName, -1, exeNameC, sizeof exeNameC, NULL, NULL);
 
+    // We're in a new context now, so need to reconfigure
+    setup_logging();
     // Make sure our CRC32 tables are ready for anything that might want to use them
     amiCrc32RInit();
 
     load_mice_config();
+    load_keybind_config();
 
-    // We're in a new context now, so need to reconfigure
-    setup_logging();
     MiceSetLogBasename(exeNameC);
     log_info(plfBoot, "Handover complete. Now executing within %ls", exeName);
 
@@ -126,10 +127,7 @@ void init_injection(HMODULE hModule) {
     // MX SuperIO: Communicate with the HW monitor chip
     if (MiceConfig.drivers.mxsuperio) setup_mxsuperio();
     // MX JVS: Interacting with JVS-based devices
-    if (MiceConfig.drivers.mxjvs) {
-        setup_mxjvs();
-        load_keybind_config();
-    }
+    if (MiceConfig.drivers.mxjvs) setup_mxjvs();
     // MX HW Reset: Forcibly reboot the machine
     if (MiceConfig.drivers.mxhwreset) setup_mxhwreset();
     // MX SMBus: Communicate over the LPC bus. This contains the EEPROM, and PCA9535

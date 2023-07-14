@@ -2,8 +2,8 @@
 #ifndef CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #endif
+#include "../common.h"
 #include "../devices/smb_at24c64an.h"
-#include "../drivers/jvs_boards/jvs.h"
 #include "../key_config.h"
 #include "cimgui.h"
 #include "imgui/backends/GL/freeglut.h"
@@ -152,6 +152,7 @@ void hud_card(ImGuiKey open_key) {
     igEnd();
 }
 
+extern float jvsRate;
 void hud_fps() {
     if (igBegin("FPS", NULL,
                 ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
@@ -167,6 +168,7 @@ void hud_fps() {
 
         igText("FPS: %.1f", io->Framerate);
         igText(" dT: %.2fms", 1000 / io->Framerate);
+        igText("JVS Rate: %.2f", jvsRate);
     }
 
     igEnd();
@@ -422,16 +424,19 @@ void tab_settings_system() {
     // The 'M' prefix isn't technically foolproof, but it's good enough for a simple help message
     staticChanged |= AddSettingString(
         "PCB serial number",
-        (MiceConfig.sysconf.serial && MiceConfig.sysconf.serial[0] == 'M' ? SERIAL_HELP : NULL),
-        &MiceConfig.sysconf.serial);
+        (MiceConfig.sysconf.pcb_serial && MiceConfig.sysconf.pcb_serial[0] == 'M' ? SERIAL_HELP
+                                                                                  : NULL),
+        &MiceConfig.sysconf.pcb_serial);
     if (staticChanged) {
         build_eeprom();
         save_current_config(false);
     }
     if (AddSettingString(
             "Keychip serial number",
-            (MiceConfig.sysconf.keyid && MiceConfig.sysconf.keyid[0] == 'M' ? SERIAL_HELP : NULL),
-            &MiceConfig.sysconf.keyid)) {
+            (MiceConfig.sysconf.keychip_serial && MiceConfig.sysconf.keychip_serial[0] == 'M'
+                 ? SERIAL_HELP
+                 : NULL),
+            &MiceConfig.sysconf.keychip_serial)) {
         save_current_config(false);
     }
 
@@ -789,16 +794,16 @@ void AddSettingButton(PMICE_JVS board, int player, int button) {
         igSameLine(0, -1);
         if (igButton(clear, vec0)) {
             bind->m_Type = MICE_BB_TYPE_UNBOUND;
-            save_current_config(false);
+            save_keybind_config();
         }
     }
     igNextColumn();
     igBeginDisabled(bind->m_Type == MICE_BB_TYPE_UNBOUND);
-    if (igCheckbox(invertName, (bool*)&bind->m_Invert)) save_current_config(false);
+    if (igCheckbox(invertName, (bool*)&bind->m_Invert)) save_keybind_config();
     igEndDisabled();
     igNextColumn();
 
-    if (igKeyBindPopup_New(name, bind)) save_current_config(false);
+    if (igKeyBindPopup_New(name, bind)) save_keybind_config();
 }
 
 void AddButtonsForBoard(PMICE_JVS board) {
@@ -841,33 +846,34 @@ void tab_jvs_board(int num) {
 
     igSeparator();
 
-    AddButtonsForBoard(&_MiceJvsBoards[0]);
+    AddButtonsForBoard(&_MiceJvsBoards[num]);
 
-    igSeparator();
-    AddSetting("Test", NULL);
-    char keyName[16];
-    if (jvsKeybindings[num].test == 0) {
-        igTextColored(DISABLED_COL, "None");
-    } else {
-        GetKeyNameTextA(MapVirtualKey(jvsKeybindings[num].test, MAPVK_VK_TO_VSC) << 16, keyName,
-                        _countof(keyName));
-        igTextUnformatted(keyName, NULL);
-    }
-    igNextColumn();
-    if (igButton("Bind##JvsTest", vec0)) igOpenPopup_Str("BindJvsTest", ImGuiPopupFlags_None);
-    if (jvsKeybindings[num].test) {
-        igSameLine(0, -1);
-        if (igButton("Clear##ClearJvsTest", vec0)) {
-            jvsKeybindings[num].test = 0;
-            save_current_config(false);
-        }
-    }
-    int boundKey;
-    if (igKeyBindPopup("BindJvsTest", &boundKey))
-        if (boundKey != -1) {
-            jvsKeybindings[num].test = boundKey;
-            save_current_config(false);
-        }
+    // TODO: RESTORE THIS!
+    // igSeparator();
+    // AddSetting("Test", NULL);
+    // char keyName[16];
+    // if (jvsKeybindings[num].test == 0) {
+    //     igTextColored(DISABLED_COL, "None");
+    // } else {
+    //     GetKeyNameTextA(MapVirtualKey(jvsKeybindings[num].test, MAPVK_VK_TO_VSC) << 16, keyName,
+    //                     _countof(keyName));
+    //     igTextUnformatted(keyName, NULL);
+    // }
+    // igNextColumn();
+    // if (igButton("Bind##JvsTest", vec0)) igOpenPopup_Str("BindJvsTest", ImGuiPopupFlags_None);
+    // if (jvsKeybindings[num].test) {
+    //     igSameLine(0, -1);
+    //     if (igButton("Clear##ClearJvsTest", vec0)) {
+    //         jvsKeybindings[num].test = 0;
+    //         save_keybind_config();
+    //     }
+    // }
+    // int boundKey;
+    // if (igKeyBindPopup("BindJvsTest", &boundKey))
+    //     if (boundKey != -1) {
+    //         jvsKeybindings[num].test = boundKey;
+    //         save_keybind_config();
+    //     }
 
     igEndColumns();
 
@@ -940,15 +946,14 @@ void tab_system_buttons() {
 }
 
 void tab_main_keybinds() {
-    if (igInputInt("Number of JVS boards", &MiceConfig.keys.board_count, 1, 1,
-                   ImGuiInputTextFlags_None)) {
-        if (MiceConfig.keys.board_count < 0) MiceConfig.keys.board_count = 0;
-        if (MiceConfig.keys.board_count > JVS_IO_MAX) MiceConfig.keys.board_count = JVS_IO_MAX;
-        save_current_config(false);
+    if (igInputInt("Number of JVS boards", &g_MiceJvsNumBoards, 1, 1, ImGuiInputTextFlags_None)) {
+        if (g_MiceJvsNumBoards < 1) g_MiceJvsNumBoards = 1;
+        if (g_MiceJvsNumBoards > JVS_IO_MAX) g_MiceJvsNumBoards = JVS_IO_MAX;
+        save_keybind_config();
     }
 
     if (igBeginTabBar("JVSBoards", 0)) {
-        for (int i = 0; i < MiceConfig.keys.board_count; i++) {
+        for (int i = 0; i < g_MiceJvsNumBoards; i++) {
             char name[32];
             snprintf(name, _countof(name), "Board %d", i + 1);
             if (igBeginTabItem(name, NULL, 0)) {

@@ -2,10 +2,12 @@
 
 #include "../../sysconf.h"
 
-BYTE parallel_flags = 0x00;
-BYTE parallel_ctrl = 0x00;
-BYTE parallel_status = 0x00;
-BYTE parallel_data = 0x00;
+static HANDLE parallel_ctrl_changed_event = NULL;
+
+static BYTE parallel_flags = 0x00;
+static BYTE parallel_ctrl = 0x00;
+static BYTE parallel_status = 0x00;
+static BYTE parallel_data = 0x00;
 
 BYTE KEYCHIP_ID[16] = KEY_ID;
 BYTE _MAIN_ID[16] = MAIN_ID;
@@ -71,6 +73,7 @@ BOOL WINAPI mxparallel_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCod
             return TRUE;
         case IOCTL_MXPARALLEL_WRITE_CTRL_PORT:
             parallel_ctrl = ((LPBYTE)lpInBuffer)[0];
+            SetEvent(parallel_ctrl_changed_event);
             // log_warning(plfMxParallel, "Write ctrl %08x", parallel_ctrl);
             outLen(0);
             return TRUE;
@@ -101,12 +104,12 @@ BOOL WINAPI mxparallel_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCod
 void micexkTransportSend(unsigned char* send_data, int nbytes) {
     setAck;
     for (int i = 0; i < nbytes; i++) {
-        while (_Strobe) YieldProcessor();
+        WaitForNotStrobe;
         setBusy;
         parallel_data = send_data[i];
-        while (!_Strobe) YieldProcessor();
+        WaitForStrobe;
         clearBusy;
-        while (_Strobe) YieldProcessor();
+        WaitForNotStrobe;
     }
     clearAck;
 }
@@ -120,10 +123,10 @@ void micexkSendPacket(unsigned char* send_data) {
 void micexkTransportRecv(unsigned char* buffer, int nbytes) {
     for (int i = 0; i < nbytes; i++) {
         clearBusy;
-        while (!_Strobe) YieldProcessor();
+        WaitForStrobe;
         buffer[i] = parallel_data;
         setBusy;
-        while (_Strobe) YieldProcessor();
+        WaitForNotStrobe;
         clearBusy;
     }
 }
@@ -449,6 +452,8 @@ void setup_mxparallel() {
     mxkSwapKeys();
 
     init_nv_storage();
+
+    parallel_ctrl_changed_event = CreateEvent(NULL, FALSE, FALSE, NULL);
 
     file_hook_t* mxparallel = new_file_hook(L"\\\\.\\mxparallel");
     mxparallel->DeviceIoControl = &mxparallel_DeviceIoControl;

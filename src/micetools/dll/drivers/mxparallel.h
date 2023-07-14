@@ -17,7 +17,6 @@ typedef struct {
 } nvram_data_block_t;
 #pragma pack(pop)
 
-
 void micexkTransportSend(unsigned char* send_data, int nbytes);
 void micexkSendPacket(unsigned char* send_data);
 void micexkTransportRecv(unsigned char* buffer, int nbytes);
@@ -59,3 +58,17 @@ static BYTE parallel_data;
 #define _Reset getControl(0x04)
 #define _SelPrint getControl(0x08)
 #define _IsDirWrite getControl(0x20)
+
+#define WaitForStrobe                                                                \
+    do {                                                                             \
+        while (!_Strobe) WaitForSingleObject(parallel_ctrl_changed_event, INFINITE); \
+        /* Awful way to release any other threads too */                             \
+        SetEvent(parallel_ctrl_changed_event);                                       \
+    } while (0)
+
+#define WaitForNotStrobe                                                            \
+    do {                                                                            \
+        while (_Strobe) WaitForSingleObject(parallel_ctrl_changed_event, INFINITE); \
+        /* Awful way to release any other threads too */                            \
+        SetEvent(parallel_ctrl_changed_event);                                      \
+    } while (0)

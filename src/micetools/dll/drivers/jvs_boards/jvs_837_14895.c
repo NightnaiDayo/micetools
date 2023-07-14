@@ -1,7 +1,6 @@
 #include <Windows.h>
 
 #include "../../common.h"
-#include "jvs.h"
 
 #define PLAYER_COUNT 1
 #define COIN_COUNTERS 2
@@ -88,20 +87,12 @@ static JVS_STATUS Transact(PMICE_JVS this, BYTE command) {
             unsigned char coin_count;
             coin_count = MiceJvsRead(this);
 
-            // int coin1 = jvsKeybindings[board->num].buttons[0];
-            // int coin2 = jvsKeybindings[board->num].buttons[1];
-
-            // if (coin1 && GetAsyncKeyState(coin1) & 1) board->coin_counts[0]++;
-            // if (coin2 && GetAsyncKeyState(coin2) & 1) board->coin_counts[1]++;
-
-            // for (unsigned char slot = 0; slot < coin_count; slot++) {
-            //     MiceJvsWrite(this, board->coin_counts[slot] >> 8);
-            //     MiceJvsWrite(this, board->coin_counts[slot] & 0xff);
-            // }
+            if (MiceInputGetButtonState(&(this->m_Bindings[0]))) this->m_CoinCounts[0]++;
+            if (MiceInputGetButtonState(&(this->m_Bindings[1]))) this->m_CoinCounts[1]++;
 
             for (unsigned char slot = 0; slot < coin_count; slot++) {
-                MiceJvsWrite(this, 0);
-                MiceJvsWrite(this, 0);
+                MiceJvsWrite(this, this->m_CoinCounts[slot] >> 8);
+                MiceJvsWrite(this, this->m_CoinCounts[slot] & 0xff);
             }
             return JVS_STATUS_OK;
 

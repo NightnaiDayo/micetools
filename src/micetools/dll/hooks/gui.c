@@ -4,6 +4,101 @@
 
 #include "../input.h"
 
+// These APIs were added in Windows 8. Because they're events sent to the WndProc, we're safe to
+// just re-define them ourselves, and get progressive enhancement!
+#if (WINVER < 0x0602)
+#define WM_NCPOINTERUPDATE 0x0241
+#define WM_NCPOINTERDOWN 0x0242
+#define WM_NCPOINTERUP 0x0243
+#define WM_POINTERUPDATE 0x0245
+#define WM_POINTERDOWN 0x0246
+#define WM_POINTERUP 0x0247
+#define WM_POINTERENTER 0x0249
+#define WM_POINTERLEAVE 0x024A
+#define WM_POINTERACTIVATE 0x024B
+#define WM_POINTERCAPTURECHANGED 0x024C
+
+#define POINTER_FLAG_INCONTACT 0x00000004
+#define POINTER_FLAG_FIRSTBUTTON 0x00000010
+#define POINTER_FLAG_CANCELED 0x00008000
+#define POINTER_FLAG_DOWN 0x00010000
+#define POINTER_FLAG_UP 0x00040000
+
+#define GET_POINTERID_WPARAM(wParam) (LOWORD(wParam))
+
+enum tagPOINTER_INPUT_TYPE {
+    PT_POINTER = 1,   // Generic pointer
+    PT_TOUCH = 2,     // Touch
+    PT_PEN = 3,       // Pen
+    PT_MOUSE = 4,     // Mouse
+    PT_TOUCHPAD = 5,  // Touchpad
+};
+
+typedef DWORD POINTER_INPUT_TYPE;
+typedef UINT32 POINTER_FLAGS;
+
+typedef enum tagPOINTER_BUTTON_CHANGE_TYPE {
+    POINTER_CHANGE_NONE,
+    POINTER_CHANGE_FIRSTBUTTON_DOWN,
+    POINTER_CHANGE_FIRSTBUTTON_UP,
+    POINTER_CHANGE_SECONDBUTTON_DOWN,
+    POINTER_CHANGE_SECONDBUTTON_UP,
+    POINTER_CHANGE_THIRDBUTTON_DOWN,
+    POINTER_CHANGE_THIRDBUTTON_UP,
+    POINTER_CHANGE_FOURTHBUTTON_DOWN,
+    POINTER_CHANGE_FOURTHBUTTON_UP,
+    POINTER_CHANGE_FIFTHBUTTON_DOWN,
+    POINTER_CHANGE_FIFTHBUTTON_UP,
+} POINTER_BUTTON_CHANGE_TYPE;
+
+typedef struct tagPOINTER_INFO {
+    POINTER_INPUT_TYPE pointerType;
+    UINT32 pointerId;
+    UINT32 frameId;
+    POINTER_FLAGS pointerFlags;
+    HANDLE sourceDevice;
+    HWND hwndTarget;
+    POINT ptPixelLocation;
+    POINT ptHimetricLocation;
+    POINT ptPixelLocationRaw;
+    POINT ptHimetricLocationRaw;
+    DWORD dwTime;
+    UINT32 historyCount;
+    INT32 InputData;
+    DWORD dwKeyStates;
+    UINT64 PerformanceCount;
+    POINTER_BUTTON_CHANGE_TYPE ButtonChangeType;
+} POINTER_INFO;
+
+// Our target API at compile time didn't support these functions, but these functions are only ever
+// called if we've already received a touch window event, meaning we're actually running on a newer
+// version of windows. That means we're safe to load in these functions and use them!
+static HMODULE hmUser32 = NULL;
+static BOOL(WINAPI* lpGetPointerType)(UINT32 pointerId, POINTER_INPUT_TYPE* pointerType) = NULL;
+static BOOL MockGetPointerType(UINT32 pointerId, POINTER_INPUT_TYPE* pointerType) {
+    puts("Loading mock");
+    if (!hmUser32) hmUser32 = LoadLibraryA("User32.dll");
+    if (!hmUser32) return FALSE;
+    puts("Loading function");
+    if (!lpGetPointerType) lpGetPointerType = (void*)GetProcAddress(hmUser32, "GetPointerType");
+    if (!lpGetPointerType) return FALSE;
+    puts("Calling");
+    return lpGetPointerType(pointerId, pointerType);
+}
+static BOOL(WINAPI* lpGetPointerInfo)(UINT32 pointerId, POINTER_INFO* pointerInfo) = NULL;
+static BOOL MockGetPointerInfo(UINT32 pointerId, POINTER_INFO* pointerInfo) {
+    if (!hmUser32) hmUser32 = LoadLibraryA("User32.dll");
+    if (!hmUser32) return FALSE;
+    if (!lpGetPointerInfo) lpGetPointerInfo = (void*)GetProcAddress(hmUser32, "GetPointerInfo");
+    if (!lpGetPointerInfo) return FALSE;
+    return lpGetPointerInfo(pointerId, pointerInfo);
+}
+#else
+// If our target API supports these, no mocking is needed
+#define MockGetPointerType GetPointerType
+#define MockGetPointerInfo GetPointerInfo
+#endif
+
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 HWND mainWindow = NULL;
@@ -152,10 +247,74 @@ void register_gui_hook(FnEndScene* end_scene) {
     *head = hook;
 }
 
+DWORD nActiveTouches = 0;
+ACTIVE_TOUCH* activeTouches = NULL;
+extern DWORD nActiveTouchesMax = 0;
+
+void SetTouch(UINT id, INT x, INT y, BOOL state) {
+    if (state) {
+        // If we can just update in place, do
+        for (DWORD i = 0; i < nActiveTouches; i++) {
+            if (activeTouches[i].m_Id == id) {
+                activeTouches[i].m_X = x;
+                activeTouches[i].m_Y = y;
+                return;
+            }
+        }
+
+        // Dynamic array re-allocation
+        if (nActiveTouches == nActiveTouchesMax) {
+            DWORD newSize = nActiveTouchesMax * 2 + 1;
+            ACTIVE_TOUCH* newMemory = realloc(activeTouches, sizeof *activeTouches * newSize);
+            if (newMemory != activeTouches) {
+                memcpy(newMemory, activeTouches, sizeof *activeTouches * nActiveTouchesMax);
+            }
+            activeTouches = newMemory;
+            nActiveTouchesMax = newSize;
+        }
+
+        // Store into end of DA
+        activeTouches[nActiveTouches].m_Id = id;
+        activeTouches[nActiveTouches].m_X = x;
+        activeTouches[nActiveTouches].m_Y = y;
+        nActiveTouches++;
+    } else {
+        for (DWORD i = 0; i < nActiveTouches; i++) {
+            if (activeTouches[i].m_Id == id) {
+                // Copy backwards
+                for (DWORD j = i + 1; j < nActiveTouches; j++) {
+                    activeTouches[j - 1].m_Id = activeTouches[j].m_Id;
+                    activeTouches[j - 1].m_X = activeTouches[j].m_X;
+                    activeTouches[j - 1].m_Y = activeTouches[j].m_Y;
+                }
+                nActiveTouches--;
+            }
+        }
+    }
+}
+
+void TouchHandler(HWND hWnd, WPARAM wParam, LPARAM lParam) {
+    UINT32 pointerId = GET_POINTERID_WPARAM(wParam);
+    POINTER_INFO pointerInfo = { sizeof(POINTER_INFO) };
+    POINTER_INPUT_TYPE pointerType = 0;
+
+    if (MockGetPointerType(pointerId, &pointerType) &&
+        MockGetPointerInfo(pointerId, &pointerInfo)) {
+        POINT point = pointerInfo.ptPixelLocation;
+        if (pointerType == PT_TOUCH && ScreenToClient(hWnd, &point)) {
+            SetTouch(pointerInfo.pointerId, point.x, point.y,
+                     !!(pointerInfo.pointerFlags & POINTER_FLAG_INCONTACT));  // |
+        }
+    }
+}
+
 DWORD changeCursorState = (DWORD)-1;
+WNDPROC OriginalWndProc = NULL;
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass,
                          DWORD_PTR dwRefData) {
-    ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
+    if (hookType == UI_HOOK_DX9) {
+        ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
+    }
 
     if (changeCursorState == 1) {
         while (ShowCursor(TRUE) < 0)
@@ -165,6 +324,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UIN
         while (ShowCursor(FALSE) >= 0)
             ;
         changeCursorState = (DWORD)-1;
+    }
+
+    switch (uMsg) {
+        case WM_NCPOINTERUPDATE:
+        case WM_NCPOINTERDOWN:
+        case WM_NCPOINTERUP:
+        case WM_POINTERUPDATE:
+        case WM_POINTERDOWN:
+        case WM_POINTERUP:
+        case WM_POINTERENTER:
+        case WM_POINTERLEAVE:
+        case WM_POINTERACTIVATE:
+        case WM_POINTERCAPTURECHANGED:
+            TouchHandler(hWnd, wParam, lParam);
+            break;
+    }
+
+    if (OriginalWndProc) {
+        return CallWindowProcA(OriginalWndProc, hWnd, uMsg, wParam, lParam);
     }
 
     return DefSubclassProc(hWnd, uMsg, wParam, lParam);
@@ -186,12 +364,18 @@ void post_win_create(HWND hWnd) {
             DetourAttach((PVOID*)&TrueEndScene, hkEndScene);
             DetourTransactionCommit();
         }
-
-        if (hWnd && !SetWindowSubclass(hWnd, WndProc, (UINT_PTR)&WndProc, (DWORD_PTR)NULL)) {
-            log_error(plfGUI, "failed to SetWindowSubclass(%d)", GetLastError());
-        }
+        // MiceInputInit will be called by our D3D9 hooks instead
     } else {
         MiceInputInit(hWnd);
+    }
+
+    if (hWnd) {
+        OriginalWndProc = (WNDPROC)GetWindowLongPtr(hWnd, GWLP_WNDPROC);
+        if (OriginalWndProc == NULL) log_warning(plfGUI, "GWLP_WNDPROC NULL");
+
+        if (!SetWindowSubclass(hWnd, WndProc, (UINT_PTR)&WndProc, (DWORD_PTR)NULL)) {
+            log_error(plfGUI, "failed to SetWindowSubclass(%d)", GetLastError());
+        }
     }
 }
 

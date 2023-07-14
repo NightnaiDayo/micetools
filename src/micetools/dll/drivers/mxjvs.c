@@ -4,10 +4,9 @@
 #include "../common.h"
 #include "../input.h"
 #include "../key_config.h"
-#include "jvs_boards/jvs.h"
 #include "mx.h"
 
-#define JVS_SENSE (MiceConfig.keys.board_count == 0 ? FALSE : _MiceJvsBoards[0].m_SenseOut)
+#define JVS_SENSE (g_MiceJvsNumBoards == 0 ? FALSE : _MiceJvsBoards[0].m_SenseOut)
 
 JVS_STATUS MiceJvsWrapper(PMICE_JVS this, DWORD nMaxRead) {
     JVS_STATUS status = JVS_STATUS_OK;
@@ -38,11 +37,35 @@ void jvs_send_status(unsigned char status, unsigned char* outData, LPDWORD outCo
     }
 }
 
+static float jvsRateAccum;
+static float jvsDTHistory[60];
+static size_t jvsDTHIndex = 0;
+static size_t jvsDTHCount = 0;
+float jvsRate = 0;
+
 BYTE jvsInUnmasked[MICE_JVS_MAX];
 BYTE jvsOutUnmasked[MICE_JVS_MAX];
 BYTE jvsOutMasked[MICE_JVS_MASKED];
 void mxjvs_handle(unsigned char* lpMaskedIn, short nMaskedCount, unsigned char* outData,
                   short maxOut, LPDWORD outCount) {
+    // Poll rate calculation
+    static amtime_t last_tick = { .seconds = 0, .microseconds = 0 };
+    amtime_t now;
+    amiTimerGet(&now);
+
+    float dt = (float)amiTimerDiffUsec(&last_tick, &now) / (float)1000000;
+    if (last_tick.seconds != 0 || last_tick.microseconds != 0) {
+        jvsRateAccum += dt - jvsDTHistory[jvsDTHIndex];
+        jvsDTHistory[jvsDTHIndex] = dt;
+        if ((++jvsDTHIndex) == _countof(jvsDTHistory)) jvsDTHIndex = 0;
+        if ((++jvsDTHCount) > _countof(jvsDTHistory)) jvsDTHCount = _countof(jvsDTHistory);
+
+        jvsRate = (jvsRateAccum > 0.0f) ? (1.0f / (jvsRateAccum / (float)jvsDTHCount)) : FLT_MAX;
+    }
+    last_tick = now;
+
+    // Actual handler start
+
     SHORT nIn = 0;
     BOOL wasMark = FALSE;
     for (int i = 0; i < nMaskedCount; i++) {
@@ -81,7 +104,7 @@ void mxjvs_handle(unsigned char* lpMaskedIn, short nMaskedCount, unsigned char* 
         return;
     }
 
-    DWORD nBoardCount = MiceConfig.keys.board_count;
+    DWORD nBoardCount = g_MiceJvsNumBoards;
     if (nBoardCount > _countof(_MiceJvsBoards)) nBoardCount = _countof(_MiceJvsBoards);
 
     // Not broadcast, not master-bound, and within bounds

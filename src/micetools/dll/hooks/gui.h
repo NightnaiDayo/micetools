@@ -43,6 +43,14 @@ void register_gui_hook(FnEndScene* end_scene);
 void hook_gui();
 void setup_hud_gui();
 
+typedef struct {
+    UINT m_Id;
+    INT m_X;
+    INT m_Y;
+} ACTIVE_TOUCH;
+extern DWORD nActiveTouches;
+extern ACTIVE_TOUCH* activeTouches;
+
 BOOL UnadjustWindowRect(LPRECT prc, DWORD dwStyle, BOOL fMenu);
 extern HWND mainWindow;
 extern DWORD changeCursorState;

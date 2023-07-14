@@ -70,5 +70,3 @@ static inline void MiceJvsWrite(PMICE_JVS this, BYTE data) {
     if (this->m_lpOutData == NULL) return;
     if (this->m_nOutIdx < MICE_JVS_MAX) this->m_lpOutData[this->m_nOutIdx++] = data;
 }
-
-extern MICE_JVS _MiceJvsBoards[JVS_IO_MAX];

@@ -1,6 +1,5 @@
 #include "common.h"
 #include "devices/_devices.h"
-#include "drivers/jvs_boards/jvs.h"
 #include "input.h"
 #include "key_config.h"
 
@@ -110,7 +109,7 @@ void _MiceSetupMaimai() {
     MiceConfig.sysconf.dipsw = 0b01111000;
     MiceConfig.window.nosize = true;
 
-    if (MiceConfig.keys.board_count == 0) MiceConfig.keys.board_count = 1;
+    g_MiceJvsNumBoards = 1;
 
     free(_MiceJvsBoards[0].m_Bindings);
     _MiceJvsBoards[0].m_Bindings = malloc(sizeof maimaiDefaultBindings);
@@ -122,6 +121,9 @@ void _MiceSetupMaimai() {
     free(_MiceJvsBoards[0].m_ButtonStates);
     _MiceJvsBoards[0].m_ButtonStates =
         malloc(_countof(maimaiDefaultBindings) * sizeof *_MiceJvsBoards[0].m_ButtonStates);
+
+    save_keybind_config();
+    load_keybind_config();
 
     // Maimai is going to check if these exist. They do, now.
     make_dirs(MiceIpcRelativePath("dev\\w\\maimai"));
@@ -139,7 +141,7 @@ void _MiceSetupApm() {
 
     MiceConfig.sysconf.dipsw = 0b01000000;  // 720p
 
-    if (MiceConfig.keys.board_count == 0) MiceConfig.keys.board_count = 1;
+    g_MiceJvsNumBoards = 1;
 
     free(_MiceJvsBoards[0].m_Bindings);
     _MiceJvsBoards[0].m_Bindings = malloc(sizeof apmDefaultBindings);
@@ -151,6 +153,8 @@ void _MiceSetupApm() {
     free(_MiceJvsBoards[0].m_ButtonStates);
     _MiceJvsBoards[0].m_ButtonStates =
         malloc(_countof(apmDefaultBindings) * sizeof *_MiceJvsBoards[0].m_ButtonStates);
+
+    save_keybind_config();
 }
 
 void _MiceGotGameId(char game_id[4]) {
@@ -173,44 +177,7 @@ void _MiceGotGameId(char game_id[4]) {
         _MiceSetupMaimai();
     } else if (IS_GAME(SBYG /* APM2 */) || IS_GAME(SDCM /* UNIB */)) {
         log_info(plfBoot, "Detect game APM2");
-
         _MiceSetupApm();
-
-        // MiceConfig.devices.com1 = "";
-        // MiceConfig.devices.com2 = "";
-        // MiceConfig.devices.com3 = "";
-        // MiceConfig.devices.com5 = "";
-        // MiceConfig.devices.com6 = "";
-        // MiceConfig.devices.com7 = "";
-        // MiceConfig.devices.com8 = "";
-
-        // if (MiceConfig.keys.board_count == 0) MiceConfig.keys.board_count = 1;
-
-        // if (!jvsKeybindings[0].notdefault) {
-        //     puts("!!");
-
-        //     // Zero all buttons
-        //     memset(&jvsKeybindings[0].buttons[3 * 2], 0, 12 * 2);
-        //     memset(&jvsKeybindings[0].invert[3 * 2], 0, 12 * 2);
-
-        //     jvsKeybindings[0].buttons[0 * 2] = VK_BACK;
-        //     jvsKeybindings[0].buttons[1 * 2] = VK_RETURN;
-
-        //     jvsKeybindings[0].buttons[3 * 2] = VK_UP;
-        //     jvsKeybindings[0].buttons[4 * 2] = VK_DOWN;
-        //     jvsKeybindings[0].buttons[5 * 2] = VK_LEFT;
-        //     jvsKeybindings[0].buttons[6 * 2] = VK_RIGHT;
-
-        //     jvsKeybindings[0].buttons[7 * 2] = 'Q';
-        //     jvsKeybindings[0].buttons[8 * 2] = 'W';
-        //     jvsKeybindings[0].buttons[9 * 2] = 'E';
-        //     jvsKeybindings[0].buttons[10 * 2] = 'A';
-        //     jvsKeybindings[0].buttons[11 * 2] = 'S';
-        //     jvsKeybindings[0].buttons[12 * 2] = 'D';
-
-        //     // 2P is unbound by default, as a (nice) keymap with both
-        //     // will probably also involve changing 1P too.
-        // }
     } else if (IS_GAME(SBVH /* Sega & Sonic All-Stars Racing Arcade */)) {
         log_info(plfBoot, "Detect game Sega & Sonic All-Stars Racing Arcade");
 

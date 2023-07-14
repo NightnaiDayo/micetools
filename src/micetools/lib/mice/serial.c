@@ -67,11 +67,16 @@ cleanup:
 }
 
 inline static void alphaNum(CHAR *lpAddr, BYTE val) {
-    val %= 26 + 10;
+    // I and O are disallowed, hence the extra logic
+    val %= (26 - 2) + 10;
     if (val < 10)
         lpAddr[0] = '0' + val;
-    else
+    else if (val < 18)
         lpAddr[0] = 'A' + (val - 10);
+    else if (val < 23)
+        lpAddr[0] = 'J' + (val - 18);
+    else
+        lpAddr[0] = 'P' + (val - 23);
 }
 inline static void numeric(CHAR *lpAddr, BYTE val) {
     val %= 100;

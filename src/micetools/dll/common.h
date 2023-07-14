@@ -24,6 +24,7 @@
 #include "../lib/mice/mice.h"
 #include "./util/_util.h"
 #include "micefs.h"
+#include "input_config.h"
 
 #define size2int(x) ((int)((x) & 0x7fffffff))
 #define size2uint(x) ((unsigned int)((x) & 0xffffffff))

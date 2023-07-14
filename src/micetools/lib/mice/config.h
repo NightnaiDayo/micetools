@@ -27,3 +27,4 @@ extern config_t MiceConfig;
 void save_current_config(bool writeDefault);
 void load_mice_config();
 void load_keybind_config();
+void save_keybind_config();

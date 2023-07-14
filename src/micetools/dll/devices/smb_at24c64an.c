@@ -43,9 +43,9 @@ void set_eeprom_static_config() {
         .m_Rental = MiceConfig.sysconf.rental,
     };
     ZeroMemory(Static.m_strSerialId, sizeof Static.m_strSerialId);
-    DWORD len = strlen(MiceConfig.sysconf.serial);
+    DWORD len = strlen(MiceConfig.sysconf.pcb_serial);
     if (len > sizeof Static.m_strSerialId - 1) len = sizeof Static.m_strSerialId - 1;
-    memcpy(Static.m_strSerialId, MiceConfig.sysconf.serial, len);
+    memcpy(Static.m_strSerialId, MiceConfig.sysconf.pcb_serial, len);
     fix_crc(Static);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_STATIC_REG], &Static, sizeof Static);
     memcpy(&EEPROM_DATA[AM_SYSDATAwH_STATIC_DUP], &Static, sizeof Static);
