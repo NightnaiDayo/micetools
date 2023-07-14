@@ -108,9 +108,13 @@ static void populateActiveResponse() {
         }
     }
 
-    for (DWORD i = 0; i < nActiveTouches; i++) {
-        handleOneButton(w, h, activeTouches[i].m_X, activeTouches[i].m_Y);
-    }
+    MICE_DA_ITER(g_activeTouches, ACTIVE_TOUCH, i) {
+        handleOneButton(w, h, i->m_X, i->m_Y);
+    } MICE_DA_ITER_END
+
+    // for (DWORD i = 0; i < nActiveTouches; i++) {
+    //     handleOneButton(w, h, activeTouches[i].m_X, activeTouches[i].m_Y);
+    // }
 }
 
 BOOL touch_is_enabled = TRUE;  // Default on is important!

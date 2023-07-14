@@ -247,49 +247,25 @@ void register_gui_hook(FnEndScene* end_scene) {
     *head = hook;
 }
 
-DWORD nActiveTouches = 0;
-ACTIVE_TOUCH* activeTouches = NULL;
-extern DWORD nActiveTouchesMax = 0;
+MICE_DA_NEW(g_activeTouches, ACTIVE_TOUCH)
 
 void SetTouch(UINT id, INT x, INT y, BOOL state) {
     if (state) {
-        // If we can just update in place, do
-        for (DWORD i = 0; i < nActiveTouches; i++) {
-            if (activeTouches[i].m_Id == id) {
-                activeTouches[i].m_X = x;
-                activeTouches[i].m_Y = y;
+        MICE_DA_ITER(g_activeTouches, ACTIVE_TOUCH, i) {
+            if (i->m_Id == id) {
+                i->m_X = x;
+                i->m_Y = y;
                 return;
             }
         }
-
-        // Dynamic array re-allocation
-        if (nActiveTouches == nActiveTouchesMax) {
-            DWORD newSize = nActiveTouchesMax * 2 + 1;
-            ACTIVE_TOUCH* newMemory = realloc(activeTouches, sizeof *activeTouches * newSize);
-            if (newMemory != activeTouches) {
-                memcpy(newMemory, activeTouches, sizeof *activeTouches * nActiveTouchesMax);
-            }
-            activeTouches = newMemory;
-            nActiveTouchesMax = newSize;
-        }
-
-        // Store into end of DA
-        activeTouches[nActiveTouches].m_Id = id;
-        activeTouches[nActiveTouches].m_X = x;
-        activeTouches[nActiveTouches].m_Y = y;
-        nActiveTouches++;
+        MICE_DA_ITER_END
+        ACTIVE_TOUCH touch = { .m_Id = id, .m_X = x, .m_Y = y };
+        MiceDAPush(g_activeTouches, &touch);
     } else {
-        for (DWORD i = 0; i < nActiveTouches; i++) {
-            if (activeTouches[i].m_Id == id) {
-                // Copy backwards
-                for (DWORD j = i + 1; j < nActiveTouches; j++) {
-                    activeTouches[j - 1].m_Id = activeTouches[j].m_Id;
-                    activeTouches[j - 1].m_X = activeTouches[j].m_X;
-                    activeTouches[j - 1].m_Y = activeTouches[j].m_Y;
-                }
-                nActiveTouches--;
-            }
+        MICE_DA_ITER(g_activeTouches, ACTIVE_TOUCH, i) {
+            if (i->m_Id == id) MICE_DA_REMOVE_CURRENT(g_activeTouches);
         }
+        MICE_DA_ITER_END
     }
 }
 
@@ -413,7 +389,8 @@ void SetupWindowPosition(LPRECT lpRect, DWORD dwStyle) {
         //     RECT adjustedRect;
         //     memcpy(&adjustedRect, lpRect, sizeof *lpRect);
         //     UnadjustWindowRect(&adjustedRect, dwStyle, FALSE);
-        //     // We're going to only adjust y, on the assumption x is unchanged, and even if it is
+        //     // We're going to only adjust y, on the assumption x is unchanged, and even if it
+        //     is
         //     // it'll be symmetic. y has the titlebar to worry about.
         //     int outerH = adjustedRect.bottom - adjustedRect.top;
 

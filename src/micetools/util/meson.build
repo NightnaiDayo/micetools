@@ -91,3 +91,13 @@ executable(
         amSram,
     ],
 )
+executable(
+    'mice_test',
+    win_subsystem: subsystem,
+    sources: [
+        'test.c',
+    ],
+    link_with: [
+        mice_lib
+    ],
+)

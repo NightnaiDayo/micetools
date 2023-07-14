@@ -13,6 +13,7 @@
 #include "log.h"
 #include "patch.h"
 #include "ringbuf.h"
+#include "da.h"
 
 #define SRAM_PATH MiceIpcRelativePath("sram.bin")
 

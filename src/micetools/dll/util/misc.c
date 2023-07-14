@@ -42,74 +42,58 @@ BOOL FileExistsA(const char* szPath) {
     return (dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
-typedef struct _handle_list {
+typedef struct HANDLE_DATA {
     HANDLE m_Handle;
     PVOID m_pData;
     DWORD m_Type;
     BOOL m_IsOnHeap;
-    struct _handle_list* m_Next;
-} handle_list_t;
-handle_list_t handle_list_root = {
-    .m_Handle = INVALID_HANDLE_VALUE,
-    .m_pData = NULL,
-    .m_Type = 0xffffffff,
-    .m_IsOnHeap = FALSE,
-    .m_Next = NULL,
-};
+} HANDLE_DATA;
+MICE_DA_NEW(g_handleData, HANDLE_DATA)
 
 PVOID GetDataForHandle(HANDLE hObject, DWORD type) {
     if (hObject == INVALID_HANDLE_VALUE) return NULL;
 
-    handle_list_t* head = &handle_list_root;
-    while (head) {
-        if (head->m_Handle == hObject && (type == HDATA_ANY || head->m_Type == type))
-            return head->m_pData;
-        head = head->m_Next;
+    MICE_DA_ITER(g_handleData, HANDLE_DATA, i) {
+        if (i->m_Handle == hObject && (type == HDATA_ANY || i->m_Type == type)) {
+            return i->m_pData;
+        }
     }
+    MICE_DA_ITER_END
     return NULL;
 }
 void SetDataForHandle(HANDLE hObject, DWORD type, PVOID pData, BOOL isHeap) {
     if (hObject == INVALID_HANDLE_VALUE) return;
 
-    handle_list_t* head = &handle_list_root;
-    while (1) {
-        if (head->m_Handle == hObject && (type == HDATA_ANY || head->m_Type == type)) {
-            if (head->m_IsOnHeap) free(head->m_pData);
-            head->m_pData = pData;
-            head->m_IsOnHeap = isHeap;
+    MICE_DA_ITER(g_handleData, HANDLE_DATA, i) {
+        if (i->m_Handle == hObject && (type == HDATA_ANY || i->m_Type == type)) {
+            if (i->m_IsOnHeap) free(i->m_pData);
+            i->m_pData = pData;
+            i->m_IsOnHeap = isHeap;
             return;
         }
-        if (head->m_Next == NULL) break;
-        head = head->m_Next;
     }
-    head->m_Next = malloc(sizeof *head);
-    head->m_Next->m_Handle = hObject;
-    head->m_Next->m_pData = pData;
-    head->m_Next->m_Next = NULL;
-    head->m_Next->m_IsOnHeap = isHeap;
-    head->m_Next->m_Type = type;
+    MICE_DA_ITER_END
+
+    HANDLE_DATA newHandleData = {
+        .m_Handle = hObject,
+        .m_pData = pData,
+        .m_IsOnHeap = isHeap,
+        .m_Type = type,
+    };
+    MiceDAPush(g_handleData, &newHandleData);
 }
 BOOL RemoveDataForHandle(HANDLE hObject, DWORD type) {
     if (hObject == INVALID_HANDLE_VALUE) return FALSE;
 
-    handle_list_t* head = &handle_list_root;
-    handle_list_t* previous = &handle_list_root;
-    BOOL ret = FALSE;
-    while (head) {
-        if (head->m_Handle == hObject && (type == HDATA_ANY || head->m_Type == type)) {
-            previous->m_Next = head->m_Next;
-            if (head->m_IsOnHeap) free(head->m_pData);
-            handle_list_t* next = head->m_Next;
-            free(head);
-            head = next;
-            if (type != HDATA_ANY) return TRUE;
-            ret = TRUE;
-        } else {
-            previous = head;
-            head = head->m_Next;
+    MICE_DA_ITER(g_handleData, HANDLE_DATA, i) {
+        if (i->m_Handle == hObject && (type == HDATA_ANY || i->m_Type == type)) {
+            if (i->m_IsOnHeap) free(i->m_pData);
+            MICE_DA_REMOVE_CURRENT(g_handleData);
+            return TRUE;
         }
     }
-    return ret;
+    MICE_DA_ITER_END
+    return FALSE;
 }
 
 HANDLE GetDummyHandle() {

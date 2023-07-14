@@ -48,8 +48,10 @@ typedef struct {
     INT m_X;
     INT m_Y;
 } ACTIVE_TOUCH;
-extern DWORD nActiveTouches;
-extern ACTIVE_TOUCH* activeTouches;
+// extern DWORD nActiveTouches;
+// extern ACTIVE_TOUCH* activeTouches;
+
+extern PMICE_DA g_activeTouches;
 
 BOOL UnadjustWindowRect(LPRECT prc, DWORD dwStyle, BOOL fMenu);
 extern HWND mainWindow;

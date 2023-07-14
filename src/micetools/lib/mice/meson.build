@@ -14,6 +14,7 @@ mice_lib = static_library(
         'dmi.c',
         'ipc.c',
         'serial.c',
+        'da.c',
     ],
     link_with: [
         inih.get_variable('lib_inih'),
