@@ -15,5 +15,7 @@ static BOOL(WINAPI* TrueCreateProcessA)(LPCSTR lpApplicationName, LPSTR lpComman
                                         LPVOID lpEnvironment, LPCSTR lpCurrentDirectory,
                                         LPSTARTUPINFOW lpStartupInfo,
                                         LPPROCESS_INFORMATION lpProcessInformation);
+static HINSTANCE(WINAPI* TrueShellExecuteA)(HWND hwnd, LPCSTR lpOperation, LPCSTR lpFile,
+                                            LPCSTR lpParameters, LPCSTR lpDirectory, INT nShowCmd);
 
 void hook_processes();

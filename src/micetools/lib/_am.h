@@ -1,3 +1,7 @@
+#ifndef MICE_VERSION
+#define MICE_VERSION "Unk"
+#endif
+
 #define AM_LIB_C_HEADER(name, storage_type) \
     int name##DebugLevel = 0;               \
     struct storage_type name;            \

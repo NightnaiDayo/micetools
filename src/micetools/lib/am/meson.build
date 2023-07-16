@@ -13,6 +13,7 @@ amEeprom = static_library(
     link_with: [
         amiDebug,
         amiCrc,
+        amiTimer,
     ],
 )
 
@@ -35,6 +36,7 @@ amPlatform = static_library(
         amiDebug,
         amSram,
         amEeprom,
+        amOemstring,
     ],
 )
 
@@ -76,5 +78,22 @@ amCmos = static_library(
     ],
     link_with: [
         amiDebug,
+    ],
+)
+
+amLog = static_library(
+    'amLog',
+    sources: [
+        'amLog.c',
+    ],
+)
+amBackup = static_library(
+    'amBackup',
+    sources: [
+        'amBackup.c',
+    ],
+    link_with: [
+        amiDebug,
+        amiCrc,
     ],
 )

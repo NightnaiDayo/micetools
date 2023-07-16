@@ -1,17 +1,16 @@
 #include "mx.h"
 
-BOOL WINAPI mxhwreset_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize,
-                               LPVOID lpOutBuffer, DWORD nOutBufferSize, LPDWORD lpBytesReturned,
-                               LPOVERLAPPED lpOverlapped) {
+BOOL WINAPI mxhwreset_DeviceIoControl(file_context_t* ctx, DWORD dwIoControlCode, LPVOID lpInBuffer,
+                                      DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize,
+                                      LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped) {
     switch (dwIoControlCode) {
         case IOCTL_MXHWRESET_RESET:
             if (lpBytesReturned) *lpBytesReturned = 0;
-            break;
+            ExitProcess(-1);
         default:
             log_warning(plfMxHwreset, "unhandled 0x%08x", dwIoControlCode);
             return FALSE;
     }
-    return TRUE;
 }
 
 void setup_mxhwreset() {

@@ -120,8 +120,18 @@ BOOL WINAPI FakeGetExitCodeProcess(HANDLE hProcess, LPDWORD lpExitCode) {
     return TRUE;
 }
 
+HINSTANCE WINAPI FakeShellExecuteA(HWND hwnd, LPCSTR lpOperation, LPCSTR lpFile,
+                                   LPCSTR lpParameters, LPCSTR lpDirectory, INT nShowCmd) {
+    MiceFSRedirectPathA(lpFile, &lpFile);
+    if (lpDirectory) MiceFSRedirectPathA(lpDirectory, &lpDirectory);
+    return TrueShellExecuteA(hwnd, lpOperation, lpFile, lpParameters, lpDirectory, nShowCmd);
+}
+
 void hook_processes() {
     hook("Kernel32.dll", "CreateProcessW", FakeCreateProcessW, (void**)&TrueCreateProcessW);
     hook("Kernel32.dll", "CreateProcessA", FakeCreateProcessA, (void**)&TrueCreateProcessA);
     hook("Kernel32.dll", "GetExitCodeProcess", FakeGetExitCodeProcess, NULL);
+    // hook("Shell32.dll", "ShellExecuteA", FakeShellExecuteA, (void**)TrueShellExecuteA);
+
+    // TODO: ShellExecuteA
 }

@@ -61,6 +61,8 @@ void mxjvs_handle(unsigned char* lpMaskedIn, short nMaskedCount, unsigned char* 
         if ((++jvsDTHCount) > _countof(jvsDTHistory)) jvsDTHCount = _countof(jvsDTHistory);
 
         jvsRate = (jvsRateAccum > 0.0f) ? (1.0f / (jvsRateAccum / (float)jvsDTHCount)) : FLT_MAX;
+
+        // log_game(plfAime, "jvs rate: %.2fHz", jvsRate);
     }
     last_tick = now;
 

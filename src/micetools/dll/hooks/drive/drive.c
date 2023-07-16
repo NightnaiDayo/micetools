@@ -373,6 +373,7 @@ char matchWorkFilename[MAX_PATH + 1];
 inline static BOOL matchVolume(disk_volume_t* volume, LPCSTR lpRootPathName, DWORD match) {
     if (match & VOL_MATCH_GUID) {
         strcpy_s(matchWorkFilename, sizeof matchWorkFilename, volume->m_FilenameA);
+        if (strcmp(matchWorkFilename, lpRootPathName) == 0) return TRUE;
         strcat_s(matchWorkFilename, sizeof matchWorkFilename, "\\");
         if (strcmp(matchWorkFilename, lpRootPathName) == 0) return TRUE;
     }
@@ -384,6 +385,12 @@ inline static BOOL matchVolume(disk_volume_t* volume, LPCSTR lpRootPathName, DWO
         sprintf_s(matchWorkFilename, sizeof matchWorkFilename,
                   "\\\\.\\%c:", char_upper(volume->m_MountPoint));
         if (strstr(lpRootPathName, matchWorkFilename) == lpRootPathName) return TRUE;
+    }
+    if (match & VOL_MATCH_PATH && volume->m_pDrive && volume->m_pPartition) {
+        sprintf_s(matchWorkFilename, sizeof matchWorkFilename, "\\device\\harddisk%d\\partition%d",
+                  volume->m_pDrive->m_DriveNumber, volume->m_pPartition->m_PartitionNumber);
+
+        if (_stricmp(lpRootPathName, matchWorkFilename) == 0) return TRUE;
     }
     if (match & VOL_MATCH_DOS_DEVICE && volume->m_MountPoint) {
         if (char_lower(volume->m_MountPoint) == char_lower(lpRootPathName[0])) {
@@ -779,6 +786,7 @@ void hook_drives() {
          NULL);
     hook("Kernel32.dll", "DeleteVolumeMountPointA", &FakeDeleteVolumeMountPointA, NULL);
     hook("Kernel32.dll", "SetVolumeMountPointA", &FakeSetVolumeMountPointA, NULL);
+    hook("Kernel32.dll", "DefineDosDeviceA", &FakeDefineDosDeviceA, NULL);
     hook("Kernel32.dll", "GetDriveTypeA", &FakeGetDriveTypeA, (void**)&TrueGetDriveTypeA);
     hook("Kernel32.dll", "GetDiskFreeSpaceExA", &FakeGetDiskFreeSpaceExA,
          (void**)&TrueGetDiskFreeSpaceExA);

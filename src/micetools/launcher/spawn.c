@@ -9,6 +9,7 @@ spawn_t mxspawns[] = {
     { "installer", SPAWN_DUMMY, MdiThreadProc, NULL },
     { "network", SPAWN_DUMMY, MdnThreadProc, NULL },
     { "gdeliver", SPAWN_DUMMY, MdgdThreadProc, NULL },
+    { "storage", SPAWN_DUMMY, MdsThreadProc, NULL },
 };
 
 int mxkMain();
@@ -17,6 +18,7 @@ int miceDummyMaster(unsigned short textPort, unsigned short binaryPort, bool glo
 int miceDummyInstaller(unsigned short textPort, unsigned short binaryPort, bool global);
 int miceDummyNetwork(unsigned short textPort, unsigned short binaryPort, bool global);
 int miceDummyGDeliver(unsigned short textPort, unsigned short binaryPort, bool global);
+int miceDummyStorage(unsigned short textPort, unsigned short binaryPort, bool global);
 DWORD WINAPI MdkThreadProc(LPVOID lpParameter) {
     miceDummyKeychip(40106, 40107, false);
     return 0;
@@ -39,6 +41,10 @@ DWORD WINAPI MdnThreadProc(LPVOID lpParameter) {
 }
 DWORD WINAPI MdgdThreadProc(LPVOID lpParameter) {
     miceDummyGDeliver(40108, 40112, false);
+    return 0;
+}
+DWORD WINAPI MdsThreadProc(LPVOID lpParameter) {
+    miceDummyStorage(40114, 40115, false);
     return 0;
 }
 

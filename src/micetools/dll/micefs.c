@@ -351,7 +351,7 @@ BOOL MiceFSRedirectPathA(LPCSTR lpFilename, LPCSTR* pszRedirected) {
 
             MultiByteToWideChar(0, 0, _redirected_path, -1, szwPath, _countof(szwPath));
 
-            if (FileExistsW(szwPath)) {
+            if (FileOrFolderExistsW(szwPath)) {
                 MiceReleaseLockShared(miceFsLockCount);
                 return TRUE;
             }
@@ -414,7 +414,7 @@ BOOL MiceFSDebugTraceRedirectPathA(LPCSTR lpFilename, LPCSTR* pszRedirected) {
             MultiByteToWideChar(0, 0, _redirected_path, -1, szwPath, _countof(szwPath));
 
             printf("-> %s\n", _redirected_path);
-            if (FileExistsW(szwPath)) {
+            if (FileOrFolderExistsW(szwPath)) {
                 MiceReleaseLockShared(miceFsLockCount);
                 printf(":: Redirect ended with valid redirection found.");
                 return TRUE;

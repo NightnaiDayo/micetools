@@ -104,6 +104,7 @@ extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam
 HWND mainWindow = NULL;
 
 static unsigned int hookType;
+static IDirect3DDevice9* g_pd3dDevice = NULL;
 
 static HWND window;
 BOOL CALLBACK EnumWindowsCallback(HWND handle, LPARAM lParam) {
@@ -178,7 +179,7 @@ BOOL UnadjustWindowRect(LPRECT prc, DWORD dwStyle, BOOL fMenu) {
     return fRc;
 }
 
-BOOL GetD3D9Device(void** pTable, size_t Size) {
+BOOL GetD3D9Device(IDirect3DDevice9Vtbl* pTable, size_t Size) {
     if (!pTable) return false;
 
     IDirect3D9* pD3D =
@@ -214,7 +215,9 @@ BOOL GetD3D9Device(void** pTable, size_t Size) {
     return true;
 }
 
-static HRESULT(WINAPI* TrueEndScene)(IDirect3DDevice9*);
+static STDMETHOD(TruePresent)(IDirect3DDevice9* This, CONST RECT* pSourceRect,
+                              CONST RECT* pDestRect, HWND hDestWindowOverride,
+                              CONST RGNDATA* pDirtyRegion);
 
 void draw_rect(IDirect3DDevice9* dev, int x, int y, int w, int h, unsigned char r, unsigned char g,
                unsigned char b) {
@@ -224,16 +227,22 @@ void draw_rect(IDirect3DDevice9* dev, int x, int y, int w, int h, unsigned char 
     dev->lpVtbl->Clear(dev, 1, &BarRect, D3DCLEAR_TARGET | D3DCLEAR_TARGET, rectColor, 0, 0);
 }
 
-HRESULT __stdcall hkEndScene(IDirect3DDevice9* pDevice) {
-    static bool showMenu = false;
+HRESULT STDMETHODCALLTYPE hkPresent(IDirect3DDevice9* This, CONST RECT* pSourceRect,
+                                    CONST RECT* pDestRect, HWND hDestWindowOverride,
+                                    CONST RGNDATA* pDirtyRegion) {
     hookType = UI_HOOK_DX9;
+
+    if (g_pd3dDevice != NULL) g_pd3dDevice->lpVtbl->BeginScene(g_pd3dDevice);
 
     end_scene_hook_t* head = end_scene_hook_list;
     while (head != NULL) {
-        head->hook(hookType, pDevice);
+        head->hook(hookType, This);
         head = head->next;
     }
-    return TrueEndScene(pDevice);
+
+    if (g_pd3dDevice != NULL) g_pd3dDevice->lpVtbl->EndScene(g_pd3dDevice);
+
+    return TruePresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
 
 void register_gui_hook(FnEndScene* end_scene) {
@@ -326,18 +335,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UIN
 
 void post_win_create(HWND hWnd) {
     // Don't double-hook!
-    if (TrueEndScene != NULL) return;
+    if (TruePresent != NULL) return;
 
     mainWindow = hWnd;
 
     if (hookType == UI_HOOK_DX9) {
-        void* d3d9Device[119];
-        if (GetD3D9Device(d3d9Device, sizeof(d3d9Device))) {
-            TrueEndScene = d3d9Device[42];
+        IDirect3DDevice9Vtbl d3d9Device;
+        if (GetD3D9Device(&d3d9Device, sizeof(d3d9Device))) {
+            TruePresent = d3d9Device.Present;
 
             DetourTransactionBegin();
             DetourUpdateThread(GetCurrentThread());
-            DetourAttach((PVOID*)&TrueEndScene, hkEndScene);
+            DetourAttach((PVOID*)&TruePresent, hkPresent);
             DetourTransactionCommit();
         }
         // MiceInputInit will be called by our D3D9 hooks instead
@@ -474,11 +483,13 @@ HRESULT STDMETHODCALLTYPE FakeCreateDevice(IDirect3D9* this, UINT Adapter, D3DDE
                                            IDirect3DDevice9** ppReturnedDeviceInterface) {
     if (MiceConfig.window.windowed) {
         pPresentationParameters->Windowed = TRUE;
-        pPresentationParameters->FullScreen_RefreshRateInHz = 0;
-    } else if (pPresentationParameters->Windowed) {
+        pPresentationParameters->PresentationInterval = D3DPRESENT_INTERVAL_ONE;
+        pPresentationParameters->FullScreen_RefreshRateInHz = D3DPRESENT_RATE_DEFAULT;
+    } else /* if (pPresentationParameters->Windowed) */ {
         D3DDISPLAYMODE d3ddm;
         this->lpVtbl->GetAdapterDisplayMode(this, Adapter, &d3ddm);
         pPresentationParameters->Windowed = FALSE;
+        pPresentationParameters->PresentationInterval = D3DPRESENT_INTERVAL_ONE;
         pPresentationParameters->FullScreen_RefreshRateInHz = d3ddm.RefreshRate;
     }
 
@@ -520,6 +531,8 @@ HRESULT STDMETHODCALLTYPE FakeCreateDevice(IDirect3D9* this, UINT Adapter, D3DDE
                 log_error(plfD3D9, "CreateDevice failed: %08x", res);
                 break;
         }
+    } else {
+        g_pd3dDevice = *ppReturnedDeviceInterface;
     }
     log_info(plfD3D9, "Device created: %d", res);
 

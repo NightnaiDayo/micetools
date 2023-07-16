@@ -20,6 +20,7 @@ executable(
         dummyinstaller,
         dummygdeliver,
         dummynetwork,
+        dummystorage,
 
         amSerialId,
     ],

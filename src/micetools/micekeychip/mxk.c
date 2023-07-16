@@ -26,11 +26,25 @@ int mxkInit() {
     return err;
 }
 
-void log_callback(struct pcpa *stream, void *data) {
+void log_callback(struct pcpa *stream, char *data, size_t nData) {
     FILE *log_file;
     fopen_s(&log_file, "pcp.log", "a");
+
+    for (uint i = 0; i < stream->recv_data.cmd_count; i++) {
+        if (i != 0) fprintf(stderr, "&");
+        fprintf(stderr, "%s=%s", stream->recv_data.strings + stream->recv_data.keywords[i],
+                stream->recv_data.strings + stream->recv_data.values[i]);
+
+        if (log_file != NULL) {
+            if (i != 0) fprintf(log_file, "&");
+            fprintf(log_file, "%s=%s", stream->recv_data.strings + stream->recv_data.keywords[i],
+                    stream->recv_data.strings + stream->recv_data.values[i]);
+        }
+    }
+    fprintf(stderr, "\n");
+
     if (log_file != NULL) {
-        fprintf(log_file, "%s\n", (char *)data);
+        fprintf(log_file, "\n");
         fclose(log_file);
     }
 }

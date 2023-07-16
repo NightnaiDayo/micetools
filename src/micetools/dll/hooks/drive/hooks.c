@@ -19,26 +19,28 @@ disk_volume_t* incrementFindIndex(HANDLE hFindVolume) {
             continue;
         }
         if (find_index->partition > 3) {
-            if (AVAILABLE_DISKS[find_index->disk].m_Disk
-                    ->m_Extended[find_index->partition - 4]
+            if (AVAILABLE_DISKS[find_index->disk]
+                    .m_Disk->m_Extended[find_index->partition - 4]
                     .m_PartitionNumber == 0) {
                 find_index->disk++;
                 find_index->partition = 0;
                 continue;
             }
 
-            return &(AVAILABLE_DISKS[find_index->disk].m_Disk
-                         ->m_Extended[(find_index->partition++) - 4]
+            return &(AVAILABLE_DISKS[find_index->disk]
+                         .m_Disk->m_Extended[(find_index->partition++) - 4]
                          .m_Volume);
         }
-        if (AVAILABLE_DISKS[find_index->disk].m_Disk
-                ->m_Partitions[find_index->partition]
+        if (AVAILABLE_DISKS[find_index->disk]
+                .m_Disk->m_Partitions[find_index->partition]
                 .m_PartitionNumber == 0) {
             find_index->partition = 4;
             continue;
         }
 
-        return &(AVAILABLE_DISKS[find_index->disk].m_Disk->m_Partitions[find_index->partition++].m_Volume);
+        return &(AVAILABLE_DISKS[find_index->disk]
+                     .m_Disk->m_Partitions[find_index->partition++]
+                     .m_Volume);
     }
 }
 
@@ -182,9 +184,10 @@ BOOL WINAPI FakeDeleteVolumeMountPointA(LPCSTR lpszVolumeMountPoint) {
     return TRUE;
 }
 BOOL WINAPI FakeSetVolumeMountPointA(LPCSTR lpszVolumeMountPoint, LPCSTR lpszVolumeName) {
-    log_trace(plfDrive, "SetVolumeMountPointA(%s)", lpszVolumeMountPoint);
+    log_misc(plfDrive, "SetVolumeMountPointA(%s, %s)", lpszVolumeMountPoint, lpszVolumeName);
     disk_volume_t* volume = getVolumeByPath(lpszVolumeName, VOL_MATCH_GUID);
     if (volume == NULL) {
+        log_error(plfDrive, "No match found for %s", lpszVolumeName);
         SetLastError(ERROR_FILE_NOT_FOUND);
         return FALSE;
     }
@@ -197,6 +200,12 @@ BOOL WINAPI FakeSetVolumeMountPointA(LPCSTR lpszVolumeMountPoint, LPCSTR lpszVol
         volume->m_MountPoint = cMountPoint;
         return TRUE;
     }
+    if (sscanf_s(lpszVolumeMountPoint, "\\\\.\\%c:\\%n", &cMountPoint, 1, &nScan) == 1 &&
+        nScan == 7) {
+        log_info(plfDrive, "Mounting %s at %c:\\", volume->m_Name, cMountPoint);
+        volume->m_MountPoint = cMountPoint;
+        return TRUE;
+    }
     if (sscanf_s(lpszVolumeMountPoint, "%c:\\%n", &cMountPoint, 1, &nScan) == 1 && nScan == 3) {
         log_info(plfDrive, "Mounting %s at %c:\\", volume->m_Name, cMountPoint);
         volume->m_MountPoint = cMountPoint;
@@ -204,6 +213,32 @@ BOOL WINAPI FakeSetVolumeMountPointA(LPCSTR lpszVolumeMountPoint, LPCSTR lpszVol
     }
 
     return FALSE;
+}
+
+BOOL WINAPI FakeDefineDosDeviceA(DWORD dwFlags, LPCSTR lpDeviceName, LPCSTR lpTargetPath) {
+    disk_volume_t* volume = NULL;
+    if (dwFlags & DDD_REMOVE_DEFINITION) {
+        if (dwFlags & DDD_EXACT_MATCH_ON_REMOVE) {
+            volume = getVolumeByPath(lpTargetPath, VOL_MATCH_PATH);
+        } else {
+            volume = getVolumeByPath(lpDeviceName, VOL_MATCH_ALL);
+        }
+        if (!volume) {
+            log_trace(plfDrive, "DDDA-: Unmatched: %s | %s", lpTargetPath, lpDeviceName);
+            return FALSE;
+        }
+
+        volume->m_MountPoint = '\0';
+        return TRUE;
+    }
+
+    volume = getVolumeByPath(lpTargetPath, VOL_MATCH_ALL);
+    if (!volume) {
+        log_error(plfDrive, "DDDA+: Unmatched: %s | %s", lpTargetPath, lpDeviceName);
+        return FALSE;
+    }
+    volume->m_MountPoint = lpDeviceName[0];  // Awful? Yes.
+    return TRUE;
 }
 
 DWORD WINAPI FakeQueryDosDeviceA(LPCSTR lpDeviceName, LPSTR lpTargetPath, DWORD ucchMax) {
@@ -338,8 +373,8 @@ BOOL WINAPI FakeGetDiskFreeSpaceExA(LPCSTR lpDirectoryName,
     //     return FALSE;
     // }
 
-    // We're going to be remapping the drive to ./mice/dev/, so the free bytes are whatever the current
-    // real drive has free. No point claiming we have more than we do!
+    // We're going to be remapping the drive to ./mice/dev/, so the free bytes are whatever the
+    // current real drive has free. No point claiming we have more than we do!
     return TrueGetDiskFreeSpaceExA(NULL, lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes,
                                    lpTotalNumberOfFreeBytes);
 }

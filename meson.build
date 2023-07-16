@@ -39,6 +39,9 @@ else
 endif
 assert(openssl_lib.found(), 'Please download openssl!')
 
+ewfapi_lib = meson.get_compiler('c').find_library('ewfapi', dirs: [
+    join_paths(meson.source_root(), 'lib')
+], required: true)
 freeglut_lib = meson.get_compiler('c').find_library('freeglut', dirs: [
     join_paths(meson.source_root(), 'lib')
 ], required: true)

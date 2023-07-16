@@ -4,3 +4,4 @@
 #include "amOemstring.h"
 #include "amPlatform.h"
 #include "amSram.h"
+#include "amLog.h"

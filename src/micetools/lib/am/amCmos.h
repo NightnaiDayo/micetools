@@ -4,6 +4,7 @@
 
 #include "../../dll/smbus.h"
 #include "../_am.h"
+#include "./amPlatform.h"
 
 AM_LIB_H_HEADER(amCmos, AM_CMOS)
 
@@ -18,22 +19,20 @@ typedef enum {
     AM_CMOS_STATUS_ERR_LOCK = -7,
 } AM_CMOS_STATUS;
 
-typedef struct AM_CMOS_CONFIG {
-    BYTE index[4];
-    BYTE m_MbrCount;
-} AM_CMOS_CONFIG;
-
 typedef struct AM_CMOS {
     BOOL m_bInit;
     HANDLE m_hMutex;
-    HANDLE m_hCmos;
-    AM_CMOS_CONFIG m_Config;
+    HANDLE m_hDriver;
+    AM_PLATFORM_CMOS_PARAM m_Param;
 } AM_CMOS;
 
-
-AM_CMOS_STATUS amCmosInit(AM_CMOS_CONFIG* lpConfig);
+AM_CMOS_STATUS amCmosInit(AM_PLATFORM_CMOS_PARAM* lpParam);
 AM_CMOS_STATUS amCmosExit(void);
 
-AM_CMOS_STATUS amCmosReadByteInRearpart(BYTE param_1, LPBYTE param_2);
-void amCmosWriteByteInRearpart(void);
-void amCmosSetPartition(void);
+AM_CMOS_STATUS amCmosReadByteInRearpart(BYTE addr, LPBYTE lpValue);
+AM_CMOS_STATUS amCmosWriteByteInRearpart(BYTE addr, BYTE value);
+
+AM_CMOS_STATUS amCmosSetPartition(BYTE addr, BYTE bitOffset, BYTE mbrCount, BYTE partition);
+
+AM_CMOS_STATUS amCmosSetPartition_0(byte partition);
+AM_CMOS_STATUS amCmosSetPartition_1(byte partition);

@@ -293,12 +293,47 @@ DWORD WINAPI FakeGetFileSizeEx(HANDLE hFile, PLARGE_INTEGER lpFileSize) {
     return file_hook->GetFileSizeEx(&(pHData->ctx), lpFileSize);
 }
 
+CHAR stdoutBuffer[256];
+DWORD stdoutCount = 0;
+CHAR stderrBuffer[256];
+DWORD stderrCount = 0;
 DWORD WINAPI FakeWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
                            LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped) {
-    if (hFile == GetStdHandle(STD_OUTPUT_HANDLE) || hFile == GetStdHandle(STD_ERROR_HANDLE)) {
-        return TrueWriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten,
-                             lpOverlapped);
+    if (hFile == GetStdHandle(STD_OUTPUT_HANDLE)) {
+        for (DWORD_PTR i = 0; i < nNumberOfBytesToWrite; i++) {
+            stdoutBuffer[stdoutCount] = ((CHAR*)lpBuffer)[i];
+            if (stdoutBuffer[stdoutCount] == '\n' || stdoutBuffer[stdoutCount] == '\r') {
+                if (stdoutCount) log_game(plfStdout, "%.*s", stdoutCount, stdoutBuffer);
+                stdoutCount = 0;
+            } else if (stdoutCount == _countof(stdoutBuffer)) {
+                log_game(plfStdout, "%.*s", _countof(stdoutBuffer), stdoutBuffer);
+                stdoutCount = 0;
+            } else {
+                stdoutCount++;
+            }
+        }
+        return TRUE;
+    } else if (hFile == GetStdHandle(STD_ERROR_HANDLE)) {
+        for (DWORD_PTR i = 0; i < nNumberOfBytesToWrite; i++) {
+            stderrBuffer[stderrCount] = ((CHAR*)lpBuffer)[i];
+            if (stderrBuffer[stderrCount] == '\n' || stderrBuffer[stderrCount] == '\r') {
+                if (stderrCount) log_game(plfStderr, "%.*s", stderrCount, stderrBuffer);
+                stderrCount = 0;
+            } else if (stderrCount == _countof(stderrBuffer) - 1) {
+                log_game(plfStderr, "%.*s", _countof(stderrBuffer), stderrBuffer);
+                stderrCount = 0;
+            } else {
+                stderrCount++;
+            }
+        }
+        return TRUE;
     }
+
+    // if (hFile == GetStdHandle(STD_OUTPUT_HANDLE) || hFile == GetStdHandle(STD_ERROR_HANDLE)) {
+    //     log_game(plfFile, "Temp STDIO %.*s", nNumberOfBytesToWrite, lpBuffer);
+    // return TrueWriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten,
+    //                      lpOverlapped);
+    // }
 
     open_hook_t* pHData = GetDataForHandle(hFile);
     if (pHData == NULL) {

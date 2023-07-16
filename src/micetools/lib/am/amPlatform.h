@@ -17,6 +17,10 @@ AM_LIB_H_HEADER(amPlatform, AM_PLATFORM)
 typedef struct {
     char strPlatformId[4];
 } AM_PLATFORM_PLATFORM_ID;
+typedef struct {
+    char strPlatformId[4];
+    int platformId;
+} AM_PLATFORM_PLATFORM_ID_EX;
 
 typedef enum {
     AM_PLATFORM_BOARD_TYPE_RINGEDGE = 0,
@@ -33,7 +37,7 @@ typedef struct AM_PLATFORM {
     AM_PLATFORM_PLATFORM_ID m_platformId;
 } AM_PLATFORM;
 
-typedef struct {
+typedef struct AM_PLATFORM_ID_GROUP {
     char strVendorId[5];
     char strDeviceId[5];
     char strSubId[9];
@@ -67,24 +71,42 @@ typedef enum {
 typedef int(amPlatformRead_t)(WORD addr, LPBYTE buf, DWORD length);
 typedef int(amPlatformWrite_t)(WORD addr, LPBYTE buf, DWORD length);
 
-typedef struct {
-    DWORD m_base;
-    DWORD m_size;
-    DWORD m_blockSize;
-    amPlatformRead_t* m_read;
-    amPlatformWrite_t* m_write;
+typedef struct AM_PLATFORM_NV_DEVICE_CONFIG {
+    DWORD m_Base;
+    DWORD m_Size;
+    DWORD m_BlockSize;
+    amPlatformRead_t* m_ReadFunc;
+    amPlatformWrite_t* m_WriteFunc;
 } AM_PLATFORM_NV_DEVICE_CONFIG;
+
+typedef struct AM_PLATFORM_BIOS_INFO {
+    CHAR m_BiosVer[64];
+    CHAR m_BiosReleaseDate[11];
+} AM_PLATFORM_BIOS_INFO;
+
+typedef struct AM_PLATFORM_CMOS_PARAM {
+    // [address, bit offset][2]
+    BYTE index[2][2];
+    BYTE m_MbrCount;
+} AM_PLATFORM_CMOS_PARAM;
 
 AM_PLATFORM_NV_DEVICE_CONFIG* amPlatformGetNvDevice(AM_PLATFORM_NV_DEVICE device);
 
 AM_PLATFORM_STATUS amPlatformGetBoardType(AM_PLATFORM_BOARD_TYPE* boardType);
 AM_PLATFORM_STATUS amPlatformGetPlatformId(AM_PLATFORM_PLATFORM_ID* platformId);
+AM_PLATFORM_STATUS amPlatformGetPlatformIdEx(AM_PLATFORM_PLATFORM_ID_EX* platformId);
+
+int amPlatformGetBiosInfo(AM_PLATFORM_BIOS_INFO* lpInfo);
+int amPlatformGetOsVersion(DWORD* lpVersion);  // Reads SystemVersion.txt
+int amPlatformGetMemorySize(PLARGE_INTEGER size);
+
+AM_PLATFORM_CMOS_PARAM* amPlatformGetCmosParam(AM_PLATFORM_BOARD_TYPE boardType);
 
 // TODO:
-
-void amPlatformAsyncClose(void);
-void amPlatformAsyncReqUsbDeviceCount(void);
-void amPlatformAsyncResUsbDeviceCount(void);
+// usbDongle.exe -> see in maimai 1.90 folder
+void amPlatformAsyncClose(void);              // usbDongle.exe
+void amPlatformAsyncReqUsbDeviceCount(void);  // usbDongle.exe
+void amPlatformAsyncResUsbDeviceCount(void);  // usbDongle.exe
 void amPlatformChangeDisplayModeAmd(void);
 void amPlatformChangeDisplayModeNvidia(void);
 void amPlatformChangeDisplayModeNvidiaEx(void);
@@ -93,23 +115,19 @@ void amPlatformChangeDisplayResolutionNvidia(void);
 void amPlatformChangeDisplayResolutionNvidiaEx(void);
 void amPlatformChangeDisplayResolutionWinAPI(void);
 void amPlatformDestroyCheckInterfaceHandle(void);
-void amPlatformGetAvailableAmdDriver(void);
-void amPlatformGetAvailableNvidiaDriver(void);
-void amPlatformGetBiosInfo(void);
-void amPlatformGetCheckInterfaceHandle(void);
-void amPlatformGetComInfo(void);
-void amPlatformGetDevInfo(void);
-void amPlatformGetGpuPstate(void);
-void amPlatformGetGraphicInfo(void);
-void amPlatformGetMemorySize(void);
-void amPlatformGetOsVersion(void);
-void amPlatformGetPartitionInfo(void);
-void amPlatformGetPlatformIdEx(void);
-void amPlatformGetPortName(void);
-void amPlatformGetSearchDevInfo(void);
-void amPlatformGetSoundInfo(void);
-void amPlatformGetStorageInfo(void);
-void amPlatformNvapiInit(void);
+void amPlatformGetAvailableAmdDriver(void);     // usbDongle.exe
+void amPlatformGetAvailableNvidiaDriver(void);  // usbDongle.exe
+void amPlatformGetCheckInterfaceHandle(void);   // usbDongle.exe
+void amPlatformGetComInfo(void);                // usbDongle.exe
+void amPlatformGetDevInfo(void);                // usbDongle.exe
+void amPlatformGetGpuPstate(void);              // usbDongle.exe
+void amPlatformGetGraphicInfo(void);            // usbDongle.exe
+void amPlatformGetPartitionInfo(void);          // usbDongle.exe
+void amPlatformGetPortName(void);               // usbDongle.exe
+void amPlatformGetSearchDevInfo(void);          // usbDongle.exe
+void amPlatformGetSoundInfo(void);              // usbDongle.exe
+void amPlatformGetStorageInfo(void);            // usbDongle.exe
+void amPlatformNvapiInit(void);                 // usbDongle.exe
 void amPlatformSetDisplayMode(void);
 void amPlatformSetDisplayResolution(void);
 void amPlatformSetDisplayResolutionAndMode(void);

@@ -2,6 +2,7 @@
 
 #include "hook.h"
 
+BOOL FileOrFolderExistsW(const wchar_t* szPath);
 BOOL FileExistsW(const wchar_t* szPath);
 BOOL FileExistsA(const char* szPath);
 PVOID GetDataForHandle(HANDLE hObject);

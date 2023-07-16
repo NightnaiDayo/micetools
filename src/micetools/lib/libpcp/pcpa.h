@@ -45,6 +45,7 @@ e_pcpa_t _pcpaGetErrorFromPcpp(e_pcpp_t err);
 
 struct pcpa;
 typedef void(pcpa_callback)(struct pcpa* stream, void* data);
+typedef void(pcpa_log_callback)(struct pcpa* stream, char* data, size_t nData);
 
 typedef struct pcpa_cb_table {
     char keyword[PCP_KEYWORD_MAX];
@@ -73,7 +74,7 @@ typedef struct pcpa {
     pcp_send_data_t send_data;
 
     // Our additions
-    pcpa_callback* before_cb;
+    pcpa_log_callback* before_cb;
 } pcpa_t;
 
 void pcpaClose(pcpa_t* stream);
@@ -81,7 +82,8 @@ void pcpaCloseBinary(pcpa_t* stream);
 char* pcpaGetKeyword(pcpa_t* stream, uint keyword_num);
 e_pcpa_t pcpaInitStream(pcpa_t* stream);
 e_pcpa_t pcpaOpenClient(pcpa_t* stream, char* ipAddr, ushort port, uint param_4, timeout_t timeout);
-e_pcpa_t pcpaOpenServerWithBinary(pcpa_t* stream, int open_mode, ushort port, ushort binary_port, timeout_t param_5);
+e_pcpa_t pcpaOpenServerWithBinary(pcpa_t* stream, int open_mode, ushort port, ushort binary_port,
+                                  timeout_t param_5);
 e_pcpa_t pcpaRecvBinary(pcpa_t* stream, timeout_t something);
 e_pcpa_t pcpaSendBinary(pcpa_t* stream, timeout_t something);
 e_pcpa_t pcpaServer(pcpa_t* stream, timeout_t timeout_ms);
@@ -89,15 +91,16 @@ e_pcpa_t pcpaSetAfterBinaryModeCallBackFunc(pcpa_t* stream, pcpa_callback* callb
 e_pcpa_t pcpaSetBeforeBinaryModeCallBackFunc(pcpa_t* stream, pcpa_callback* callback, void* data);
 e_pcpa_t pcpaSetBinaryMode(pcpa_t* stream, binary_mode_t binary_mode);
 e_pcpa_t pcpaSetCallbackFunc(pcpa_t* stream, char* keyword, pcpa_callback* callback, void* data);
-e_pcpa_t pcpaSetCallbackFuncBuffer(pcpa_t* stream, pcpa_cb_table_t* callback_table, uint callbacks_max);
+e_pcpa_t pcpaSetCallbackFuncBuffer(pcpa_t* stream, pcpa_cb_table_t* callback_table,
+                                   uint callbacks_max);
 e_pcpa_t pcpaSetRecvBinaryBuffer(pcpa_t* stream, unsigned char* recv_buffer, size_t len);
 e_pcpa_t pcpaSetSendBinaryBuffer(pcpa_t* stream, const unsigned char* send_buffer, size_t len);
 pcp_send_data_t* pcpaSetSendPacket(pcpa_t* stream, char* keyword, char* value);
-pcp_send_data_t *pcpaAddSendPacket(pcpa_t *stream, char *keyword, char *value);
+pcp_send_data_t* pcpaAddSendPacket(pcpa_t* stream, char* keyword, char* value);
 char* pcpaGetCommand(pcpa_t* pcpa, char* command);
-e_pcpa_t pcpaIsBusy(pcpa_t *pcpa, timeout_t timeout);
-e_pcpa_t pcpaSendRequest(pcpa_t *stream, timeout_t timeout);
-e_pcpa_t pcpaRecvResponse(pcpa_t *stream, timeout_t timeout);
-e_pcpa_t pcpaOpenBinaryClient(pcpa_t *stream, ushort port, timeout_t timeout);
+e_pcpa_t pcpaIsBusy(pcpa_t* pcpa, timeout_t timeout);
+e_pcpa_t pcpaSendRequest(pcpa_t* stream, timeout_t timeout);
+e_pcpa_t pcpaRecvResponse(pcpa_t* stream, timeout_t timeout);
+e_pcpa_t pcpaOpenBinaryClient(pcpa_t* stream, ushort port, timeout_t timeout);
 
 e_pcpa_t pcpaAccessClient(pcpa_t* stream, timeout_t timeout);

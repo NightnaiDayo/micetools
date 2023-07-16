@@ -78,6 +78,7 @@ BOOL WINAPI FakeGetVolumePathNamesForVolumeNameA(LPCSTR lpszVolumeName, LPCH lps
                                                  DWORD cchBufferLength, PDWORD lpcchReturnLength);
 BOOL WINAPI FakeDeleteVolumeMountPointA(LPCSTR lpszVolumeMountPoint);
 BOOL WINAPI FakeSetVolumeMountPointA(LPCSTR lpszVolumeMountPoint, LPCSTR lpszVolumeName);
+BOOL WINAPI FakeDefineDosDeviceA(DWORD dwFlags, LPCSTR lpDeviceName, LPCSTR lpTargetPath);
 DWORD WINAPI FakeQueryDosDeviceA(LPCSTR lpDeviceName, LPSTR lpTargetPath, DWORD ucchMax);
 DWORD WINAPI FakeQueryDosDeviceW(LPCWSTR lpDeviceName, LPWSTR lpTargetPath, DWORD ucchMax);
 BOOL WINAPI FakeDefineDosDeviceW(DWORD dwFlags, LPCWSTR lpDeviceName, LPCWSTR lpTargetPath);

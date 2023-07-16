@@ -13,34 +13,37 @@ void mxkPcpTdRestore(pcpa_t* stream, void* data) {
     }
 }
 void mxkPcpTdPut(pcpa_t* stream, void* data) {
-    char* sPut = pcpaGetCommand(stream, TRA_PUT);
+    // char* sPut = pcpaGetCommand(stream, TRA_PUT);
 
-    if (strcmp(sPut, "?")) {
-        pcpaSetSendPacket(stream, TRA_PUT, "0");
-        return;
-    }
+    // if (strcmp(sPut, "?")) {
+    //     pcpaSetSendPacket(stream, TRA_PUT, "0");
+    //     return;
+    // }
 
-    // Process packet maybe?
-    pcpaSetSendPacket(stream, TRA_PUT, "0");
+    // // Process packet maybe?
+    // pcpaSetSendPacket(stream, TRA_PUT, "0");
+    pcpaSetSendPacket(stream, TRA_PUT, "6410");
 }
 void mxkPcpTdGet(pcpa_t* stream, void* data) {
-    char* sPut = pcpaGetCommand(stream, TRA_GET);
-    pcpaSetSendPacket(stream, TRA_GET, "0");
-    if (sPut && strcmp(sPut, "?") == 0) {
-        pcpaAddSendPacket(stream, "address", "0");
-    } else {
-        pcpaSetBinaryMode(stream, binary_mode_send);
-        pcpaSetBeforeBinaryModeCallBackFunc(stream, mxkBinaryCallback, NULL);
+    // char* sPut = pcpaGetCommand(stream, TRA_GET);
+    // pcpaSetSendPacket(stream, TRA_GET, "0");
+    // if (sPut && strcmp(sPut, "?") == 0) {
+    //     pcpaAddSendPacket(stream, "address", "0");
+    // } else {
+    //     pcpaSetBinaryMode(stream, binary_mode_send);
+    //     pcpaSetBeforeBinaryModeCallBackFunc(stream, mxkBinaryCallback, NULL);
 
-        BINARY_DATA_LEN = 0;
-        pcpaSetRecvBinaryBuffer(stream, BINARY_DATA, BINARY_DATA_LEN);
-        pcpaAddSendPacket(stream, "port", "40107");
-        pcpaAddSendPacket(stream, "size", "0");
-    }
+    //     BINARY_DATA_LEN = 0;
+    //     pcpaSetRecvBinaryBuffer(stream, BINARY_DATA, BINARY_DATA_LEN);
+    //     pcpaAddSendPacket(stream, "port", "40107");
+    //     pcpaAddSendPacket(stream, "size", "0");
+    // }
+    pcpaSetSendPacket(stream, TRA_GET, "0");
+    pcpaAddSendPacket(stream, "address", "0");
 }
 void mxkPcpTdLogicalErase(pcpa_t* stream, void* data) {
-    pcpaSetSendPacket(stream, TRA_LOGICALERASE, "");
+    pcpaSetSendPacket(stream, TRA_LOGICALERASE, "0");
 }
 void mxkPcpTdSectorErase(pcpa_t* stream, void* data) {
-    pcpaSetSendPacket(stream, TRA_SECTOREERASE, "");
+    pcpaSetSendPacket(stream, TRA_SECTOREERASE, "0");
 }

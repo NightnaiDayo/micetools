@@ -449,7 +449,8 @@ e_pcpa_t pcpaServer(pcpa_t *stream, timeout_t timeout_ms) {
             case 10:
                 // TODO: Figure out why recv_buf is empty at this point in the FSM
                 if (stream->before_cb != NULL)
-                    stream->before_cb(stream, stream->pcpp.sock.recv_buf);
+                    stream->before_cb(stream, (char *)stream->pcpp.sock.recv_buf,
+                                      *stream->pcpp.sock.recv_buf_count);
 
                 if (stream->callback_table == NULL) {
                     amiDebugLog("error Callback_table buffer isn't set");

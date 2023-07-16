@@ -56,10 +56,8 @@ void pcpaPrint(pcpa_t* stream) {
     printf(" %d commands:\n", stream->recv_data.cmd_count);
     for (size_t i = 0; i < stream->recv_data.cmd_count; i++) {
         byte kwd = stream->recv_data.keywords[i];
-        if (kwd != 0) kwd++;
         printf("  & %02d '%s'\n", kwd, stream->recv_data.strings + kwd);
         byte value = stream->recv_data.values[i];
-        if (value != 0) value++;
         printf("  = %02d '%s'\n", value, stream->recv_data.strings + value);
         if (stream->recv_data.strings[kwd] == 0) break;
     }

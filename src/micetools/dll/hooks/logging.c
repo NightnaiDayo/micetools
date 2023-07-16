@@ -30,23 +30,34 @@ int WINAPIV Fakeprintf(const char* _Format, ...) {
     va_list args;
     va_start(args, _Format);
 
-    int ret = vlog_game(plfPrintf, _Format, args);
+    int ret = vlog_game(plfStdout, _Format, args);
 
     va_end(args);
     return ret;
 }
 
 int WINAPIV Fakefprintf(FILE* _File, const char* _Format, ...) {
-    size_t flen = strlen(_Format);
-    if (flen == strcspn(_Format, "\n") + 1 && flen < (sizeof format_buf)) {
-        strcpy_s(format_buf, WORK_FORMAT_MAX, _Format);
-        format_buf[flen - 1] = 0;
-        _Format = format_buf;
-    }
     va_list args;
     va_start(args, _Format);
+    int ret;
 
-    int ret = vlog_game(plfFprintf, _Format, args);
+    // log_game(plfStdout, "file: %d %p %p %p", _fileno(_File), _File, stdout, stderr);
+    // STDOUT_FILENO
+    // TODO: wtf.
+    _File = stdout;
+
+    if (_File != stdout && _File != stderr) {
+        // ret = vfprintf(_File, _Format, args);
+        ret = 0;
+    } else {
+        size_t flen = strlen(_Format);
+        if (flen == strcspn(_Format, "\n") + 1 && flen < (sizeof format_buf)) {
+            strcpy_s(format_buf, WORK_FORMAT_MAX, _Format);
+            format_buf[flen - 1] = 0;
+            _Format = format_buf;
+        }
+        ret = vlog_game(_File == stdout ? plfStdout : plfStderr, _Format, args);
+    }
 
     va_end(args);
     return ret;

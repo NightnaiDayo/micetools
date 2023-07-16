@@ -27,9 +27,10 @@ Cmos:
 */
 
 #include "../lib/am/amCmos.h"
+#include "../lib/am/amPlatform.h"
 
-AM_CMOS_CONFIG config = {
-    .index = { 0, 0, 0, 0 },
+AM_PLATFORM_CMOS_PARAM config = {
+    .index = { { 0, 0 }, { 0, 0 } },
     .m_MbrCount = 0,
 };
 

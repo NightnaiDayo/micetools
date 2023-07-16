@@ -106,9 +106,11 @@ void hook_system() {
     // hook("User32.dll", "DeleteObject", FakeDeleteObject, NULL);
 
     const char* SystemVersion = "00691001\r\n";
+    const char* DefaultSystemVersion = "00000303\r\n";
     const char* UpdateVersion = "0000\r\n";
 
-    HANDLE hGM = CreateFileA("GrooveMaster.ini", GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    HANDLE hGM = CreateFileA("GrooveMaster.ini", GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+                             0, NULL);
     BOOL bGmIs1P = FALSE;
     if (hGM != INVALID_HANDLE_VALUE) {
         CHAR line[256];
@@ -137,7 +139,7 @@ void hook_system() {
     if (bGmIs1P) {
         const char* GrooveMaster1P =
             ("# TODO: Get maimai_deliver not rebooting the cab\r\n"
-             "NO_DELIVER 1\r\n"
+             //  "NO_DELIVER 1\r\n"
              "# TODO: figure out how to do this without also needing a USB\r\n"
              "USB_DL_DISABLE 1\r\n"
              "# These are just easier to do via GM than a patch\r\n"
@@ -149,14 +151,14 @@ void hook_system() {
     } else {
         const char* GrooveMaster =
             ("# TODO: Get maimai_deliver not rebooting the cab\r\n"
-             "NO_DELIVER 1\r\n"
+             //  "NO_DELIVER 1\r\n"
              "# TODO: figure out how to do this without also needing a USB\r\n"
              "USB_DL_DISABLE 1\r\n"
              "# These are just easier to do via GM than a patch\r\n"
              "NO_REBOOT 1\r\n"
              "ROTATE 1\r\n");
-        hook_file_with_buffer(L"GrooveMaster.ini", (LPBYTE)GrooveMaster,
-                              strlen(GrooveMaster) + 1, GENERIC_READ);
+        hook_file_with_buffer(L"GrooveMaster.ini", (LPBYTE)GrooveMaster, strlen(GrooveMaster) + 1,
+                              GENERIC_READ);
     }
 
     const char* RingmasterPub =
@@ -172,6 +174,8 @@ void hook_system() {
     // more generic.
     hook_file_with_buffer(L"C:\\System\\SystemVersion.txt", (LPBYTE)SystemVersion,
                           strlen(SystemVersion) + 1, GENERIC_READ);
+    hook_file_with_buffer(L"C:\\System\\DefaultSystemVersion.txt", (LPBYTE)DefaultSystemVersion,
+                          strlen(DefaultSystemVersion) + 1, GENERIC_READ);
     hook_file_with_buffer(L"C:\\System\\UpdateVersion.txt", (LPBYTE)UpdateVersion,
                           strlen(UpdateVersion) + 1, GENERIC_READ);
     hook_file_with_buffer(L"c:\\System\\Execute\\ringmaster_pub.pem", (LPBYTE)RingmasterPub,

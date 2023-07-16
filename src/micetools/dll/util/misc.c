@@ -31,6 +31,10 @@ void PrintStack(void) {
     free(symbol);
 }
 
+BOOL FileOrFolderExistsW(const wchar_t* szPath) {
+    DWORD dwAttrib = _GetFileAttributesW(szPath);
+    return (dwAttrib != INVALID_FILE_ATTRIBUTES);
+}
 BOOL FileExistsW(const wchar_t* szPath) {
     DWORD dwAttrib = _GetFileAttributesW(szPath);
     return (dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));

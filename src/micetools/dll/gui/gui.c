@@ -168,7 +168,7 @@ void hud_fps() {
 
         igText("FPS: %.1f", io->Framerate);
         igText(" dT: %.2fms", 1000 / io->Framerate);
-        igText("JVS Rate: %.2f", jvsRate);
+        igText("JVS Rate: %.2fHz", jvsRate);
     }
 
     igEnd();
@@ -957,8 +957,7 @@ void tab_system_buttons() {
             igTextUnformatted(keyName, NULL);
         }
         igNextColumn();
-        if (igButton("Bind##Bind1P", vec0))
-            igOpenPopup_Str("BindSys1P", ImGuiPopupFlags_None);
+        if (igButton("Bind##Bind1P", vec0)) igOpenPopup_Str("BindSys1P", ImGuiPopupFlags_None);
         if (MiceConfig.keys.card_p1) {
             igSameLine(0, -1);
             if (igButton("Clear##Clear1P", vec0)) {
@@ -984,8 +983,7 @@ void tab_system_buttons() {
             igTextUnformatted(keyName, NULL);
         }
         igNextColumn();
-        if (igButton("Bind##Bind2P", vec0))
-            igOpenPopup_Str("BindSys2P", ImGuiPopupFlags_None);
+        if (igButton("Bind##Bind2P", vec0)) igOpenPopup_Str("BindSys2P", ImGuiPopupFlags_None);
         if (MiceConfig.keys.card_p2) {
             igSameLine(0, -1);
             if (igButton("Clear##Clear2P", vec0)) {
@@ -1090,11 +1088,12 @@ void hud_control(ImGuiKey open_key) {
 
 void __stdcall hud_gui(unsigned int hookType, IDirect3DDevice9* dev) {
     static bool lastAnyOpen = false;
-    bool anyOpen = showControl || showEeprom || showSram || showCardP1;
+    bool anyOpen = showControl || showEeprom || showSram || showCardP1 || showFps;
     if (anyOpen != lastAnyOpen) {
         changeCursorState = anyOpen ? 1 : 0;
         lastAnyOpen = anyOpen;
     }
+    // if (!anyOpen) return;
 
     static bool initialized = false;
     if (!initialized) {
@@ -1123,8 +1122,10 @@ void __stdcall hud_gui(unsigned int hookType, IDirect3DDevice9* dev) {
 
     if (hookType == UI_HOOK_DX9) {
         igEndFrame();
-        igRender();
-        ImGui_ImplDX9_RenderDrawData(igGetDrawData());
+        if (anyOpen) {
+            igRender();
+            ImGui_ImplDX9_RenderDrawData(igGetDrawData());
+        }
     } else if (hookType == UI_HOOK_GLUT) {
         igRender();
         ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());

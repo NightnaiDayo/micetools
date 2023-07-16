@@ -144,13 +144,9 @@ typedef struct {
 
 typedef struct {
     uint32_t m_Crc;
-    uint32_t m_Uk1;
-    uint32_t m_Uk2;
-    uint32_t m_Uk3;
-    uint32_t m_Uk4;
-    uint32_t m_Uk5;
-    uint32_t m_Uk6;
-    uint32_t m_Uk7;
+    uint8_t m_Uk04[4];
+    char m_Name[16];
+    uint8_t m_Uk18[8];
 } AM_SYSDATAwH_ALPB_COMPUTER_NAME, *PAM_SYSDATAwH_ALPB_COMPUTER_NAME;
 
 #pragma pack(pop)

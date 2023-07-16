@@ -22,6 +22,8 @@ typedef struct AM_OEMSTRING {
     CHAR m_strings[5][32];
 } AM_OEMSTRING;
 
+#define OEMSTRING_PLATFORM 2
+#define OEMSTRING_BOARD_TYPE 4
 
 typedef enum {
     AM_OEMSTRING_STATUS_OK = 0,
@@ -29,7 +31,6 @@ typedef enum {
     AM_OEMSTRING_STATUS_ERR_INVALID_PARAM = -2,
     AM_OEMSTRING_STATUS_ERR_SYS = -3,
 } AM_OEMSTRING_STATUS;
-
 
 void amiOemstringLocateDMITable(HANDLE hColumba, LPDWORD lpDmiBase, LPWORD lpDmiLength);
 void amiOemstringStoreString(BYTE type, int stringno, LPSTR string);

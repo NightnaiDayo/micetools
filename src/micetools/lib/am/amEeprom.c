@@ -18,8 +18,7 @@ HANDLE amEepromCreateDeviceFile(const GUID *guid, LPCSTR resource, DWORD member_
     HDEVINFO DeviceInfoSet =
         SetupDiGetClassDevsA(guid, NULL, NULL, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
     if (DeviceInfoSet == INVALID_HANDLE_VALUE) {
-        if (amEepromDebugLevel > 0)
-            amiDebugLog("SetupDiGetClassDevs Error(%ld).", GetLastError());
+        if (amEepromDebugLevel > 0) amiDebugLog("SetupDiGetClassDevs Error(%ld).", GetLastError());
         return INVALID_HANDLE_VALUE;
     }
 
@@ -96,8 +95,7 @@ AM_EEPROM_STATUS amEepromCreateMutex(AM_EEPROM *device) {
     idAuth.Value[5] = 1;
 
     if (!AllocateAndInitializeSid(&idAuth, 1, 0, 0, 0, 0, 0, 0, 0, 0, pSid)) {
-        if (amEepromDebugLevel > 0)
-            amiDebugLog("AllocateAndInitializeSid Error in amEepromInit.");
+        if (amEepromDebugLevel > 0) amiDebugLog("AllocateAndInitializeSid Error in amEepromInit.");
         *pSid = NULL;
         goto amEepromCreateMutexError;
     }
@@ -109,8 +107,7 @@ AM_EEPROM_STATUS amEepromCreateMutex(AM_EEPROM *device) {
     }
 
     if (!SetSecurityDescriptorDacl(&securityDescriptor, TRUE, NULL, FALSE)) {
-        if (amEepromDebugLevel > 0)
-            amiDebugLog("SetSecurityDescriptorDacl Error in amEepromInit.");
+        if (amEepromDebugLevel > 0) amiDebugLog("SetSecurityDescriptorDacl Error in amEepromInit.");
         goto amEepromCreateMutexError;
     }
 
@@ -159,8 +156,7 @@ AM_EEPROM_STATUS amEepromInit(AM_EEPROM_TIMEOUT *timeout) {
 
     amEeprom.m_superio = amEepromCreateDeviceFile(&MXSMBUS_GUID, 0, 0);
     if (amEeprom.m_superio == INVALID_HANDLE_VALUE) {
-        if (amEepromDebugLevel > 0)
-            amiDebugLog("amEepromCreateDeviceFile Error in amEepromInit.");
+        if (amEepromDebugLevel > 0) amiDebugLog("amEepromCreateDeviceFile Error in amEepromInit.");
         ret = AM_EEPROM_STATUS_ERR_SYS;
         goto amEepromInitError;
     }
@@ -176,7 +172,7 @@ AM_EEPROM_STATUS amEepromInit(AM_EEPROM_TIMEOUT *timeout) {
         if (amEepromDebugLevel > 0)
             amiDebugLog(
                 "Unknown SMBUS Driver Protocol(0x%08x). Please update SMBUS driver or user "
-                "program.\n",
+                "program.",
                 driverVersion);
 
         ret = AM_EEPROM_STATUS_ERR_PROTOCOL_VER;
@@ -238,8 +234,8 @@ BOOL amEepromI2CReadBlock(AM_EEPROM *device, WORD reg, BYTE nBytes, LPBYTE buffe
 
     if (packet.status != 0) {
         if (amEepromDebugLevel > 0)
-            amiDebugLog(" .. SMBus read error. prt=0x%02x addr=0x%02x reg=0x%04x",
-                            packet.command, packet.v_addr, packet.command_code);
+            amiDebugLog(" .. SMBus read error. prt=0x%02x addr=0x%02x reg=0x%04x", packet.command,
+                        packet.v_addr, packet.command_code);
         return false;
     }
 
@@ -269,9 +265,8 @@ BOOL amEepromI2CWriteBlock(AM_EEPROM *device, WORD reg, BYTE nBytes, LPBYTE buff
 
     if (packet.status != 0) {
         if (amEepromDebugLevel > 0)
-            amiDebugLog(
-                " .. SMBus write error. status=0x%02x, prt=0x%02x addr=0x%02x reg=0x%04x\n",
-                packet.status, packet.command, packet.v_addr, packet.command_code);
+            amiDebugLog(" .. SMBus write error. status=0x%02x, prt=0x%02x addr=0x%02x reg=0x%04x\n",
+                        packet.status, packet.command, packet.v_addr, packet.command_code);
         return false;
     }
 
@@ -314,16 +309,14 @@ AM_EEPROM_STATUS amEepromRead(WORD reg, LPBYTE buf, DWORD length) {
 
     DWORD err = WaitForSingleObject(amEeprom.m_mutex, 256);
     if (err == WAIT_FAILED) {
-        if (amEepromDebugLevel > 0)
-            amiDebugLog("WaitForSingleObject Error(%ld).", GetLastError());
+        if (amEepromDebugLevel > 0) amiDebugLog("WaitForSingleObject Error(%ld).", GetLastError());
         return AM_EEPROM_STATUS_ERR_SYS;
     }
     if (err == WAIT_TIMEOUT) return AM_EEPROM_STATUS_ERR_GET_MUTEX;
 
     if (!(err == WAIT_OBJECT_0 || err == WAIT_ABANDONED)) {
         if (amEepromDebugLevel > 0)
-            amiDebugLog("WaitForSingleObject Error(%ld). Return Value is %d.", GetLastError(),
-                            err);
+            amiDebugLog("WaitForSingleObject Error(%ld). Return Value is %d.", GetLastError(), err);
         return AM_EEPROM_STATUS_ERR_SYS;
     }
 
@@ -359,16 +352,14 @@ AM_EEPROM_STATUS amEepromWrite(WORD reg, LPBYTE buf, DWORD length) {
 
     DWORD err = WaitForSingleObject(amEeprom.m_mutex, 256);
     if (err == WAIT_FAILED) {
-        if (amEepromDebugLevel > 0)
-            amiDebugLog("WaitForSingleObject Error(%ld).", GetLastError());
+        if (amEepromDebugLevel > 0) amiDebugLog("WaitForSingleObject Error(%ld).", GetLastError());
         return AM_EEPROM_STATUS_ERR_SYS;
     }
     if (err == WAIT_TIMEOUT) return AM_EEPROM_STATUS_ERR_GET_MUTEX;
 
     if (!(err == WAIT_OBJECT_0 || err == WAIT_ABANDONED)) {
         if (amEepromDebugLevel > 0)
-            amiDebugLog("WaitForSingleObject Error(%ld). Return Value is %d.", GetLastError(),
-                            err);
+            amiDebugLog("WaitForSingleObject Error(%ld). Return Value is %d.", GetLastError(), err);
         return AM_EEPROM_STATUS_ERR_SYS;
     }
 
